@@ -26,15 +26,46 @@ def azure_search_tool(query: str) -> str:
     results = search_client.search(search_text=query, top=5)
     docs = [dict(doc) for doc in results]
     # Simplify to key fields
+    # simple_docs = [
+    #     {
+    #         'product': d.get('arktx'),
+    #         'customer': d.get('cname'),
+    #         'revenue': d.get('Revenue'),
+    #         'date': d.get('fkdat')
+    #     }
+    #     for d in docs
+    # ]
     simple_docs = [
-        {
-            'product': d.get('arktx'),
-            'customer': d.get('cname'),
-            'revenue': d.get('Revenue'),
-            'date': d.get('fkdat')
-        }
-        for d in docs
-    ]
+    {
+        'revenue':                d.get('Revenue'),
+        'quantity':               d.get('fkimg'),
+        'volume':                 d.get('volum'),
+        'customer':               d.get('cname'),
+        'brand':                  d.get('wgbez'),
+        'product':                d.get('arktx'),
+        'category':               d.get('matkl'),
+        'division':               d.get('spart_text'),
+        'company_code':           d.get('bukrs'),
+        'sales_org':              d.get('vkorg'),
+        'dist_channel':           d.get('vtweg'),
+        'business_area':          d.get('gsber'),
+        'credit_control_area':    d.get('kkber'),
+        'customer_group':         d.get('kukla'),
+        'account_group':          d.get('ktokd'),
+        'sales_group':            d.get('vkgrp_c'),
+        'sales_office':           d.get('vkbur_c'),
+        'payer_id':               d.get('Payer_DL'),
+        'product_code':           d.get('matnr'),
+        'unit':                   d.get('meins'),
+        'volume_unit':            d.get('voleh'),
+        'business_group':         d.get('GK'),
+        'territory':              d.get('Territory'),
+        'zone':                   d.get('Szone'),
+        'date':                   d.get('fkdat'),
+    }
+    for d in docs
+]
+
     return json.dumps(simple_docs, default=str)
 
 # 3) Instantiate LLM with correct AzureOpenAI args
