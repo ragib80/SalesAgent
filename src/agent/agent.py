@@ -1,11 +1,16 @@
-# sales/agent.py
-
 import json
-from datetime import datetime
+from azure.core.credentials import AzureKeyCredential
+from azure.search.documents import SearchClient
 from django.conf import settings
-from .azure_clients import search_client, openai_client
+from langchain.agents import initialize_agent, Tool, AgentType
+from langchain_openai import AzureChatOpenAI
+import re
+import logging
 
-# 1) Synonyms map: business terms → index fields
+logger = logging.getLogger(__name__)
+# ─────────────────────────────────────────────────────────────
+# 1) Your FIELD_SYNONYMS: map business terms to index fields
+# ─────────────────────────────────────────────────────────────
 FIELD_SYNONYMS = {
     "revenue":              "Revenue",
     "quantity":             "fkimg",
@@ -38,210 +43,370 @@ FIELD_SYNONYMS = {
     "cost":                 "Cost"
 }
 
-def map_filters(raw: dict) -> dict:
+def map_business_terms_to_fields(text: str) -> str:
     """
-    Only map keys present in FIELD_SYNONYMS; ignore others.
-    Returns dict of index_field -> value.
+    Replaces business-friendly terms with actual index fields.
+    This should handle terms related to revenue, sales, date, etc.
     """
-    mapped = {}
-    for k, v in (raw or {}).items():
-        lk = k.strip().lower()
-        if lk in FIELD_SYNONYMS:
-            mapped[FIELD_SYNONYMS[lk]] = v
-    return mapped
+    FIELD_SYNONYMS = {
+          "revenue":              "Revenue",
+        "quantity":             "fkimg",
+        "volume":               "volum",
+        "customer":             "cname",
+        "brand":                "wgbez",
+        "product name":         "arktx",
+        "product":              "arktx",
+        "category":             "matkl",
+        "division":             "spart_text",
+        "company code":         "bukrs",
+        "sales org":            "vkorg",
+        "dist channel":         "vtweg",
+        "distribution channel": "vtweg",
+        "business area":        "gsber",
+        "credit control area":  "kkber",
+        "customer group":       "kukla",
+        "account group":        "ktokd",
+        "sales group":          "vkgrp_c",
+        "sales office":         "vkbur_c",
+        "payer id":             "Payer_DL",
+        "product code":         "matnr",
+        "unit":                 "meins",
+        "volume unit":          "voleh",
+        "business group":       "GK",
+        "territory":            "Territory",
+        "sales zone":           "Szone",
+        "date":                 "fkdat",
+        "fkdat":                "fkdat",
 
-def parse_user_prompt(prompt: str) -> dict:
-    """
-    Use Azure OpenAI to extract:
-      - measures, filters, analysis_type, compare, year, month, date_from, date_to
-    Default date_from=2024-01-01, date_to=today if absent.
-    """
-    system = f"""
-You are a JSON extractor for SAP Sales analytics.
-Use this mapping:
-{json.dumps(FIELD_SYNONYMS, indent=2)}
+        "declining": "Revenue"
+    }
 
-Output only a JSON object with keys:
-- measures: list of strings
-- filters: dictionary of business-term→value
-- analysis_type: one of total|monthly|trend|declining|profitability|profit_loss|deterioration_rate|comparison
-- compare: optional "Field:ValueA vs ValueB"
-- year: integer or null
-- month: integer (1–12) or null
-- date_from: "YYYY-MM-DD" or null
-- date_to:   "YYYY-MM-DD" or null
-"""
-    resp = openai_client.chat.completions.create(
-        model=settings.AZURE_OPENAI_DEPLOYMENT,
-        messages=[{"role":"system","content":system},
-                  {"role":"user","content":prompt}]
-    )
-    intent = json.loads(resp.choices[0].message.content)
-    intent["date_from"] = intent.get("date_from") or "2024-01-01"
-    intent["date_to"]   = intent.get("date_to")   or datetime.utcnow().strftime("%Y-%m-%d")
-    return intent
+    # Replace terms in text using synonyms
+    def replace_term(match):
+        term = match.group(0).lower()
+        return FIELD_SYNONYMS.get(term, match.group(0))
+    
+    pattern = r'\b(' + '|'.join(re.escape(k) for k in FIELD_SYNONYMS.keys()) + r')\b'
+    return re.sub(pattern, replace_term, text, flags=re.IGNORECASE)
 
-def build_filter(intent: dict) -> str:
-    """
-    Build OData $filter:
-     - If year+month: fkdat >= first of month AND < first of next month
-     - Else: fkdat between date_from and date_to
-     - Then other filters mapped via map_filters()
-    """
-    clauses = []
-    y, m = intent.get("year"), intent.get("month")
-    if y and m:
-        start = f"{y}-{m:02d}-01T00:00:00Z"
-        if m == 12:
-            next_start = f"{y+1}-01-01T00:00:00Z"
-        else:
-            next_start = f"{y}-{m+1:02d}-01T00:00:00Z"
-        clauses.append(f"fkdat ge {start}")
-        clauses.append(f"fkdat lt {next_start}")
-    else:
-        df = intent["date_from"]
-        dt = intent["date_to"]
-        clauses.append(f"fkdat ge {df}T00:00:00Z")
-        clauses.append(f"fkdat le {dt}T23:59:59Z")
+# 1) Cognitive Search client (unchanged)
+search_client = SearchClient(
+    endpoint=settings.AZURE_SEARCH_ENDPOINT,
+    index_name=settings.AZURE_SEARCH_INDEX,
+    credential=AzureKeyCredential(settings.AZURE_SEARCH_KEY)
+)
 
-    # Map only valid business-term filters
-    raw_filters = intent.get("filters", {}) or {}
-    # Remove any date/year/month keys
-    for drop in ("date", "fkdat", "year", "month"):
-        raw_filters.pop(drop, None)
-
-    mapped = map_filters(raw_filters)
-    for fld, val in mapped.items():
-        if isinstance(val, (int, float)):
-            clauses.append(f"{fld} eq {val}")
-        else:
-            clauses.append(f"{fld} eq '{val}'")
-
-    return " and ".join(clauses)
-
-def azure_search_all(intent: dict) -> list:
-    """
-    Fetch all matching documents from ysales-index,
-    paging through in batches of 1000.
-    """
-    filt = build_filter(intent)
+# 2) Search tool: fetch all matching records (unchanged)
+def azure_search_all(query: str = "", filter_exp: str = None) -> str:
     docs = []
-    results = search_client.search(search_text="*", filter=filt, top=1000)
+    results = search_client.search(
+        search_text=query,
+        filter=filter_exp,
+        top=1000
+    )
     for page in results.by_page():
-        docs.extend(dict(d) for d in page)
-    return docs
+        docs.extend([dict(d) for d in page])
+    return json.dumps(docs, default=str)
 
-def sum_revenue(docs: list) -> float:
-    return sum(d.get("Revenue", 0) for d in docs)
+# 3) Existing aggregation tools (unchanged)
+def sum_revenue_tool(input_str: str) -> str:
+    try:
+        data = json.loads(input_str)
+    except json.JSONDecodeError:
+        data = json.loads(azure_search_all(filter_exp=input_str))
+    total = sum((item.get('Revenue') or 0) for item in data)
+    return f"{total:.2f}"
 
-def monthly_revenue(docs: list) -> dict:
-    out = {}
-    for d in docs:
-        key = d.get("fkdat", "")[:7]
-        out[key] = out.get(key, 0) + d.get("Revenue", 0)
-    return out
+def monthly_revenue_tool(input_str: str) -> str:
+    try:
+        data = json.loads(input_str)
+    except json.JSONDecodeError:
+        data = json.loads(azure_search_all(filter_exp=input_str))
+    month_map = {}
+    for item in data:
+        date_str = item.get('fkdat', '')
+        if not date_str:
+            continue
+        month = date_str[:7]
+        month_map.setdefault(month, 0)
+        month_map[month] += (item.get('Revenue') or 0)
+    return json.dumps(month_map)
 
-def trend(docs: list, intent: dict) -> dict:
-    y,m = intent.get("year"), intent.get("month")
-    if y and m:
-        curr = sum_revenue(docs)
-        prev_m = m - 1 or 12
-        prev_y = y if m > 1 else y - 1
-        prev_int = {**intent, "year": prev_y, "month": prev_m}
-        prev_sum = sum_revenue(azure_search_all(prev_int))
-        return {"current": curr, "previous": prev_sum, "trend": "up" if curr>prev_sum else "down"}
-    return {}
+# ─────────────────────────────────────────────────────────────
+# 4) NEW ANALYTIC TOOLS
+# ─────────────────────────────────────────────────────────────
 
-def profitability_tool(docs: list, top_n: int = 5) -> dict:
-    profs = {}
-    for d in docs:
-        prod = d.get("arktx", "Unknown")
-        rev, cost = (d.get("Revenue",0) or 0), (d.get("Cost",0) or 0)
-        p = rev - cost
-        if prod not in profs:
-            profs[prod] = {"product": prod, "profit": 0.0, "revenue": 0.0}
-        profs[prod]["profit"]  += p
-        profs[prod]["revenue"] += rev
+def profit_loss_tool(input_str: str) -> str:
+    """
+    Calculates total profit = sum(Revenue - Cost), plus totals of gains and losses separately.
+    Accepts either JSON list or OData filter_exp.
+    """
+    try:
+        data = json.loads(input_str)
+    except json.JSONDecodeError:
+        data = json.loads(azure_search_all(filter_exp=input_str))
+    total_profit = 0.0
+    gains = 0.0
+    losses = 0.0
+    for item in data:
+        rev = item.get('Revenue') or 0
+        cost = item.get('Cost') or 0
+        profit = rev - cost
+        total_profit += profit
+        if profit >= 0:
+            gains += profit
+        else:
+            losses += profit
+    return json.dumps({
+        "total_profit": round(total_profit, 2),
+        "total_gains": round(gains, 2),
+        "total_losses": round(losses, 2)
+    })
 
-    items = []
-    for v in profs.values():
-        rev = v["revenue"] or 1
-        v["margin_pct"] = v["profit"] / rev * 100
-        items.append(v)
-    items.sort(key=lambda x: x["profit"], reverse=True)
-    return {"table": items[:top_n]}
+def deterioration_rate_tool(input_str: str) -> str:
+    """
+    Computes percent decline in Revenue from the previous month to the current month.
+    """
+    # reuse monthly_revenue_tool logic
+    month_map = json.loads(monthly_revenue_tool(input_str))
+    if len(month_map) < 2:
+        return "Not enough periods to calculate deterioration rate."
+    # sort months chronologically
+    months = sorted(month_map.keys())
+    prev, curr = months[-2], months[-1]
+    prev_val, curr_val = month_map[prev], month_map[curr]
+    if prev_val == 0:
+        return "Cannot compute deterioration rate (previous period is zero)."
+    rate = (curr_val - prev_val) / prev_val * 100
+    return f"{rate:.2f}% decline from {prev} ({prev_val:.2f}) to {curr} ({curr_val:.2f})"
 
-def profit_loss(docs: list) -> dict:
-    total = gain = loss = 0.0
-    for d in docs:
-        p = (d.get("Revenue",0) or 0) - (d.get("Cost",0) or 0)
-        total += p
-        if p >= 0: gain += p
-        else: loss += p
-    return {"total_profit": total, "total_gain": gain, "total_loss": loss}
+def trend_tool(input_str: str) -> str:
+    """
+    Indicates whether Revenue is uptrending or downtrending based on last two months.
+    """
+    month_map = json.loads(monthly_revenue_tool(input_str))
+    if len(month_map) < 2:
+        return "Not enough data to determine trend."
+    months = sorted(month_map.keys())
+    prev_val, curr_val = month_map[months[-2]], month_map[months[-1]]
+    return "uptrending 📈" if curr_val > prev_val else "downfall 📉"
 
-def deterioration_rate(docs: list, intent: dict) -> dict:
-    y, m = intent.get("year"), intent.get("month")
-    if y and m:
-        curr = sum_revenue(docs)
-        prev_m = m - 1 or 12
-        prev_y = y if m > 1 else y - 1
-        prev_int = {**intent, "year": prev_y, "month": prev_m}
-        prev_sum = sum_revenue(azure_search_all(prev_int))
-        if prev_sum:
-            rate = (prev_sum - curr) / prev_sum * 100
-            return {"previous": prev_sum, "current": curr, "deterioration_rate_pct": rate}
-    return {}
+def comparison_tool(input_str: str) -> str:
+    """
+    Compare the sum of a given field for two filter expressions.
+    Input JSON must contain: {"filter1":"...", "filter2":"...", "field":"Revenue"}.
+    """
+    try:
+        params = json.loads(input_str)
+        
+        # Ensure all necessary fields are present
+        if not all(key in params for key in ["filter1", "filter2", "field"]):
+            return "Missing required keys: 'filter1', 'filter2', and 'field' are required."
+        
+        f1, f2, field = params["filter1"], params["filter2"], params["field"]
+    except (ValueError, KeyError):
+        return (
+            "Invalid input. Please supply JSON with keys "
+            "`filter1`, `filter2`, and `field`."
+        )
+    
+    # sum for first filter
+    data1 = json.loads(azure_search_all(filter_exp=f1))
+    sum1 = sum(item.get(field, 0) or 0 for item in data1)
+    
+    # sum for second filter
+    data2 = json.loads(azure_search_all(filter_exp=f2))
+    sum2 = sum(item.get(field, 0) or 0 for item in data2)
+    
+    ratio = (sum1 / sum2) if sum2 != 0 else None
+    return json.dumps({
+        "sum1": round(sum1, 2),
+        "sum2": round(sum2, 2),
+        "ratio": round(ratio, 2) if ratio is not None else None
+    })
 
-def comparison(docs: list, intent: dict) -> dict:
-    raw = intent.get("compare", "")
-    if ":" not in raw or "vs" not in raw:
-        return {}
-    fld, rest = raw.split(":", 1)
-    a, b = [x.strip() for x in rest.split("vs", 1)]
-    def sum_for(val):
-        new_int = {**intent, "filters": {**intent.get("filters", {}), fld: val}}
-        return sum_revenue(azure_search_all(new_int))
-    return {a: sum_for(a), b: sum_for(b)}
 
-def summarize(results, prompt) -> str:
-    system = (
-        f"You are a sales analytics assistant. User asked: \"{prompt}\". "
-        f"Results: {json.dumps(results, default=str)}. "
-        "Return JSON with: table, summary, insights, recommendations."
+def profitability_tool(input_str: str) -> str:
+    """
+    Finds the single most-profitable product (by Revenue - Cost).
+    """
+    try:
+        data = json.loads(input_str)
+    except json.JSONDecodeError:
+        data = json.loads(azure_search_all(filter_exp=input_str))
+    if not data:
+        return "No data available."
+    # determine profit per item
+    best = max(
+        data,
+        key=lambda itm: (itm.get("Revenue") or 0) - (itm.get("Cost") or 0)
     )
-    resp = openai_client.chat.completions.create(
-        model=settings.AZURE_OPENAI_DEPLOYMENT,
-        messages=[
-            {"role":"system","content":system},
-            {"role":"assistant","content":""}
-        ],
-    )
-    return resp.choices[0].message.content
+    name = best.get("arktx") or best.get("matnr") or "Unknown Product"
+    profit = (best.get("Revenue") or 0) - (best.get("Cost") or 0)
+    return json.dumps({
+        "product": name,
+        "profit": round(profit, 2),
+        "details": best
+    })
 
-def run_sales_agent(prompt: str) -> str:
-    intent = parse_user_prompt(prompt)
-    docs   = azure_search_all(intent)
+def sum_revenue_tool(input_str: str) -> str:
+    """
+    Sums the 'Revenue' field across all filtered documents.
+    """
+    try:
+        data = json.loads(input_str)
+    except json.JSONDecodeError:
+        data = json.loads(azure_search_all(filter_exp=input_str))
+    
+    # Sum the 'Revenue' field
+    total_revenue = sum(item.get('Revenue', 0) for item in data)
+    
+    return f"Total Revenue: {total_revenue:.2f}"
 
-    low = prompt.lower()
-    if "profitable" in low or "more profit" in low:
-        atype = "profitability"
-    else:
-        atype = intent.get("analysis_type", "total")
+def generate_search_filter_and_sum(query: str) -> str:
+    """
+    Generate a filter expression for Azure Cognitive Search and sum the 'Revenue' field.
+    Handles date-based queries such as specific year or month.
+    """
+    filter_expression = ""
 
-    if atype == "monthly":
-        data = monthly_revenue(docs)
-    elif atype in ("trend","declining","uptrending","downfall"):
-        data = trend(docs, intent)
-    elif atype == "profitability":
-        data = profitability_tool(docs)
-    elif atype == "profit_loss":
-        data = profit_loss(docs)
-    elif atype == "deterioration_rate":
-        data = deterioration_rate(docs, intent)
-    elif atype == "comparison":
-        data = comparison(docs, intent)
-    else:
-        data = sum_revenue(docs)
+    # Check for year (e.g., "2025")
+    if re.search(r'\b\d{4}\b', query):
+        year_match = re.search(r'\b(\d{4})\b', query)
+        if year_match:
+            start_date = f"{year_match.group(1)}-01-01T00:00:00Z"  # Start of the year
+            end_date = f"{year_match.group(1)}-12-31T23:59:59Z"  # End of the year
+            filter_expression += f"fkdat ge {start_date} and fkdat le {end_date}"
 
-    return summarize(data, prompt)
+    # Check for month/year (e.g., "March 2025")
+    elif re.search(r'\b\w+\s\d{4}\b', query):
+        month_match = re.search(r'\b(\w+)\s(\d{4})\b', query)
+        if month_match:
+            month_map = {
+                "January": "01", "February": "02", "March": "03", "April": "04", "May": "05",
+                "June": "06", "July": "07", "August": "08", "September": "09", "October": "10",
+                "November": "11", "December": "12"
+            }
+            month = month_map[month_match.group(1)]
+            start_date = f"{month_match.group(2)}-{month}-01T00:00:00Z"
+            end_date = f"{month_match.group(2)}-{month}-31T23:59:59Z"
+            filter_expression += f"fkdat ge {start_date} and fkdat le {end_date}"
+
+    return filter_expression
+
+# 5) Wrap all tools for LangChain
+tools = [
+    Tool(
+        name="azure_search_all",
+        func=azure_search_all,
+        description="Fetch all sales records matching a query/filter; returns JSON list."
+    ),
+    Tool(
+        name="sum_revenue",
+        func=sum_revenue_tool,
+        description="Sum the Revenue field over a JSON array or filter expression."
+    ),
+    Tool(
+        name="monthly_revenue",
+        func=monthly_revenue_tool,
+        description="Compute Revenue per month from a JSON array or filter expression."
+    ),
+    Tool(
+        name="profit_loss",
+        func=profit_loss_tool,
+        description="Compute total profit, total gains, and total losses for a set of records."
+    ),
+    Tool(
+        name="deterioration_rate",
+        func=deterioration_rate_tool,
+        description="Compute % decline in Revenue from the previous period to the current."
+    ),
+    Tool(
+        name="trend",
+        func=trend_tool,
+        description="Indicate whether Revenue is uptrending or downtrending based on recent data."
+    ),
+    Tool(
+        name="comparison",
+        func=comparison_tool,
+        description=(
+            "Compare sums of any numeric field for two different filter expressions. "
+            "Input JSON: {\"filter1\":\"...\",\"filter2\":\"...\",\"field\":\"Revenue\"}."
+        )
+    ),
+    Tool(
+        name="profitability",
+        func=profitability_tool,
+        description="Find the single most-profitable product (by Revenue − Cost)."
+    ),
+]
+
+
+# 6) Instantiate Azure OpenAI LLM (unchanged)
+llm = AzureChatOpenAI(
+    azure_deployment=settings.AZURE_OPENAI_DEPLOYMENT,
+    api_version="2025-01-01-preview",
+    temperature=0,
+    max_tokens=None,
+    timeout=None,
+    max_retries=2,
+)
+
+system_message = """
+You are the SAP Sales Analytics Agent. You are connected to an Azure Cognitive Search index 'ysales-index' populated with SAP Sales data.
+
+**FIELD SYNONYMS**  
+Use this map to translate any business‐friendly term in the user’s request into its actual index field name before constructing filters:
+
+""" + "\n".join(f"- {k!r} → `{v}`" for k, v in FIELD_SYNONYMS.items()) + """
+
+**Your job**:
+1. **Parse the user’s request**: identify measures (Revenue, Quantity, Margin), dimensions/filters (Product Category, Sales Org, Region) and dates.
+2. **Always use the synonyms map** to convert user terms → index fields (e.g. “revenue” → `Revenue`, “sales org” → `vkorg`).
+3. **Build an OData‐style filter expression** (or SQL‐like WHERE clause) from the mapped prompt.
+4. **Fetch** data with `azure_search_all(query, filter_exp)`.
+5. **For aggregates**, call `sum_revenue` or the other analytic tools.
+6. **Compute** KPIs, trends, deterioration rates, comparisons, profitability as requested.
+7. **Return** raw data (JSON or CSV) **plus**:
+   - 📊 **Summary** (3–5 bullets)
+   - 🔍 **Key Insights** (2–4 bullets)
+   - 💡 **Recommendations** (3–5 bullets)
+
+**Error Handling**:
+- If a term is ambiguous, ask a clarifying question.
+- If no data matches, say “No records match—please adjust your filters or date range.”
+- If user’s filters can’t be parsed, ask them to rephrase.
+
+Always treat “NLP → SQL/OData” mapping as critical. 
+"""
+
+# 7) Build the conversational agent (include your original detailed system_message)
+agent = initialize_agent(
+    tools=tools,
+    llm=llm,
+    agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+    verbose=True,
+    system_message=system_message
+)
+
+# 8) Expose run function
+def run_sales_agent(raw_prompt: str) -> str:
+    """
+    1. Replace business terms in the user’s raw prompt with real index fields.
+    2. Generate the corresponding filter expressions for Azure Search.
+    3. Sum the revenue of the filtered data.
+    """
+    try:
+        # Step 1: Map business terms to actual fields
+        mapped_prompt = map_business_terms_to_fields(raw_prompt)
+        
+        # Step 2: Generate the search filter for the date range (e.g., for 2025)
+        filter_expression = generate_search_filter_and_sum(mapped_prompt)
+
+        # Step 3: Fetch and sum the revenue for the given filter expression
+        result = sum_revenue_tool(filter_expression)
+        
+        return result  # Return the summed revenue
+    except Exception as e:
+        logger.error(f"Error while running agent: {e}")
+        return str(e)
