@@ -24,10 +24,9 @@ class SalesQueryAPIView(APIView):
     def post(self, request):
         serializer = QueryRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        prompt = serializer.validated_data['prompt']
-
-        # Run the RAG agent end-to-end
-        answer = run_sales_agent(prompt)
+        answer = run_sales_agent(serializer.validated_data["prompt"])
+        print("answer, ",answer)
+        return Response({"answer": answer}, status=status.HTTP_200_OK)
 
         return Response({'answer': answer}, status=status.HTTP_200_OK)
 
