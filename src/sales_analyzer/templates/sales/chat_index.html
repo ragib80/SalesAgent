@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ChatGPT Style Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- ChatGPT Font - Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f6f8fa;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+        }
+        .chat-container {
+            display: flex;
+            height: 100vh;
+        }
+        /* Sidebar */
+        .sidebar {
+            width: 270px;
+            background: #fff;
+            border-right: 1px solid #eee;
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            transform: translateX(0);
+            transition: transform 0.3s ease;
+            z-index: 1050;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar.closed {
+            transform: translateX(-270px); /* Fully hides sidebar */
+        }
+        .sidebar-header {
+            font-size: 22px;
+            font-weight: 600;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .burger {
+            font-size: 1.6rem;
+            background: none;
+            border: none;
+            color: #333;
+            cursor: pointer;
+        }
+        .new-chat-btn {
+            margin: 10px 0;
+            background-color: #10a37f;
+            border: none;
+            color: #fff;
+            padding: 10px 15px;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 6px;
+            width: 100%;
+        }
+        .sidebar .list-group-item {
+            cursor: pointer;
+            padding: 12px;
+            font-size: 14px;
+            border: none;
+            border-bottom: 1px solid #f1f1f1;
+        }
+        .sidebar .list-group-item.active {
+            background: #f3f3f3;
+        }
+        /* Main Chat */
+        .main-chat {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            margin-left: 270px; /* Adjusted for the sidebar width */
+            padding: 20px;
+            background: #f6f8fa;
+            transition: margin-left 0.3s ease;
+        }
+        .main-chat.sidebar-closed {
+            margin-left: 0;
+        }
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            max-height: 80%;
+        }
+        .message {
+            margin-bottom: 16px;
+        }
+        .message.user .bubble {
+            background: #10a37f;
+            color: #fff;
+            align-self: flex-end;
+        }
+        .message.assistant .bubble {
+            background: #f3f3f3;
+            color: #333;
+            align-self: flex-start;
+        }
+        .bubble {
+            border-radius: 16px;
+            padding: 12px 18px;
+            max-width: 65%;
+            font-size: 1rem;
+            word-wrap: break-word;
+        }
+        .input-area {
+            padding: 16px;
+            background: #fff;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 8px;
+        }
+        .input-area textarea {
+            resize: none;
+            width: 100%;
+            font-size: 1rem;
+        }
+        .send-btn {
+            background: #10a37f;
+            border-radius: 50%;
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            font-size: 1.3rem;
+            cursor: pointer;
+        }
+        .no-conversations {
+            padding: 20px;
+            text-align: center;
+            color: #888;
+        }
+        /* Auto Grow Input */
+        .input-area textarea:focus {
+            outline: none;
+            border-color: #10a37f;
+        }
+        @media (max-width: 900px) {
+            .main-chat {
+                margin-left: 0;
+            }
+            .sidebar {
+                width: 100%;
+                transform: translateX(-100%);
+                position: fixed;
+                top: 0;
+                left: 0;
+                box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .messages {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="chat-container">
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header open">
+            Chats
+            <button class="burger" id="burger-btn">
+                <i class="fa fa-bars"></i>
+            </button>
+        </div>
+        <button class="new-chat-btn"><i class="fa fa-plus"></i> New Chat</button>
+        <div class="list-group chat-list">
+            <!-- List of Chats, will populate dynamically -->
+            <div class="no-conversations">No previous conversations</div>
+        </div>
+    </div>
+
+    <!-- Main Chat Area -->
+    <div class="main-chat">
+        <div class="messages"></div>
+        <form class="input-area d-flex gap-2">
+            <textarea class="form-control flex-grow-1" rows="1" placeholder="Type a message..." style="resize: none;"></textarea>
+            <button class="send-btn" type="submit"><i class="fa fa-paper-plane"></i></button>
+        </form>
+    </div>
+</div>
+
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<!-- marked.js for Markdown Parsing -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+const apiBase = "/api"; // Change to your DRF prefix
+let currentChatId = null;
+
+function fetchChats() {
+    $.get(apiBase + "/chats/", function(data) {
+        const $list = $('.chat-list').empty();
+        if (data.length === 0) {
+            $list.append('<div class="no-conversations">No previous conversations</div>');
+        } else {
+            data.forEach(chat => {
+                const title = chat.title || 'Untitled Chat';
+                $list.append(`
+                    <button class="list-group-item" data-id="${chat.id}">${title}</button>
+                `);
+            });
+        }
+    });
+}
+
+function fetchMessages(chatId) {
+    $('.messages').html('<div class="text-center text-muted">Loading...</div>');
+    $.get(apiBase + `/chats/${chatId}/messages/`, function(data) {
+        const $messages = $('.messages').empty();
+        data.forEach(msg => {
+            const isUser = msg.role === "user";
+            const bubbleClass = isUser ? 'user' : 'assistant';
+            let html = marked.parse(msg.content);
+            $messages.append(`
+                <div class="message ${bubbleClass} d-flex ${isUser ? 'justify-content-end' : 'justify-content-start'}">
+                    <div class="bubble">${html}</div>
+                </div>
+            `);
+        });
+        $('.messages').scrollTop($('.messages')[0].scrollHeight);
+    });
+}
+
+function sendMessage(content) {
+    if (!content.trim()) return;
+    const $input = $('.input-area textarea');
+    $input.prop('disabled', true);
+    $('.send-btn').prop('disabled', true);
+
+    if (currentChatId) {
+        $.post(apiBase + `/chats/${currentChatId}/messages/`, { content }, function() {
+            fetchMessages(currentChatId);
+            $input.val('').prop('disabled', false).focus();
+            $('.send-btn').prop('disabled', false);
+        }).fail(() => {
+            alert("Failed to send message.");
+            $input.prop('disabled', false);
+            $('.send-btn').prop('disabled', false);
+        });
+    } else {
+        $.ajax({
+            url: apiBase + "/chats/first-message/",
+            method: "POST",
+            data: { content },
+            success: function(resp) {
+                if (resp.chat && resp.chat.id) {
+                    currentChatId = resp.chat.id;
+                    fetchChats();
+                    fetchMessages(currentChatId);
+                }
+                $input.val('').prop('disabled', false).focus();
+                $('.send-btn').prop('disabled', false);
+            },
+            error: function() {
+                alert("Failed to send message.");
+                $input.prop('disabled', false);
+                $('.send-btn').prop('disabled', false);
+            }
+        });
+    }
+}
+
+function startNewChat() {
+    currentChatId = null;
+    $('.chat-list .list-group-item').removeClass('active');
+    $('.messages').empty();
+    $('.input-area textarea').val('').focus();
+}
+
+function selectChat(chatId) {
+    currentChatId = chatId;
+    $('.chat-list .list-group-item').removeClass('active');
+    $(`.chat-list .list-group-item[data-id="${chatId}"]`).addClass('active');
+    fetchMessages(chatId);
+}
+
+// Sidebar burger toggle
+function openSidebar() {
+    $('.sidebar').addClass('open').removeClass('closed');
+    $('.main-chat').addClass('sidebar-closed');
+}
+
+function closeSidebar() {
+    $('.sidebar').removeClass('open').addClass('closed');
+    $('.main-chat').removeClass('sidebar-closed');
+}
+
+$(function() {
+    fetchChats();
+
+    // Burger menu click
+    $('#burger-btn').click(function() {
+        const isOpen = $('.sidebar').hasClass('open');
+        if (isOpen) {
+            closeSidebar();
+        } else {
+            openSidebar();
+        }
+    });
+
+    // New chat
+    $('.sidebar').on('click', '.new-chat-btn', function() {
+        startNewChat();
+    });
+
+    // Select chat
+    $('.chat-list').on('click', '.list-group-item', function() {
+        const chatId = $(this).data('id');
+        selectChat(chatId);
+    });
+
+    // Send message
+    $('.input-area').on('submit', function(e) {
+        e.preventDefault();
+        const content = $(this).find('textarea').val();
+        sendMessage(content);
+    });
+
+    // Auto grow textarea
+    $('.input-area textarea').on('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+    });
+});
+</script>
+</body>
+</html>
