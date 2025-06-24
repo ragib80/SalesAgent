@@ -1,178 +1,203 @@
+import os
 import json
-from azure.core.credentials import AzureKeyCredential
+from datetime import datetime, timedelta
 from azure.search.documents import SearchClient
-from django.conf import settings
-from langchain.agents import initialize_agent, Tool, AgentType
-# from langchain_community.llms.openai import AzureOpenAI
-# Import Azure OpenAI
-from langchain_openai import AzureOpenAI
-# from langchain_azure_ai.chat_models import AzureAIChatCompletionsModel
+from azure.search.documents.models import VectorQuery
+from azure.ai.openai import (
+    OpenAIClient,
+    ChatCompletionOptions,
+    ChatRole
+)
 
-from langchain_openai import AzureChatOpenAI
+# Field synonyms map
+FIELD_SYNONYMS = {
+    'revenue':      'Revenue',
+    'quantity':     'fkimg',
+    'volume':       'volum',
+    'customer':     'cname',
+    'brand':        'wgbez',
+    'product':      'arktx',
+    'category':     'matkl',
+    'division':     'spart_text',
+    'company code':'bukrs',
+    'sales org':    'vkorg',
+    'dist channel':'vtweg',
+    'business area':'gsber',
+    'customer group':'kukla',
+    'account group':'ktokd',
+    'territory':    'Territory',
+    'sales zone':   'Szone',
+    'date':         'fkdat',
+    'fkdat':        'fkdat'
+}
 
-
-# 1) Cognitive Search client
+# Initialize clients
 search_client = SearchClient(
-    endpoint=settings.AZURE_SEARCH_ENDPOINT,
-    index_name=settings.AZURE_SEARCH_INDEX,
-    credential=AzureKeyCredential(settings.AZURE_SEARCH_KEY)
+    endpoint=os.getenv('AZURE_SEARCH_ENDPOINT'),
+    index_name=os.getenv('AZURE_SEARCH_INDEX_NAME'),
+    credential=os.getenv('AZURE_SEARCH_KEY')
 )
+openai_client = OpenAIClient(
+    endpoint=os.getenv('AZURE_OPENAI_ENDPOINT'),
+    credential=os.getenv('AZURE_OPENAI_KEY')
+)
+deployment = os.getenv('AZURE_OPENAI_DEPLOYMENT')
 
-# 2) Search tool: fetch all matching records (paged)
-def azure_search_all(query: str = "", filter_exp: str = None) -> str:
-    """
-    Fetch *all* matching records from the SAP sales index.
-    Input: natural-language query or OData filter string (via filter_exp).
-    Output: JSON list of documents.
-    """
-    docs = []
-    results = search_client.search(
-        search_text=query,
-        filter=filter_exp,
-        top=1000
+
+def embed_query(text: str) -> list[float]:
+    resp = openai_client.embeddings.create(
+        model_name='text-embedding-ada-002',
+        input=[text]
     )
-    for page in results.by_page():
-        docs.extend([dict(d) for d in page])
-    return json.dumps(docs, default=str)
+    return resp.data[0].embedding
 
-# 3) Aggregation tools with fallback logic
-def sum_revenue_tool(input_str: str) -> str:
+
+def parse_prompt(prompt: str) -> dict:
     """
-    Sum the 'Revenue' field across all docs.
-    If input_str is JSON array, parse directly; otherwise treat it as filter_exp.
+    Uses function-calling to extract:
+      - metric: one of [deterioration_rate, profit_loss, trend, comparison, profitability, default]
+      - start_date, end_date (ISO strings)
+      - optional field & compare_values for comparison
     """
-    try:
-        data = json.loads(input_str)
-    except json.JSONDecodeError:
-        raw = azure_search_all(filter_exp=input_str)
-        data = json.loads(raw)
-    total = sum((item.get('Revenue') or 0) for item in data)
-    return f"{total:.2f}"
+    fn_def = [{
+        'name': 'parse_query',
+        'description': 'Extract metric, date range, field and compare values',
+        'parameters': {
+            'type': 'object',
+            'properties': {
+                'metric': {
+                    'type': 'string',
+                    'enum': [
+                        'deterioration_rate', 'profit_loss',
+                        'trend', 'comparison',
+                        'profitability', 'default'
+                    ]
+                },
+                'start_date':   {'type': 'string'},
+                'end_date':     {'type': 'string'},
+                'field':        {'type': 'string'},
+                'compare_values': {
+                    'type': 'array',
+                    'items': {'type': 'string'}
+                }
+            },
+            'required': ['metric', 'start_date', 'end_date']
+        }
+    }]
 
-def monthly_revenue_tool(input_str: str) -> str:
-    """
-    Group docs by YYYY-MM of 'fkdat' and sum Revenue per month.
-    If input_str is JSON, use directly; otherwise treat as filter_exp.
-    """
-    try:
-        data = json.loads(input_str)
-    except json.JSONDecodeError:
-        raw = azure_search_all(filter_exp=input_str)
-        data = json.loads(raw)
-    month_map = {}
-    for item in data:
-        date_str = item.get('fkdat', '')
-        if not date_str:
-            continue
-        month = date_str[:7]
-        month_map.setdefault(month, 0)
-        month_map[month] += (item.get('Revenue') or 0)
-    return json.dumps(month_map)
-
-# 4) Wrap tools for LangChain
-tools = [
-    Tool(
-        name='azure_search_all',
-        func=azure_search_all,
-        description=(
-            'Fetch all sales records matching a query/filter from the SAP index; returns JSON list.'
-        ),
-    ),
-    Tool(
-        name='sum_revenue',
-        func=sum_revenue_tool,
-        description='Sum the Revenue field over a JSON array or filter expression.',
-    ),
-    Tool(
-        name='monthly_revenue',
-        func=monthly_revenue_tool,
-        description='Compute Revenue per month from a JSON array or filter expression.',
-    ),
-]
-
-# 5) Instantiate Azure OpenAI LLM
-
-llm = AzureChatOpenAI(
-    azure_deployment=settings.AZURE_OPENAI_DEPLOYMENT,  # or your deployment
-    api_version="2025-01-01-preview",  # or your api version
-    temperature=0,
-    max_tokens=None,
-    timeout=None,
-    max_retries=2,
-    # other params...
-)
-# 5) Build the conversational agent with a detailed system prompt
+    opts = ChatCompletionOptions(
+        model=deployment,
+        messages=[
+            ChatRole(system="Parse user query to JSON request for search metrics"),
+            ChatRole(user=prompt)
+        ],
+        functions=fn_def,
+        function_call={'name': 'parse_query'}
+    )
+    resp = openai_client.chat_completions.create(options=opts)
+    return json.loads(resp.choices[0].message.function_call.arguments)
 
 
-agent = initialize_agent(
-    tools=tools,
-    llm=llm,
-    agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-    verbose=True,
-    system_message="""
-You are the SAP Sales Analytics Agent. You are connected to an Azure Cognitive Search index 'ysales-index' populated with SAP Sales data. Your job is to:
-1. Take a user’s natural-language request.
-2. Map business-friendly terms (or raw SAP field names) to the correct index fields.
-Parse the user’s request: identify measures (Revenue, Quantity, Margin), dimensions/filters (Product Category, Sales Org, Region), and date range (explicit or default).
- If prompt specifies dates use them; else default start=2024-01-01 to end=today or cap year-end.. If prompt specifies dates use them; else default start=2024-01-01 to end=today or cap year-end.
- Generate appropriate filter and call `azure_search_all(query, filter)` to retrieve full dataset.
-
-4. Aggregate, analyze, and interpret the results—including trending/declining stages, profit/loss, margins, and deterioration rates.
- 4. For aggregate requests, call `sum_revenue`; for month-by-month requests, call `monthly_revenue`.
- 5. Compute KPIs: Gross Profit, Profit Margin %, up/down trends, deterioration rates.
-5. Return both raw data (JSON, CSV tables, or charts) AND a concise business summary with actionable recommendations.
-
-Data Schema & Synonyms (users may refer to either):
-Revenue→Revenue, Quantity→fkimg, Volume→volum, Customer→cname, Brand→wgbez,
-Product Name→arktx, Category→matkl, Division→spart_text, Company Code→bukrs,
-Sales Org→vkorg, Distribution Channel→vtweg, Business Area→gsber,
-Credit Control Area→kkber, Customer Group→kukla, Account Group→ktokd,
-Sales Group→vkgrp_c, Sales Office→vkbur_c, Payer ID→Payer_DL,
-Product Code→matnr, Unit→meins, Volume Unit→voleh, Business Group→GK,
-Territory→Territory, Sales Zone→Szone, Date→fkdat (e.g. '2024-07-16 00:00:00.000').
-
-Processing Flow:
-- **Intent & Entity Extraction**: pick out measures (Revenue, Quantity, Margin), dimensions/filters (Product Category, Sales Org, Region), and time windows (explicit or relative).
-- **Date Range Logic**:
-    • If the prompt specifies “from X to Y,” extract those dates and filter `fkdat` accordingly.
-    • Otherwise default to start=01-01-2024 and end=today.
-    • If the user says “2025,” interpret as 2025-01-01 through 2025-12-31, but if 2025 is still in progress, use today’s date as the end.
-- **SQL-Style Query Generation**: build SELECT, GROUP BY, and WHERE clauses,Aggregate functions.
-- **Execute** on the `ysales-index` via your `azure_search` tool.
-- **Compute KPIs**:
-    • Gross Profit = Revenue − Cost (when available).
-    • Profit Margin % = Gross Profit ÷ Revenue × 100.
-    • Identify up-trending vs. down-trending lines, margin erosion, exceptions.
-- **Summarize**:
-    • Top performers & laggards.
-    • Trend analysis (MoM, YoY).
-    • Alerts for negative margins or high-risk discounts.
-- **Recommendations**:
-    • Pricing strategy.
-    • Promotional focus.
-    • Inventory optimization.
-    • Credit risk management.
-
-Output Requirements:
-Always include:
-- **Raw data** (table or CSV download link; charts if asked).
-- **📊 Summary** (3–5 bullets of high-level findings).
-- **🔍 Key Insights** (2–4 concise bullets).
-- **💡 Recommendations** (3–5 actionable items).
-
-Error Handling:
-- If a term is ambiguous, ask: “Did you mean Territory or Sales Zone?”
-- If no data matches, say: “No records match—please adjust your filters or date range.”
-- If an unknown field is requested, suggest the closest match.
-If ambiguous, ask clarifying questions. Always handle SAP Sales–specific terms as per schema or Data Schema & Synonyms.
-Ensure you handle **all** SAP Sales–related queries as above.
-"""
-)
+def aggregate_sum(date_filter: str) -> float:
+    # numeric facet sum of Revenue
+    results = search_client.search(
+        search_text="*",
+        filter=date_filter,
+        top=0,
+        facets=["Revenue,sum"]
+    )
+    facets = results.get_facets() or {}
+    revenue_facet = facets.get('Revenue', [])
+    return revenue_facet[0].get('sum', 0.0) if revenue_facet else 0.0
 
 
-# 6) Expose run function
-def run_sales_agent(prompt: str) -> str:
-    """
-    Feed the user prompt to our RAG agent and return its answer.
-    """
-    return agent.run(prompt)
+def compute_previous_period(start: str, end: str) -> tuple[str,str]:
+    s = datetime.fromisoformat(start)
+    e = datetime.fromisoformat(end)
+    days = (e - s).days + 1
+    prev_end = s - timedelta(days=1)
+    prev_start = prev_end - timedelta(days=days-1)
+    return prev_start.date().isoformat(), prev_end.date().isoformat()
+
+
+def query_sales(prompt: str, page: int = 1, page_size: int = 20) -> dict:
+    qd = parse_prompt(prompt)
+    metric = qd['metric']
+    start = qd['start_date']
+    end   = qd['end_date']
+    date_filter = f"fkdat ge {start}Z and fkdat le {end}Z"
+
+    if metric == 'profit_loss':
+        curr = aggregate_sum(date_filter)
+        ps, pe = compute_previous_period(start, end)
+        prev = aggregate_sum(f"fkdat ge {ps}Z and fkdat le {pe}Z")
+        return { 'profit_loss': curr - prev, 'current': curr, 'previous': prev }
+
+    if metric in ['deterioration_rate', 'trend']:
+        curr = aggregate_sum(date_filter)
+        ps, pe = compute_previous_period(start, end)
+        prev = aggregate_sum(f"fkdat ge {ps}Z and fkdat le {pe}Z")
+        rate = ((prev - curr) / prev * 100) if prev else None
+        tr = 'down' if rate and rate > 0 else 'up'
+        return { 'deterioration_rate': rate, 'trend': tr, 'current': curr, 'previous': prev }
+
+    if metric == 'comparison':
+        field = FIELD_SYNONYMS.get(qd.get('field',''), qd.get('field',''))
+        comp = {}
+        for v in qd.get('compare_values', []):
+            f = f"{date_filter} and {field} eq '{v}'"
+            comp[v] = aggregate_sum(f)
+        return { 'comparison': comp }
+
+    if metric == 'profitability':
+        # facet by product name for sum of revenue
+        rs = search_client.search(
+            search_text="*",
+            filter=date_filter,
+            top=0,
+            facets=["arktx,count:0,sum(Revenue)"]
+        )
+        facets = rs.get_facets() or {}
+        prods = facets.get('arktx', [])
+        best = max(prods, key=lambda x: x.get('sum',0)) if prods else {}
+        return { 'most_profitable_product': best.get('value'), 'revenue': best.get('sum') }
+
+    # --- default retrieval + pagination ---
+    vec = embed_query(prompt)
+    vq  = VectorQuery(value=vec, k=page_size, fields=['embedding'])
+    results = search_client.search(
+        vector=vq,
+        filter=date_filter,
+        skip=(page-1)*page_size,
+        top=page_size,
+        include_total_count=True
+    )
+    docs = []
+    for r in results:
+        docs.append({
+            'fkdat':     r.get('fkdat'),
+            'wgbez':     r.get('wgbez'),
+            'Revenue':   r.get('Revenue'),
+            # add any other fields you wish to show
+        })
+    return {
+        'documents': docs,
+        'total_count': results.get_count(),
+        'page': page,
+        'page_size': page_size
+    }
+
+
+def generate_answer(prompt: str, data: dict) -> str:
+    # Send to OpenAI to craft a natural-language answer
+    msgs = [
+        ChatRole(system="You are a helpful sales analyst."),
+        ChatRole(user=f"User asked: '{prompt}'"),
+        ChatRole(system=f"Here is the data or metrics: {json.dumps(data)}")
+    ]
+    opts = ChatCompletionOptions(
+        model=deployment,
+        messages=msgs
+    )
+    resp = openai_client.chat_completions.create(options=opts)
+    return resp.choices[0].message.content
