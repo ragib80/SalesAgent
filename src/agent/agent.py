@@ -3,12 +3,11 @@ import json
 from datetime import datetime, timedelta
 from azure.core.credentials import AzureKeyCredential
 from azure.search.documents import SearchClient
-from azure.search.documents.models import VectorQuery
 from openai import AzureOpenAI
 from django.conf import settings
-from azure.search.documents.models import VectorizedQuery
 
-# Field synonyms
+from agent.utils.helpers import extract_date_range_from_prompt, ensure_azure_datetime
+
 FIELD_SYNONYMS = {
     'revenue':      'Revenue',
     'quantity':     'fkimg',
@@ -18,9 +17,9 @@ FIELD_SYNONYMS = {
     'product':      'arktx',
     'category':     'matkl',
     'division':     'spart_text',
-    'company code':'bukrs',
+    'company code': 'bukrs',
     'sales org':    'vkorg',
-    'dist channel':'vtweg',
+    'dist channel': 'vtweg',
     'business area':'gsber',
     'customer group':'kukla',
     'account group':'ktokd',
@@ -30,167 +29,208 @@ FIELD_SYNONYMS = {
     'fkdat':        'fkdat'
 }
 
-# Initialize Azure Search client
 search_client = SearchClient(
     endpoint=settings.AZURE_SEARCH_ENDPOINT,
     index_name=settings.AZURE_SEARCH_INDEX,
     credential=AzureKeyCredential(settings.AZURE_SEARCH_KEY)
 )
-# Initialize Azure OpenAI client
 openai_client = AzureOpenAI(
     azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
     api_key=os.getenv("AZURE_OPENAI_KEY"),
     api_version="2025-01-01-preview"
 )
-# Name of your Chat/Embedding deployment in Azure OpenAI Studio
 deployment = settings.AZURE_OPENAI_DEPLOYMENT
 
+FN_DEF = [{
+    "name": "parse_sales_query",
+    "description": "Extract a sales metric operation plan (with OData $filter syntax) from a user prompt.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "metric": {"type": "string", "enum": ["deterioration_rate", "profit_loss", "trend", "comparison", "profitability", "default"]},
+            "field": {"type": "string", "description": "Field to aggregate or analyze"},
+            "group_by": {"type": "array", "items": {"type": "string"}, "description": "Group by these fields"},
+            "filter": {"type": "string", "description": "OData $filter"},
+            "compare_values": {"type": "array", "items": {"type": "string"}, "description": "For comparison metric"},
+            "start_date": {"type": "string"},
+            "end_date": {"type": "string"}
+        },
+        "required": ["metric"]
+    }
+}]
 
-def embed_query(text: str) -> list[float]:
-    resp = openai_client.embeddings.create(
-        model='text-embedding-ada-002',
-        input=[text]
-    )
-    return resp.data[0].embedding
-
-
-def parse_prompt(prompt: str) -> dict:
-    # Function-calling schema to extract metric & parameters
-    fn_def = [{
-        'name':'parse_query',
-        'description':'Extract metric, start_date, end_date, field, compare_values',
-        'parameters':{
-            'type':'object',
-            'properties':{
-                'metric':{'type':'string','enum':['deterioration_rate','profit_loss','trend','comparison','profitability','default']},
-                'start_date':{'type':'string'},
-                'end_date':{'type':'string'},
-                'field':{'type':'string'},
-                'compare_values':{'type':'array','items':{'type':'string'}}
-            },
-            'required':['metric','start_date','end_date']
-        }
-    }]
+def extract_operation_plan(prompt: str) -> dict:
     resp = openai_client.chat.completions.create(
         model=deployment,
         messages=[
-            {'role':'system','content':'Parse user query to JSON parameters.'},
-            {'role':'user','content':prompt}
+            {'role': 'system', 'content': 'Parse the user’s request into a structured operation plan for sales analytics using OData $filter syntax.'},
+            {'role': 'user', 'content': prompt}
         ],
-        functions=fn_def,
-        function_call={'name':'parse_query'}
+        functions=FN_DEF,
+        function_call={'name':'parse_sales_query'}
     )
     fc = resp.choices[0].message.function_call
     return json.loads(fc.arguments)
 
-
-def aggregate_sum(date_filter: str) -> float:
-    # Single facet call to compute SUM(Revenue) over all matching docs
-    res = search_client.search(
-        search_text='*',
-        filter=date_filter,
-        top=0,
-        facets=['Revenue, metric: sum']
-    )
-    facets = res.get_facets() or {}
-    return facets.get('Revenue',[{'sum':0.0}])[0]['sum']
-
-
-def compute_previous_period(start: str, end: str) -> tuple[str,str]:
-    s = datetime.fromisoformat(start)
-    e = datetime.fromisoformat(end)
+def compute_previous_period(start: str, end: str) -> tuple[str, str]:
+    s = datetime.fromisoformat(start[:10])  # Only use date part
+    e = datetime.fromisoformat(end[:10])
     days = (e - s).days + 1
     prev_end = s - timedelta(days=1)
     prev_start = prev_end - timedelta(days=days-1)
-    return prev_start.date().isoformat(), prev_end.date().isoformat()
+    return prev_start.isoformat(), prev_end.isoformat()
 
-
-def query_sales(prompt: str, page: int=1, page_size: int=20) -> dict:
-    qd     = parse_prompt(prompt)
-    metric = qd['metric']
-    start  = qd['start_date']
-    end    = qd['end_date']
-    date_filter = f"fkdat ge {start}Z and fkdat lt {end}Z"
-
-    # === DEFAULT METRIC ===
-    if metric == 'default':
-        total = aggregate_sum(date_filter)
-        return {'total_revenue': total}
-
-    # === PROFIT/LOSS ===
-    if metric == 'profit_loss':
-        curr = aggregate_sum(date_filter)
-        ps, pe = compute_previous_period(start,end)
-        prev = aggregate_sum(f"fkdat ge {ps}Z and fkdat lt {pe}Z")
-        return {'profit_loss':curr-prev,'current':curr,'previous':prev}
-
-    # === DETERIORATION RATE & TREND ===
-    if metric in ['deterioration_rate','trend']:
-        curr = aggregate_sum(date_filter)
-        ps, pe = compute_previous_period(start,end)
-        prev = aggregate_sum(f"fkdat ge {ps}Z and fkdat lt {pe}Z")
-        rate = ((prev-curr)/prev*100) if prev else None
-        trend = 'down' if rate and rate>0 else 'up'
-        return {'deterioration_rate':rate,'trend':trend,'current':curr,'previous':prev}
-
-    # === COMPARISON ===
-    if metric == 'comparison':
-        field = FIELD_SYNONYMS.get(qd.get('field',''),qd.get('field',''))
-        comp = {}
-        for v in qd.get('compare_values',[]):
-            fstr = f"{date_filter} and {field} eq '{v}'"
-            comp[v] = aggregate_sum(fstr)
-        return {'comparison':comp}
-
-    # === PROFITABILITY ===
-    if metric == 'profitability':
-        rs = search_client.search(
-            search_text='*',
-            filter=date_filter,
-            top=0,
-            facets=['arktx']  # fetch product buckets; then compute revenue per product via aggregate_sum
-        )
-        prods = rs.get_facets().get('arktx',[])
-        best = max(prods, key=lambda x: x.get('sum',0)) if prods else {}
-        return {'most_profitable_product':best.get('value'),'revenue':best.get('sum')}
-
-    # === VECTOR SEARCH + PAGINATION ===
-    vec = embed_query(prompt)
-    vq = VectorizedQuery(
-        vector=vec,
-        k_nearest_neighbors=page_size,
-        fields='embedding'
+def aggregate_sum(filter_str: str, field: str = 'Revenue'):
+    res = search_client.search(
+        search_text='*',
+        filter=filter_str,
+        top=1000  # For big queries, you may need to handle pagination!
     )
-    try:
-        res = search_client.search(
-            vector_queries=[vq],
-            vector_filter_mode='preFilter',
-            filter=date_filter,
-            skip=(page-1)*page_size,
-            top=page_size,
-            include_total_count=True
-        )
-    except TypeError:
-        # Fallback to pure filter if vector unsupported
-        res = search_client.search(
-            search_text='*',
-            filter=date_filter,
-            skip=(page-1)*page_size,
-            top=page_size,
-            include_total_count=True
-        )
-    docs = [{'fkdat':r.get('fkdat'),'wgbez':r.get('wgbez'),'Revenue':r.get('Revenue')} for r in res]
-    return {'documents':docs,'total_count':res.get_count(),'page':page,'page_size':page_size}
+    docs = list(res)
+    return sum(doc.get(field, 0.0) for doc in docs)
 
+# ===================== Metric Handlers =====================
 
-def generate_answer(prompt: str, data: dict) -> str:
-    print(f"Data: {json.dumps(data)}")
+def handle_deterioration_rate(plan):
+    field = FIELD_SYNONYMS.get(plan.get('field', 'revenue').lower(), 'Revenue')
+    start = ensure_azure_datetime(plan['start_date'])
+    end = ensure_azure_datetime(plan['end_date'])
+    filter_base = plan.get('filter', '')
+    filter_str = f"{filter_base} and fkdat ge {start} and fkdat le {end}" if filter_base else f"fkdat ge {start} and fkdat le {end}"
+    curr = aggregate_sum(filter_str, field)
+    # Previous period
+    prev_start, prev_end = compute_previous_period(plan['start_date'], plan['end_date'])
+    prev_start = ensure_azure_datetime(prev_start)
+    prev_end = ensure_azure_datetime(prev_end)
+    prev_filter_str = f"{filter_base} and fkdat ge {prev_start} and fkdat le {prev_end}" if filter_base else f"fkdat ge {prev_start} and fkdat le {prev_end}"
+    prev = aggregate_sum(prev_filter_str, field)
+    rate = ((prev - curr) / prev * 100) if prev else None
+    trend = 'down' if rate and rate > 0 else 'up'
+    return {'deterioration_rate': rate, 'trend': trend, 'current': curr, 'previous': prev}
+
+def handle_profit_loss(plan):
+    field = FIELD_SYNONYMS.get(plan.get('field', 'revenue').lower(), 'Revenue')
+    start = ensure_azure_datetime(plan['start_date'])
+    end = ensure_azure_datetime(plan['end_date'])
+    filter_base = plan.get('filter', '')
+    filter_str = f"{filter_base} and fkdat ge {start} and fkdat le {end}" if filter_base else f"fkdat ge {start} and fkdat le {end}"
+    curr = aggregate_sum(filter_str, field)
+    return {'profit_loss': curr}
+
+def handle_trend(plan):
+    field = FIELD_SYNONYMS.get(plan.get('field', 'revenue').lower(), 'Revenue')
+    group_by = FIELD_SYNONYMS.get(plan.get('group_by', ['cname'])[0].lower(), 'cname')
+    start = ensure_azure_datetime(plan['start_date'])
+    end = ensure_azure_datetime(plan['end_date'])
+    filter_base = plan.get('filter', '')
+    filter_str = f"{filter_base} and fkdat ge {start} and fkdat le {end}" if filter_base else f"fkdat ge {start} and fkdat le {end}"
+    prev_start, prev_end = compute_previous_period(plan['start_date'], plan['end_date'])
+    prev_start = ensure_azure_datetime(prev_start)
+    prev_end = ensure_azure_datetime(prev_end)
+    prev_filter_str = f"{filter_base} and fkdat ge {prev_start} and fkdat le {prev_end}" if filter_base else f"fkdat ge {prev_start} and fkdat le {prev_end}"
+
+    from collections import defaultdict
+    curr_docs = search_client.search(search_text='*', filter=filter_str, top=1000)
+    prev_docs = search_client.search(search_text='*', filter=prev_filter_str, top=1000)
+    curr_agg = defaultdict(float)
+    prev_agg = defaultdict(float)
+    for doc in curr_docs:
+        entity = doc.get(group_by)
+        curr_agg[entity] += doc.get(field, 0.0)
+    for doc in prev_docs:
+        entity = doc.get(group_by)
+        prev_agg[entity] += doc.get(field, 0.0)
+    trend_by_entity = {}
+    for entity in set(curr_agg) | set(prev_agg):
+        c = curr_agg.get(entity, 0)
+        p = prev_agg.get(entity, 0)
+        if p == 0:
+            trend = 'up' if c > 0 else 'flat'
+        else:
+            trend = 'up' if c > p else 'down'
+        trend_by_entity[entity] = {'current': c, 'previous': p, 'trend': trend}
+    return {'trend_by_entity': trend_by_entity}
+
+def handle_comparison(plan):
+    field = FIELD_SYNONYMS.get(plan.get('field', '').lower(), plan.get('field', ''))
+    start = ensure_azure_datetime(plan['start_date'])
+    end = ensure_azure_datetime(plan['end_date'])
+    filter_base = plan.get('filter', '')
+    results = {}
+    for val in plan.get('compare_values', []):
+        filter_str = f"{field} eq '{val}' and fkdat ge {start} and fkdat le {end}"
+        if filter_base:
+            filter_str = f"{filter_base} and {filter_str}"
+        results[val] = aggregate_sum(filter_str)
+    return {'comparison': results}
+
+def handle_profitability(plan):
+    field = FIELD_SYNONYMS.get(plan.get('field', 'revenue').lower(), 'Revenue')
+    group_by = FIELD_SYNONYMS.get('product', 'arktx')
+    start = ensure_azure_datetime(plan['start_date'])
+    end = ensure_azure_datetime(plan['end_date'])
+    filter_base = plan.get('filter', '')
+    filter_str = f"{filter_base} and fkdat ge {start} and fkdat le {end}" if filter_base else f"fkdat ge {start} and fkdat le {end}"
+    docs = search_client.search(search_text='*', filter=filter_str, top=1000)
+    from collections import defaultdict
+    agg = defaultdict(float)
+    for doc in docs:
+        prod = doc.get(group_by)
+        agg[prod] += doc.get(field, 0.0)
+    if not agg:
+        return {}
+    most_prof = max(agg, key=lambda k: agg[k])
+    return {'most_profitable_product': most_prof, 'revenue': agg[most_prof]}
+
+def handle_default(plan):
+    field = FIELD_SYNONYMS.get(plan.get('field', 'revenue').lower(), 'Revenue')
+    start = ensure_azure_datetime(plan['start_date'])
+    end = ensure_azure_datetime(plan['end_date'])
+    filter_base = plan.get('filter', '')
+    filter_str = f"{filter_base} and fkdat ge {start} and fkdat le {end}" if filter_base else f"fkdat ge {start} and fkdat le {end}"
+    curr = aggregate_sum(filter_str, field)
+    return {'total': curr}
+
+# ===================== Central dispatcher =====================
+
+def sales_metrics_engine(prompt: str):
+    plan = extract_operation_plan(prompt)
+
+    # Date range fallback
+    if not plan.get('start_date') or not plan.get('end_date'):
+        start, end = extract_date_range_from_prompt(prompt)
+        plan['start_date'] = plan.get('start_date', start)
+        plan['end_date'] = plan.get('end_date', end)
+
+    # Always construct filter for date range (overrides if present)
+    # Azure OData filters require ISO datetime!
+    start = ensure_azure_datetime(plan['start_date'])
+    end = ensure_azure_datetime(plan['end_date'])
+    if not plan.get('filter') or 'fkdat' not in plan['filter']:
+        plan['filter'] = f"fkdat ge {start} and fkdat le {end}"
+
+    metric = plan['metric']
+    if metric == 'deterioration_rate':
+        result = handle_deterioration_rate(plan)
+    elif metric == 'profit_loss':
+        result = handle_profit_loss(plan)
+    elif metric == 'trend':
+        result = handle_trend(plan)
+    elif metric == 'comparison':
+        result = handle_comparison(plan)
+    elif metric == 'profitability':
+        result = handle_profitability(plan)
+    else:
+        result = handle_default(plan)
+    return {'operation_plan': plan, 'result': result}
+
+def generate_llm_answer(prompt: str, result: dict) -> str:
     resp = openai_client.chat.completions.create(
         model=deployment,
         messages=[
-            {'role':'system','content':'You are a helpful sales analyst.'},
-            {'role':'user','content':f"User asked: '{prompt}'"},
-            {'role':'system','content':f"Data: {json.dumps(data)}"}
+            {'role': 'system', 'content': 'You are a helpful sales analyst.'},
+            {'role': 'user', 'content': f"User asked: '{prompt}'"},
+            {'role': 'system', 'content': f"Result: {json.dumps(result)}"}
         ]
     )
     return resp.choices[0].message.content

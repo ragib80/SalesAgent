@@ -5,8 +5,7 @@ from sales_analyzer.serializers import QueryRequestSerializer, QueryResponseSeri
 from agent.azure_clients import search_client, openai_client
 from django.conf import settings
 from django.views.generic import TemplateView
-from agent.agent import query_sales,generate_answer
-
+from agent.agent import sales_metrics_engine,generate_llm_answer
 
 class ChatView(TemplateView):
     template_name = 'sales/chat.html'
@@ -15,15 +14,18 @@ class ChatAPIView(APIView):
     def post(self, request):
         ser = ChatRequestSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
-        prompt    = ser.validated_data['prompt']
-        page      = ser.validated_data.get('page', 1)
-        page_size = ser.validated_data.get('page_size', 20)
+        prompt = ser.validated_data['prompt']
 
-        data   = query_sales(prompt, page, page_size)
-        answer = generate_answer(prompt, data)
+        result = sales_metrics_engine(prompt)
+        answer = generate_llm_answer(prompt, result)
 
-        out = ChatResponseSerializer({ 'answer': answer, 'data': data })
-        return Response(out.data, status=status.HTTP_200_OK)
+        out = {
+                'answer': answer,
+                'data': result.get('result'),
+                'operation_plan': result.get('operation_plan'),
+            }
+        response_ser = ChatResponseSerializer(out)
+        return Response(response_ser.data, status=status.HTTP_200_OK)
 
 # class SalesQueryAPIView(APIView):
     """

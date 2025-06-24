@@ -17,5 +17,7 @@ class ChatRequestSerializer(serializers.Serializer):
     page_size = serializers.IntegerField(required=False, default=20)
 
 class ChatResponseSerializer(serializers.Serializer):
-    answer      = serializers.CharField()
-    data        = serializers.JSONField()
+    answer         = serializers.CharField()
+    data           = serializers.JSONField()
+    operation_plan = serializers.JSONField(required=False)
+    # result     = serializers.JSONField(required=False)  # optional if you want raw
