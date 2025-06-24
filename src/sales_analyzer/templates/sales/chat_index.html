@@ -206,29 +206,36 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <!-- marked.js for Markdown Parsing -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-const apiBase = "/api"; // Change to your DRF prefix
+const apiBase = "http://127.0.0.1:8000/api"; // Change to your DRF prefix
 let currentChatId = null;
 
+// Fetch the last 10 conversations for the user
 function fetchChats() {
-    $.get(apiBase + "/chats/", function(data) {
-        const $list = $('.chat-list').empty();
-        if (data.length === 0) {
-            $list.append('<div class="no-conversations">No previous conversations</div>');
-        } else {
-            data.forEach(chat => {
-                const title = chat.title || 'Untitled Chat';
-                $list.append(`
-                    <button class="list-group-item" data-id="${chat.id}">${title}</button>
-                `);
-            });
+const token = localStorage.getItem('auth_token');
+
+    $.ajax({
+        url: apiBase + '/conversations/',  // The API URL
+        method: 'GET',
+         headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('auth_token')  // Add the token to the Authorization header
+            },
+        success: function(response) {
+            console.log('Success:', response);
+        },
+        error: function(xhr, status, error) {
+            console.log('Error occurred:', error);
+            console.log('Response:', xhr.responseText);  // Log the response to see the error details
         }
     });
 }
 
+
+// Fetch messages for a specific conversation by UUID
 function fetchMessages(chatId) {
     $('.messages').html('<div class="text-center text-muted">Loading...</div>');
-    $.get(apiBase + `/chats/${chatId}/messages/`, function(data) {
+    $.get(apiBase + `/conversations/${chatId}/messages/`, function(data) {
         const $messages = $('.messages').empty();
         data.forEach(msg => {
             const isUser = msg.role === "user";
@@ -244,6 +251,7 @@ function fetchMessages(chatId) {
     });
 }
 
+// Send a new message
 function sendMessage(content) {
     if (!content.trim()) return;
     const $input = $('.input-area textarea');
@@ -251,20 +259,28 @@ function sendMessage(content) {
     $('.send-btn').prop('disabled', true);
 
     if (currentChatId) {
-        $.post(apiBase + `/chats/${currentChatId}/messages/`, { content }, function() {
+        $.post(apiBase + `/conversations/${currentChatId}/messages/`, { content }, function() {
             fetchMessages(currentChatId);
             $input.val('').prop('disabled', false).focus();
             $('.send-btn').prop('disabled', false);
         }).fail(() => {
-            alert("Failed to send message.");
+            Swal.fire({
+                icon: 'error',
+                title: 'Oops...',
+                text: 'Failed to send message. Please try again later.',
+            });
             $input.prop('disabled', false);
             $('.send-btn').prop('disabled', false);
         });
     } else {
         $.ajax({
-            url: apiBase + "/chats/first-message/",
+            url: apiBase + "/sales/query/",  // Assuming your first-message endpoint is correct
             method: "POST",
-            data: { content },
+             headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('auth_token')  // Add the token to the Authorization header
+            },
+            data: JSON.stringify({ prompt: content }),
+            contentType: "application/json",
             success: function(resp) {
                 if (resp.chat && resp.chat.id) {
                     currentChatId = resp.chat.id;
@@ -275,7 +291,11 @@ function sendMessage(content) {
                 $('.send-btn').prop('disabled', false);
             },
             error: function() {
-                alert("Failed to send message.");
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Oops...',
+                    text: 'Failed to send message. Please try again later.',
+                });
                 $input.prop('disabled', false);
                 $('.send-btn').prop('disabled', false);
             }
@@ -283,6 +303,7 @@ function sendMessage(content) {
     }
 }
 
+// Start a new chat
 function startNewChat() {
     currentChatId = null;
     $('.chat-list .list-group-item').removeClass('active');
@@ -290,6 +311,7 @@ function startNewChat() {
     $('.input-area textarea').val('').focus();
 }
 
+// Select an existing chat
 function selectChat(chatId) {
     currentChatId = chatId;
     $('.chat-list .list-group-item').removeClass('active');
@@ -310,6 +332,23 @@ function closeSidebar() {
 
 $(function() {
     fetchChats();
+
+    $.ajax({
+    url: '/api/token/refresh/',  // Token refresh endpoint
+    method: 'POST',
+    data: {
+        refresh: localStorage.getItem('refresh_token')  // The stored refresh token
+    },
+    success: function(response) {
+        // Save the new access token
+        localStorage.setItem('auth_token', response.access);
+        // Retry the original API request after refreshing the token
+        fetchChats();
+    },
+    error: function() {
+        console.log('Failed to refresh token');
+    }
+})
 
     // Burger menu click
     $('#burger-btn').click(function() {

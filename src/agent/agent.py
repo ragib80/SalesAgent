@@ -5,6 +5,7 @@ from azure.core.credentials import AzureKeyCredential
 from azure.search.documents import SearchClient
 from openai import AzureOpenAI
 from django.conf import settings
+from conversation.models.message import Message
 
 from agent.utils.helpers import extract_date_range_from_prompt, ensure_azure_datetime
 
@@ -20,9 +21,9 @@ FIELD_SYNONYMS = {
     'company code': 'bukrs',
     'sales org':    'vkorg',
     'dist channel': 'vtweg',
-    'business area':'gsber',
-    'customer group':'kukla',
-    'account group':'ktokd',
+    'business area': 'gsber',
+    'customer group': 'kukla',
+    'account group': 'ktokd',
     'territory':    'Territory',
     'sales zone':   'Szone',
     'date':         'fkdat',
@@ -43,13 +44,13 @@ deployment = settings.AZURE_OPENAI_DEPLOYMENT
 
 FN_DEF = [{
     "name": "parse_sales_query",
-        "description": "Extract a sales metric operation plan (with OData $filter syntax) from a user prompt.",
+    "description": "Extract a sales metric operation plan (with OData $filter syntax) from a user prompt.",
     "parameters": {
         "type": "object",
         "properties": {
             "metric": {"type": "string", "enum": ["deterioration_rate", "profit_loss", "trend", "comparison", "profitability", "default"]},
             "field": {"type": "string", "description": "Field to aggregate or analyze"},
-             "group_by": {"type": "array", "items": {"type": "string"}, "description": "Group by these fields"},
+            "group_by": {"type": "array", "items": {"type": "string"}, "description": "Group by these fields"},
             "filter": {"type": "string", "description": "OData $filter"},
             "compare_values": {"type": "array", "items": {"type": "string"}, "description": "For comparison metric"},
             "start_date": {"type": "string"},
@@ -59,6 +60,7 @@ FN_DEF = [{
     }
 }]
 
+
 def extract_operation_plan(prompt: str) -> dict:
     resp = openai_client.chat.completions.create(
         model=deployment,
@@ -67,10 +69,11 @@ def extract_operation_plan(prompt: str) -> dict:
             {'role': 'user', 'content': prompt}
         ],
         functions=FN_DEF,
-        function_call={'name':'parse_sales_query'}
+        function_call={'name': 'parse_sales_query'}
     )
     fc = resp.choices[0].message.function_call
     return json.loads(fc.arguments)
+
 
 def compute_previous_period(start: str, end: str) -> tuple[str, str]:
     s = datetime.fromisoformat(start[:10])  # Only use date part
@@ -79,6 +82,7 @@ def compute_previous_period(start: str, end: str) -> tuple[str, str]:
     prev_end = s - timedelta(days=1)
     prev_start = prev_end - timedelta(days=days-1)
     return prev_start.isoformat(), prev_end.isoformat()
+
 
 def aggregate_sum(filter_str: str, field: str = 'Revenue'):
     res = search_client.search(
@@ -91,6 +95,7 @@ def aggregate_sum(filter_str: str, field: str = 'Revenue'):
 
 # ===================== Metric Handlers =====================
 
+
 def handle_deterioration_rate(plan):
     field = FIELD_SYNONYMS.get(plan.get('field', 'revenue').lower(), 'Revenue')
     start = ensure_azure_datetime(plan['start_date'])
@@ -99,7 +104,8 @@ def handle_deterioration_rate(plan):
     filter_str = f"{filter_base} and fkdat ge {start} and fkdat le {end}" if filter_base else f"fkdat ge {start} and fkdat le {end}"
     curr = aggregate_sum(filter_str, field)
     # Previous period
-    prev_start, prev_end = compute_previous_period(plan['start_date'], plan['end_date'])
+    prev_start, prev_end = compute_previous_period(
+        plan['start_date'], plan['end_date'])
     prev_start = ensure_azure_datetime(prev_start)
     prev_end = ensure_azure_datetime(prev_end)
     prev_filter_str = f"{filter_base} and fkdat ge {prev_start} and fkdat le {prev_end}" if filter_base else f"fkdat ge {prev_start} and fkdat le {prev_end}"
@@ -107,6 +113,7 @@ def handle_deterioration_rate(plan):
     rate = ((prev - curr) / prev * 100) if prev else None
     trend = 'down' if rate and rate > 0 else 'up'
     return {'deterioration_rate': rate, 'trend': trend, 'current': curr, 'previous': prev}
+
 
 def handle_profit_loss(plan):
     field = FIELD_SYNONYMS.get(plan.get('field', 'revenue').lower(), 'Revenue')
@@ -117,26 +124,31 @@ def handle_profit_loss(plan):
     curr = aggregate_sum(filter_str, field)
     return {'profit_loss': curr}
 
+
 def handle_trend(plan):
     group_by_fields = plan.get('group_by', [])
     if not group_by_fields:
         # fallback: group by 'cname'
         group_by_fields = ['cname']
-    group_by_field = FIELD_SYNONYMS.get(group_by_fields[0].lower(), group_by_fields[0])
+    group_by_field = FIELD_SYNONYMS.get(
+        group_by_fields[0].lower(), group_by_fields[0])
 
     field = FIELD_SYNONYMS.get(plan.get('field', 'revenue').lower(), 'Revenue')
     start = ensure_azure_datetime(plan['start_date'])
     end = ensure_azure_datetime(plan['end_date'])
     filter_base = plan.get('filter', '')
     filter_str = f"{filter_base} and fkdat ge {start} and fkdat le {end}" if filter_base else f"fkdat ge {start} and fkdat le {end}"
-    prev_start, prev_end = compute_previous_period(plan['start_date'], plan['end_date'])
+    prev_start, prev_end = compute_previous_period(
+        plan['start_date'], plan['end_date'])
     prev_start = ensure_azure_datetime(prev_start)
     prev_end = ensure_azure_datetime(prev_end)
     prev_filter_str = f"{filter_base} and fkdat ge {prev_start} and fkdat le {prev_end}" if filter_base else f"fkdat ge {prev_start} and fkdat le {prev_end}"
 
     from collections import defaultdict
-    curr_docs = search_client.search(search_text='*', filter=filter_str, top=1000)
-    prev_docs = search_client.search(search_text='*', filter=prev_filter_str, top=1000)
+    curr_docs = search_client.search(
+        search_text='*', filter=filter_str, top=1000)
+    prev_docs = search_client.search(
+        search_text='*', filter=prev_filter_str, top=1000)
     curr_agg = defaultdict(float)
     prev_agg = defaultdict(float)
     for doc in curr_docs:
@@ -156,8 +168,10 @@ def handle_trend(plan):
         trend_by_entity[entity] = {'current': c, 'previous': p, 'trend': trend}
     return {'trend_by_entity': trend_by_entity}
 
+
 def handle_comparison(plan):
-    field = FIELD_SYNONYMS.get(plan.get('field', '').lower(), plan.get('field', ''))
+    field = FIELD_SYNONYMS.get(
+        plan.get('field', '').lower(), plan.get('field', ''))
     start = ensure_azure_datetime(plan['start_date'])
     end = ensure_azure_datetime(plan['end_date'])
     filter_base = plan.get('filter', '')
@@ -168,6 +182,7 @@ def handle_comparison(plan):
             filter_str = f"{filter_base} and {filter_str}"
         results[val] = aggregate_sum(filter_str)
     return {'comparison': results}
+
 
 def handle_profitability(plan):
     field = FIELD_SYNONYMS.get(plan.get('field', 'revenue').lower(), 'Revenue')
@@ -187,6 +202,7 @@ def handle_profitability(plan):
     most_prof = max(agg, key=lambda k: agg[k])
     return {'most_profitable_product': most_prof, 'revenue': agg[most_prof]}
 
+
 def handle_default(plan):
     field = FIELD_SYNONYMS.get(plan.get('field', 'revenue').lower(), 'Revenue')
     start = ensure_azure_datetime(plan['start_date'])
@@ -197,6 +213,7 @@ def handle_default(plan):
     return {'total': curr}
 
 # ===================== Central dispatcher =====================
+
 
 def sales_metrics_engine(prompt: str):
     plan = extract_operation_plan(prompt)
@@ -229,13 +246,53 @@ def sales_metrics_engine(prompt: str):
         result = handle_default(plan)
     return {'operation_plan': plan, 'result': result}
 
-def generate_llm_answer(prompt: str, result: dict) -> str:
+# def generate_llm_answer(prompt: str, result: dict) -> str:
+#     resp = openai_client.chat.completions.create(
+#         model=deployment,
+#         messages=[
+#             {'role': 'system', 'content': 'You are a helpful sales analyst.'},
+#             {'role': 'user', 'content': f"User asked: '{prompt}'"},
+#             {'role': 'system', 'content': f"Result: {json.dumps(result)}"}
+#         ]
+#     )
+#     return resp.choices[0].message.content
+
+
+def generate_llm_answer(prompt: str, result: dict, conversation=None) -> str:
+    """
+    This function generates an answer from the LLM based on the user's prompt.
+    If conversation history exists, it's sent to the LLM with the new prompt.
+
+    :param prompt: The user's new query.
+    :param result: The sales data result to be passed to LLM.
+    :param conversation: The conversation object (used to fetch message history).
+    :return: The LLM's generated response.
+    """
+    # Prepare the base system message
+    messages = [
+        {'role': 'system', 'content': 'You are a helpful sales analyst.'},
+        {'role': 'user', 'content': f"User asked: '{prompt}'"},
+        {'role': 'system', 'content': f"Result: {json.dumps(result)}"}
+    ]
+
+    # If conversation history exists, include it
+    if conversation:
+        # Fetch the latest 5 messages for the conversation (if they exist)
+        history_messages = Message.objects.filter(
+            conversation=conversation, is_deleted=False).order_by('-created_at')[:5]
+
+        # Add the historical messages to the LLM input
+        # Reverse to ensure chronological order
+        for message in reversed(history_messages):
+            role = 'user' if message.sender == 'user' else 'assistant'
+            # Prefix the historical messages with context: "User said" or "Assistant said"
+            messages.insert(1, {'role': role, 'content': message.text})
+
+    # Send the combined messages (history + new prompt) to the LLM
     resp = openai_client.chat.completions.create(
         model=deployment,
-        messages=[
-            {'role': 'system', 'content': 'You are a helpful sales analyst.'},
-            {'role': 'user', 'content': f"User asked: '{prompt}'"},
-            {'role': 'system', 'content': f"Result: {json.dumps(result)}"}
-        ]
+        messages=messages
     )
+
+    # Return the LLM's response
     return resp.choices[0].message.content
