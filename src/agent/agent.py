@@ -43,13 +43,13 @@ deployment = settings.AZURE_OPENAI_DEPLOYMENT
 
 FN_DEF = [{
     "name": "parse_sales_query",
-    "description": "Extract a sales metric operation plan (with OData $filter syntax) from a user prompt.",
+        "description": "Extract a sales metric operation plan (with OData $filter syntax) from a user prompt.",
     "parameters": {
         "type": "object",
         "properties": {
             "metric": {"type": "string", "enum": ["deterioration_rate", "profit_loss", "trend", "comparison", "profitability", "default"]},
             "field": {"type": "string", "description": "Field to aggregate or analyze"},
-            "group_by": {"type": "array", "items": {"type": "string"}, "description": "Group by these fields"},
+             "group_by": {"type": "array", "items": {"type": "string"}, "description": "Group by these fields"},
             "filter": {"type": "string", "description": "OData $filter"},
             "compare_values": {"type": "array", "items": {"type": "string"}, "description": "For comparison metric"},
             "start_date": {"type": "string"},
@@ -118,8 +118,13 @@ def handle_profit_loss(plan):
     return {'profit_loss': curr}
 
 def handle_trend(plan):
+    group_by_fields = plan.get('group_by', [])
+    if not group_by_fields:
+        # fallback: group by 'cname'
+        group_by_fields = ['cname']
+    group_by_field = FIELD_SYNONYMS.get(group_by_fields[0].lower(), group_by_fields[0])
+
     field = FIELD_SYNONYMS.get(plan.get('field', 'revenue').lower(), 'Revenue')
-    group_by = FIELD_SYNONYMS.get(plan.get('group_by', ['cname'])[0].lower(), 'cname')
     start = ensure_azure_datetime(plan['start_date'])
     end = ensure_azure_datetime(plan['end_date'])
     filter_base = plan.get('filter', '')
@@ -135,10 +140,10 @@ def handle_trend(plan):
     curr_agg = defaultdict(float)
     prev_agg = defaultdict(float)
     for doc in curr_docs:
-        entity = doc.get(group_by)
+        entity = doc.get(group_by_field)
         curr_agg[entity] += doc.get(field, 0.0)
     for doc in prev_docs:
-        entity = doc.get(group_by)
+        entity = doc.get(group_by_field)
         prev_agg[entity] += doc.get(field, 0.0)
     trend_by_entity = {}
     for entity in set(curr_agg) | set(prev_agg):
