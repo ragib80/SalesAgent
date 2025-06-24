@@ -1,17 +1,31 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from sales_analyzer.serializers import QueryRequestSerializer, QueryResponseSerializer
+from sales_analyzer.serializers import QueryRequestSerializer, QueryResponseSerializer,ChatRequestSerializer,ChatResponseSerializer
 from agent.azure_clients import search_client, openai_client
 from django.conf import settings
 from django.views.generic import TemplateView
-from agent.agent import run_sales_agent
+from agent.agent import query_sales,generate_answer
 
 
 class ChatView(TemplateView):
     template_name = 'sales/chat.html'
 
-class SalesQueryAPIView(APIView):
+class ChatAPIView(APIView):
+    def post(self, request):
+        ser = ChatRequestSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        prompt    = ser.validated_data['prompt']
+        page      = ser.validated_data.get('page', 1)
+        page_size = ser.validated_data.get('page_size', 20)
+
+        data   = query_sales(prompt, page, page_size)
+        answer = generate_answer(prompt, data)
+
+        out = ChatResponseSerializer({ 'answer': answer, 'data': data })
+        return Response(out.data, status=status.HTTP_200_OK)
+
+# class SalesQueryAPIView(APIView):
     """
     POST /api/sales/query/
     Body: { "prompt": "Your natural-language question here" }
@@ -21,14 +35,14 @@ class SalesQueryAPIView(APIView):
       2. Retrieve the top matching records.
       3. Synthesize a concise answer using Azure OpenAI.
     """
-    def post(self, request):
-        serializer = QueryRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        answer = run_sales_agent(serializer.validated_data["prompt"])
-        print("answer, ",answer)
-        return Response({"answer": answer}, status=status.HTTP_200_OK)
+    # def post(self, request):
+    #     serializer = QueryRequestSerializer(data=request.data)
+    #     serializer.is_valid(raise_exception=True)
+    #     answer = run_sales_agent(serializer.validated_data["prompt"])
+    #     print("answer, ",answer)
+    #     return Response({"answer": answer}, status=status.HTTP_200_OK)
 
-        return Response({'answer': answer}, status=status.HTTP_200_OK)
+    #     return Response({'answer': answer}, status=status.HTTP_200_OK)
 
         # # 1) NL → SQL-like query generation
         # completion = openai_client.chat.completions.create(
