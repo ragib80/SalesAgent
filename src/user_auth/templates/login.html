@@ -54,6 +54,7 @@
                         password: password
                     },
                     success: function(response) {
+                        alert(response.refresh)
                         // On success, store the token and redirect
                         localStorage.setItem('auth_token', response.access);
                          localStorage.setItem('refresh_token', response.refresh);

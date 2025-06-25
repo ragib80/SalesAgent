@@ -40,7 +40,11 @@ class CustomTokenObtainPairView(TokenObtainPairView):
         return response
 
 # models.py
-
+class CustomTokenObtainPairView(TokenObtainPairView):
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        print(response.data)  # Log the response data
+        return response
 
 class LogoutAPIView(APIView):
     # permission_classes = [IsAuthenticated]

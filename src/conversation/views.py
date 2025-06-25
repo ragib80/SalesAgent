@@ -10,7 +10,7 @@ from core.middleware.current_user import get_current_user
 
 
 class ConversationListCreateAPIView(APIView):
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         """
@@ -91,22 +91,46 @@ class ConversationRetrieveUpdateDestroyAPIView(APIView):
 
 
 class ConversationMessagesAPIView(APIView):
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
         """
-        List all messages for a specific conversation
+        List all messages for a specific conversation identified by its UUID
         """
         current_user = get_current_user()  # Get the current user
         if current_user is None:
             return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
 
-        conversation = get_object_or_404(
-            Conversation, uuid=pk, user=current_user)
-        messages = Message.objects.filter(
-            conversation=conversation, is_deleted=False)
+        # Get conversation using UUID, not primary key
+        conversation = get_object_or_404(Conversation, uuid=pk, user=current_user)
+        messages = Message.objects.filter(conversation=conversation, is_deleted=False)
         serializer = MessageSerializer(messages, many=True)
         return Response(serializer.data)
+
+    def post(self, request, pk):
+        """
+        Create a new message for a specific conversation identified by its UUID
+        """
+        current_user = get_current_user()  # Get the current user
+        if current_user is None:
+            return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # Get conversation using UUID, not primary key
+        conversation = get_object_or_404(Conversation, uuid=pk, user=current_user)
+
+        text = request.data.get('content', '')
+        if not text.strip():
+            return Response({"detail": "Message content cannot be empty."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Instead of assigning a model instance to sender, assign the user's username or ID (e.g., current_user.username)
+        message = Message.objects.create(
+            conversation=conversation,
+            sender=current_user.username,  # Assign the username or ID, not the model instance
+            text=text
+        )
+        message.save()
+        serializer = MessageSerializer(message)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class UserConversationsAPIView(APIView):

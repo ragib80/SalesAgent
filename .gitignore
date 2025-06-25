@@ -3,3 +3,5 @@
 
 src/core/.env
 venv/
+
+src/**/__pycache__/

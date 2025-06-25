@@ -28,4 +28,4 @@ class Message(AuditModel):
         db_table = 'message'  # table name
         verbose_name = "Message"
         verbose_name_plural = "Messages"
-        ordering = ['-created_at']
+        # ordering = ['-created_at']

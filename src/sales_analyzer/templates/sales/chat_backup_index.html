@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <!-- FontAwesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-        <style>
+    <style>
         body {
             font-family: 'Inter', sans-serif;
             background: #f6f8fa;
@@ -22,10 +22,7 @@
             display: flex;
             height: 100vh;
         }
-        .new-chat-btn.active {
-            background-color: #10a37f; /* Active button color matches conversation active color */
-            color: white;
-        }
+        /* Sidebar */
         .sidebar {
             width: 270px;
             background: #fff;
@@ -40,15 +37,14 @@
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            padding: 10px;
         }
         .sidebar.closed {
-            transform: translateX(-270px);
+            transform: translateX(-270px); /* Fully hides sidebar */
         }
         .sidebar-header {
             font-size: 22px;
             font-weight: 600;
-            padding: 10px;
+            padding: 15px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -71,38 +67,28 @@
             border-radius: 6px;
             width: 100%;
         }
-        .logout-btn {
-            margin-top: auto;
-            margin-bottom: 10px;
-            background-color: #dc3545;
-            border: none;
-            color: #fff;
-            padding: 10px 15px;
-            font-size: 14px;
-            cursor: pointer;
-            border-radius: 6px;
-            width: 100%;
+       .sidebar .list-group-item {
+            background-color: #f8f9fa; /* Light gray background for inactive items */
+            color: #333; /* Dark text color */
+            border: 1px solid #e1e1e1; /* Light border for inactive items */
         }
-        .sidebar .list-group-item {
-            background-color: #f8f9fa;
-            color: #333;
-            border: 1px solid #e1e1e1;
-            margin-bottom: 5px;
-            border-radius: 8px;
-        }
+
         .sidebar .list-group-item:hover {
-            background-color: #e1f7e2;
+            background-color: #e1f7e2; /* Light hover effect for better interactivity */
         }
-        .sidebar .list-group-item.active {
-            background-color: #10a37f;
-            color: white;
-            border-color: #10a37f;
+
+      .sidebar .list-group-item.active {
+            background-color: #10a37f; /* Green background for active chat */
+            color: white; /* White text color for active chat */
+            border-color: #10a37f; /* Border matching the background color */
         }
+
+        /* Main Chat */
         .main-chat {
             flex: 1;
             display: flex;
             flex-direction: column;
-            margin-left: 270px;
+            margin-left: 270px; /* Adjusted for the sidebar width */
             padding: 20px;
             background: #f6f8fa;
             transition: margin-left 0.3s ease;
@@ -119,7 +105,6 @@
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             margin-bottom: 20px;
             max-height: 80%;
-            position: relative;
         }
         .message {
             margin-bottom: 16px;
@@ -167,27 +152,10 @@
             text-align: center;
             color: #888;
         }
+        /* Auto Grow Input */
         .input-area textarea:focus {
             outline: none;
             border-color: #10a37f;
-        }
-        .typing-indicator {
-            display: flex;
-            gap: 4px;
-            margin: 10px;
-        }
-        .typing-indicator .dot {
-            height: 8px;
-            width: 8px;
-            background-color: #ccc;
-            border-radius: 50%;
-            animation: blink 1.4s infinite both;
-        }
-        .typing-indicator .dot:nth-child(2) { animation-delay: 0.2s; }
-        .typing-indicator .dot:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes blink {
-            0%, 80%, 100% { opacity: 0; }
-            40% { opacity: 1; }
         }
         @media (max-width: 900px) {
             .main-chat {
@@ -204,15 +172,10 @@
             .sidebar.open {
                 transform: translateX(0);
             }
+            .messages {
+                padding: 16px;
+            }
         }
-        .message {
-            animation: fadeIn 0.3s ease;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
     </style>
 </head>
 <body>
@@ -235,15 +198,7 @@
 
     <!-- Main Chat Area -->
     <div class="main-chat">
-        <div class="messages">
-
-             <div class="typing-indicator d-none" id="typing-indicator">
-                <span class="dot"></span>
-                <span class="dot"></span>
-                <span class="dot"></span>
-            </div>
-
-        </div>
+        <div class="messages"></div>
         <form class="input-area d-flex gap-2">
             <textarea class="form-control flex-grow-1" rows="1" placeholder="Type a message..." style="resize: none;"></textarea>
             <button class="send-btn" type="submit"><i class="fa fa-paper-plane"></i></button>
@@ -310,6 +265,26 @@ function refreshToken() {
 }
 
 // Helper function to handle AJAX requests with authorization
+{% comment %} function sendAuthenticatedRequest(url, method, data = null, successCallback, errorCallback) {
+    const token = getAuthToken();
+
+    // If the token is not available, refresh it
+    if (!token) {
+        refreshToken();
+        return;
+    }
+
+    $.ajax({
+        url: apiBase + url,
+        method: method,
+        headers: {
+            'Authorization': 'Bearer ' + token  // Add the token to the Authorization header
+        },
+        data: data,
+        success: successCallback,
+        error: errorCallback
+    });
+} {% endcomment %}
 
 // Fetch the last 10 conversations for the user
 function fetchChats() {
@@ -345,10 +320,7 @@ function fetchMessages(chatId) {
                 </div>
             `);
         });
-        
-        $('#typing-indicator').appendTo('.messages').show();
-        $('.messages').animate({ scrollTop: $('.messages')[0].scrollHeight }, 300);
-
+        $('.messages').scrollTop($('.messages')[0].scrollHeight);
     }, function(xhr, status, error) {
         console.error("Error fetching messages:", error);
         $('.messages').html('<div class="text-center text-muted">Failed to load messages</div>');
@@ -361,9 +333,6 @@ function sendMessage(content) {
     const $input = $('.input-area textarea');
     $input.prop('disabled', true);
     $('.send-btn').prop('disabled', true);
-
-    // Show typing indicator when sending message
-    $('#typing-indicator').removeClass('d-none');
 
     const token = localStorage.getItem('auth_token');  // Get the auth token from localStorage
 
@@ -379,13 +348,11 @@ function sendMessage(content) {
             data: JSON.stringify({ prompt: content }),  // Send the content as a prompt in the request body
             contentType: "application/json",
             success: function(response) {
-                $('#typing-indicator').addClass('d-none'); // Hide typing indicator after receiving the response
                 fetchMessages(currentChatId);  // Fetch the updated messages for the existing conversation
                 $input.val('').prop('disabled', false).focus();
                 $('.send-btn').prop('disabled', false);
             },
             error: function() {
-                $('#typing-indicator').addClass('d-none'); // Hide typing indicator if error occurs
                 Swal.fire({
                     icon: 'error',
                     title: 'Oops...',
@@ -424,7 +391,6 @@ function sendMessage(content) {
                             fetchMessages(currentChatId);  // Fetch messages for the new conversation
                         },
                         error: function() {
-                            $('#typing-indicator').addClass('d-none'); // Hide typing indicator if error occurs
                             Swal.fire({
                                 icon: 'error',
                                 title: 'Oops...',
@@ -439,7 +405,6 @@ function sendMessage(content) {
                 $('.send-btn').prop('disabled', false);
             },
             error: function() {
-                $('#typing-indicator').addClass('d-none'); // Hide typing indicator if error occurs
                 Swal.fire({
                     icon: 'error',
                     title: 'Oops...',
@@ -482,12 +447,6 @@ function closeSidebar() {
 $(function() {
     fetchChats();
 
-    $('.logout-btn').on('click', function () {
-        localStorage.clear(); // or remove auth_token & refresh_token individually
-        window.location.href = '/login/'; // Adjust to your login page path
-    });
-
-
     // Burger menu click
     $('#burger-btn').click(function() {
         const isOpen = $('.sidebar').hasClass('open');
@@ -502,12 +461,6 @@ $(function() {
     $('.sidebar').on('click', '.new-chat-btn', function() {
         startNewChat();
     });
-
-    $('.new-chat-btn').on('click', function() {
-        $(this).toggleClass('active'); // Toggle the 'active' class to show the active color
-        startNewChat();  // Your existing function for starting a new chat
-    });
-
 
     // Select chat
     $('.chat-list').on('click', '.list-group-item', function() {
