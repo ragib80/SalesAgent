@@ -329,26 +329,34 @@ function closeSidebar() {
     $('.sidebar').removeClass('open').addClass('closed');
     $('.main-chat').removeClass('sidebar-closed');
 }
+function refreshToken() {
+    $.ajax({
+        url: '/api/user/token/refresh/',  // Token refresh endpoint
+        method: 'POST',
+        data: {
+            refresh: localStorage.getItem('refresh_token')  // Get the refresh token from localStorage
+        },
+        success: function(response) {
+            // Save the new access token and refresh token
+            localStorage.setItem('auth_token', response.access);
+            localStorage.setItem('refresh_token', response.refresh);
+            console.log('Token refreshed successfully!');
+            // Retry the original API request
+            fetchChats();
+        },
+        error: function() {
+            console.log('Failed to refresh token');
+        }
+    });
+}
+
+// Call refreshToken() when needed, e.g., after token expiry
 
 $(function() {
-    fetchChats();
+refreshToken() 
+ fetchChats();
+ 
 
-    $.ajax({
-    url: '/api/token/refresh/',  // Token refresh endpoint
-    method: 'POST',
-    data: {
-        refresh: localStorage.getItem('refresh_token')  // The stored refresh token
-    },
-    success: function(response) {
-        // Save the new access token
-        localStorage.setItem('auth_token', response.access);
-        // Retry the original API request after refreshing the token
-        fetchChats();
-    },
-    error: function() {
-        console.log('Failed to refresh token');
-    }
-})
 
     // Burger menu click
     $('#burger-btn').click(function() {

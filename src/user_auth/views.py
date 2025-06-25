@@ -43,7 +43,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 
 class LogoutAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def post(self, request):
         """
