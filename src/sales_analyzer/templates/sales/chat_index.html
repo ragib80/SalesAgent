@@ -183,6 +183,25 @@
             border-radius: 50%;
             animation: blink 1.4s infinite both;
         }
+        /* Logout Button Styling */
+        .logout-section {
+            margin-top: auto; /* Forces the logout button to be at the bottom */
+            padding-top: 20px; /* Space between the chat list and the logout button */
+        }
+
+        .logout-btn {
+            width: 100%; /* Makes the button span across the entire width of the sidebar */
+            padding: 10px 15px;
+            font-size: 16px;
+            background-color: transparent; /* Transparent background */
+            border: 1px solid #ccc; /* Light border */
+            color: #333; /* Text color */
+            display: flex;
+            align-items: center;
+            justify-content: flex-start; /* Align icon and text to the left */
+            border-radius: 4px; /* Rounded corners */
+            transition: all 0.3s ease; /* Smooth transition on hover */
+        }
         .typing-indicator .dot:nth-child(2) { animation-delay: 0.2s; }
         .typing-indicator .dot:nth-child(3) { animation-delay: 0.4s; }
         @keyframes blink {
@@ -230,6 +249,11 @@
         <div class="list-group chat-list">
             <!-- List of Chats, will populate dynamically -->
             <div class="no-conversations">No previous conversations</div>
+        </div>
+        <div class="logout-section">
+            <button class="logout-btn">
+                <i class="fa fa-sign-out-alt"></i> Logout
+            </button>
         </div>
     </div>
 
@@ -328,6 +352,36 @@ function fetchChats() {
     });
 }
 
+function logOut(){
+    const token = localStorage.getItem('auth_token');  // Get the access token from localStorage
+        const refreshToken = localStorage.getItem('refresh_token');  // Get the refresh token
+
+        // Make a POST request to the logout API
+        $.ajax({
+            url: apiBase+'/user/logout/',  // Your logout API URL
+            method: 'POST',
+            headers: {
+            'Authorization': 'Bearer ' + token,  // Add the Bearer token in the header
+             },
+            data: {
+                refresh_token: refreshToken  // Pass the refresh token in the body
+            },
+            success: function(response) {
+                // On successful logout, clear the tokens and redirect
+                localStorage.removeItem('auth_token');
+                localStorage.removeItem('refresh_token');
+                localStorage.clear(); 
+                window.location.href = '/login';  // Redirect to the login page
+            },
+            error: function() {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Oops...',
+                    text: 'Logout failed. Please try again.',
+                });
+            }
+        });
+}
 // Fetch messages for a specific conversation by UUID
 function fetchMessages(chatId) {
     $('.messages').html('<div class="text-center text-muted">Loading...</div>');
@@ -355,37 +409,53 @@ function fetchMessages(chatId) {
     });
 }
 // Send a new message
+let isSubmitting = false;  // Prevent multiple submissions
+
+// Function to send a message
 function sendMessage(content) {
-    if (!content.trim()) return;
-
+    if (!content.trim() || isSubmitting) return;  // Avoid submitting empty or duplicate messages
+  
     const $input = $('.input-area textarea');
-    $input.prop('disabled', true);
-    $('.send-btn').prop('disabled', true);
+     $input.val('').prop('disabled', false).focus();  // Reset input field
+    $input.prop('disabled', true);  // Disable input field to prevent further typing during submission
+    $('.send-btn').prop('disabled', true);  // Disable send button to prevent multiple clicks
 
-    // Show typing indicator when sending message
+    // Show typing indicator while waiting for response
     $('#typing-indicator').removeClass('d-none');
 
-    const token = localStorage.getItem('auth_token');  // Get the auth token from localStorage
+    // Append the user's message immediately
+    const userMessageHtml = `
+        <div class="message user d-flex justify-content-end">
+            <div class="bubble">${content}</div>
+        </div>
+    `;
+    $('.messages').append(userMessageHtml);
+    $('.messages').animate({ scrollTop: $('.messages')[0].scrollHeight }, 300);
 
-    // Check if currentChatId exists (for existing conversations)
+    isSubmitting = true;  // Prevent further submissions until the response is received
+
+    // Send the message to the API
+    const token = localStorage.getItem('auth_token');
+
     if (currentChatId) {
-        // Send message under the existing conversation (add the token in the Authorization header)
         $.ajax({
-            url: apiBase + `/sales/query/existing/${currentChatId}/`,  // Use the new URL for existing conversations
+            url: apiBase + `/sales/query/existing/${currentChatId}/`,
             method: 'POST',
             headers: {
-                'Authorization': 'Bearer ' + token,  // Add the token to the Authorization header
+                'Authorization': 'Bearer ' + token,
             },
-            data: JSON.stringify({ prompt: content }),  // Send the content as a prompt in the request body
+            data: JSON.stringify({ prompt: content }),
             contentType: "application/json",
             success: function(response) {
+                isSubmitting = false;  // Allow submission of new messages
                 $('#typing-indicator').addClass('d-none'); // Hide typing indicator after receiving the response
-                fetchMessages(currentChatId);  // Fetch the updated messages for the existing conversation
-                $input.val('').prop('disabled', false).focus();
-                $('.send-btn').prop('disabled', false);
+                fetchMessages(currentChatId);  // Fetch the updated messages
+                $input.val('').prop('disabled', false).focus();  // Reset input field
+                $('.send-btn').prop('disabled', false);  // Enable send button again
             },
             error: function() {
-                $('#typing-indicator').addClass('d-none'); // Hide typing indicator if error occurs
+                isSubmitting = false;  // Allow submission of new messages
+                $('#typing-indicator').addClass('d-none');
                 Swal.fire({
                     icon: 'error',
                     title: 'Oops...',
@@ -396,35 +466,32 @@ function sendMessage(content) {
             }
         });
     } else {
-        // Case: Creating a new conversation and adding the first message
         $.ajax({
-            url: apiBase + "/sales/query/",  // Create a new conversation if no uuid is provided
+            url: apiBase + "/sales/query/",
             method: "POST",
             headers: {
-                'Authorization': 'Bearer ' + getAuthToken(),  // Add the token to the Authorization header
+                'Authorization': 'Bearer ' + getAuthToken(),
             },
-            data: JSON.stringify({ prompt: content }),  // Send the content as a prompt in the request body
+            data: JSON.stringify({ prompt: content }),
             contentType: "application/json",
             success: function(resp) {
                 if (resp && resp.uuid) {
-                    // Create a message after the new conversation is created
                     const newConversationId = resp.uuid;
-
                     $.ajax({
-                        url: apiBase + `/query/existing/${newConversationId}/`,  // Send the first message to the new conversation
+                        url: apiBase + `/query/existing/${newConversationId}/`,
                         method: 'POST',
                         headers: {
-                            'Authorization': 'Bearer ' + getAuthToken(),  // Add the token to the Authorization header
+                            'Authorization': 'Bearer ' + getAuthToken(),
                         },
-                        data: JSON.stringify({ prompt: content }),  // Send the content as a prompt
+                        data: JSON.stringify({ prompt: content }),
                         contentType: "application/json",
                         success: function() {
-                            currentChatId = newConversationId;  // Set the current chat to the newly created one
-                            fetchChats();  // Fetch the updated chat list
-                            fetchMessages(currentChatId);  // Fetch messages for the new conversation
+                            currentChatId = newConversationId;
+                            fetchChats();
+                            fetchMessages(currentChatId);
                         },
                         error: function() {
-                            $('#typing-indicator').addClass('d-none'); // Hide typing indicator if error occurs
+                            $('#typing-indicator').addClass('d-none');
                             Swal.fire({
                                 icon: 'error',
                                 title: 'Oops...',
@@ -439,7 +506,7 @@ function sendMessage(content) {
                 $('.send-btn').prop('disabled', false);
             },
             error: function() {
-                $('#typing-indicator').addClass('d-none'); // Hide typing indicator if error occurs
+                $('#typing-indicator').addClass('d-none');
                 Swal.fire({
                     icon: 'error',
                     title: 'Oops...',
@@ -451,6 +518,22 @@ function sendMessage(content) {
         });
     }
 }
+
+// Handling Enter key to send a message
+$('.input-area textarea').on('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {  // If Enter key is pressed (not Shift+Enter)
+        e.preventDefault();  // Prevent the default action of adding a new line
+        const content = $(this).val();
+        sendMessage(content);  // Call sendMessage when Enter is pressed
+    }
+});
+
+// Send message on click of the send button
+$('.input-area').on('submit', function(e) {
+    e.preventDefault();
+    const content = $(this).find('textarea').val();
+    sendMessage(content);
+});
 
 // Start a new chat
 function startNewChat() {
@@ -483,8 +566,9 @@ $(function() {
     fetchChats();
 
     $('.logout-btn').on('click', function () {
-        localStorage.clear(); // or remove auth_token & refresh_token individually
-        window.location.href = '/login/'; // Adjust to your login page path
+      // or remove auth_token & refresh_token individually
+        //window.location.href = '/login/'; // Adjust to your login page path
+        logOut()
     });
 
 

@@ -9,5 +9,5 @@ urlpatterns = [
     path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     # path('token/', obtain_auth_token, name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('logout/', LogoutAPIView.as_view(), name='logout'),
+     path('logout/', LogoutAPIView.as_view(), name='logout'),
 ]

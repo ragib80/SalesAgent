@@ -7,7 +7,7 @@ from openai import AzureOpenAI
 from django.conf import settings
 from conversation.models.message import Message
 
-from agent.utils.helpers import extract_date_range_from_prompt, ensure_azure_datetime
+from agent.utils.helpers import extract_date_range_from_prompt, ensure_azure_datetime,extract_dates_from_past_messages
 
 FIELD_SYNONYMS = {
     'revenue':      'Revenue',
@@ -96,23 +96,60 @@ def aggregate_sum(filter_str: str, field: str = 'Revenue'):
 # ===================== Metric Handlers =====================
 
 
-def handle_deterioration_rate(plan):
+def handle_deterioration_rate(plan, conversation=None):
     field = FIELD_SYNONYMS.get(plan.get('field', 'revenue').lower(), 'Revenue')
     start = ensure_azure_datetime(plan['start_date'])
     end = ensure_azure_datetime(plan['end_date'])
     filter_base = plan.get('filter', '')
     filter_str = f"{filter_base} and fkdat ge {start} and fkdat le {end}" if filter_base else f"fkdat ge {start} and fkdat le {end}"
     curr = aggregate_sum(filter_str, field)
+
     # Previous period
-    prev_start, prev_end = compute_previous_period(
-        plan['start_date'], plan['end_date'])
+    prev_start, prev_end = compute_previous_period(plan['start_date'], plan['end_date'])
     prev_start = ensure_azure_datetime(prev_start)
     prev_end = ensure_azure_datetime(prev_end)
     prev_filter_str = f"{filter_base} and fkdat ge {prev_start} and fkdat le {prev_end}" if filter_base else f"fkdat ge {prev_start} and fkdat le {prev_end}"
+
+    # Get previous revenue, check if it exists
     prev = aggregate_sum(prev_filter_str, field)
+
+    if prev == 0 or prev is None:
+        # If there's no previous data (or it's zero), we can't calculate deterioration
+        # Fallback to LLM for assistance
+        return handle_fallback_to_llm(plan, curr, prev, "deterioration_rate", conversation)
+
+    # Calculate deterioration rate if previous data exists
     rate = ((prev - curr) / prev * 100) if prev else None
     trend = 'down' if rate and rate > 0 else 'up'
-    return {'deterioration_rate': rate, 'trend': trend, 'current': curr, 'previous': prev}
+    
+    return {
+        'deterioration_rate': rate,
+        'trend': trend,
+        'current': curr,
+        'previous': prev,
+        'message': None  # No additional message if calculation is successful
+    }
+
+def handle_fallback_to_llm(plan, curr, prev, metric, conversation):
+    # If the deterioration rate calculation fails, fallback to LLM
+    message = f"Could not calculate the {metric} due to missing or zero previous data for the period {plan['start_date']} to {plan['end_date']}."
+
+    # Send the prompt to LLM to ask for clarification or provide suggestions
+    prompt = f"{message} Based on the provided revenue data, how should we proceed with calculating the {metric}? Please provide a specific period or clarify the data."
+
+    # Optionally include past conversation context to LLM
+    response = generate_llm_answer(prompt, plan, conversation)
+
+    return {
+        "answer": response,
+        "suggestions": [
+            "Please provide the full period's revenue data.",
+            "Try asking with a specific quarter or year to get the revenue calculation."
+        ],
+        "data": None
+    }
+
+
 
 
 def handle_profit_loss(plan):
@@ -126,46 +163,63 @@ def handle_profit_loss(plan):
 
 
 def handle_trend(plan):
+    """
+    Handles trend analysis, comparing sales data between two periods.
+    The trend is determined based on whether sales are increasing, decreasing, or remaining the same.
+    """
     group_by_fields = plan.get('group_by', [])
     if not group_by_fields:
-        # fallback: group by 'cname'
+        # Fallback: group by 'cname'
         group_by_fields = ['cname']
-    group_by_field = FIELD_SYNONYMS.get(
-        group_by_fields[0].lower(), group_by_fields[0])
+    group_by_field = FIELD_SYNONYMS.get(group_by_fields[0].lower(), group_by_fields[0])
 
     field = FIELD_SYNONYMS.get(plan.get('field', 'revenue').lower(), 'Revenue')
     start = ensure_azure_datetime(plan['start_date'])
     end = ensure_azure_datetime(plan['end_date'])
     filter_base = plan.get('filter', '')
     filter_str = f"{filter_base} and fkdat ge {start} and fkdat le {end}" if filter_base else f"fkdat ge {start} and fkdat le {end}"
-    prev_start, prev_end = compute_previous_period(
-        plan['start_date'], plan['end_date'])
+
+    prev_start, prev_end = compute_previous_period(plan['start_date'], plan['end_date'])
     prev_start = ensure_azure_datetime(prev_start)
     prev_end = ensure_azure_datetime(prev_end)
     prev_filter_str = f"{filter_base} and fkdat ge {prev_start} and fkdat le {prev_end}" if filter_base else f"fkdat ge {prev_start} and fkdat le {prev_end}"
 
+    # Fetch current and previous period sales data
+    curr_docs = search_client.search(search_text='*', filter=filter_str, top=1000)
+    prev_docs = search_client.search(search_text='*', filter=prev_filter_str, top=1000)
+
+    # Aggregate sales for current and previous periods
     from collections import defaultdict
-    curr_docs = search_client.search(
-        search_text='*', filter=filter_str, top=1000)
-    prev_docs = search_client.search(
-        search_text='*', filter=prev_filter_str, top=1000)
     curr_agg = defaultdict(float)
     prev_agg = defaultdict(float)
+
     for doc in curr_docs:
         entity = doc.get(group_by_field)
         curr_agg[entity] += doc.get(field, 0.0)
+
     for doc in prev_docs:
         entity = doc.get(group_by_field)
         prev_agg[entity] += doc.get(field, 0.0)
+
+    # Compare sales and determine the trend
     trend_by_entity = {}
     for entity in set(curr_agg) | set(prev_agg):
-        c = curr_agg.get(entity, 0)
-        p = prev_agg.get(entity, 0)
-        if p == 0:
-            trend = 'up' if c > 0 else 'flat'
+        current_sales = curr_agg.get(entity, 0)
+        previous_sales = prev_agg.get(entity, 0)
+
+        if previous_sales == 0:
+            # If previous sales are 0, consider it as an uptrend if current sales > 0
+            trend = 'up' if current_sales > 0 else 'flat'
         else:
-            trend = 'up' if c > p else 'down'
-        trend_by_entity[entity] = {'current': c, 'previous': p, 'trend': trend}
+            # Compare current vs. previous sales
+            trend = 'up' if current_sales > previous_sales else 'down'
+
+        trend_by_entity[entity] = {
+            'current': current_sales,
+            'previous': previous_sales,
+            'trend': trend
+        }
+
     return {'trend_by_entity': trend_by_entity}
 
 
@@ -213,38 +267,148 @@ def handle_default(plan):
     return {'total': curr}
 
 # ===================== Central dispatcher =====================
+def extract_periods_from_prompt(prompt):
+    """
+    Extracts periods from the user’s prompt. This function handles time-based queries like Q1, Q2, or specific months.
+    """
+    periods = []
+    
+    # Match for quarters (e.g., Q1 2025, Q2 2025)
+    if "Q1" in prompt:
+        periods.append({"name": "Q1 2025", "start_date": "2025-01-01", "end_date": "2025-03-31"})
+    if "Q2" in prompt:
+        periods.append({"name": "Q2 2025", "start_date": "2025-04-01", "end_date": "2025-06-30"})
+    if "Q3" in prompt:
+        periods.append({"name": "Q3 2025", "start_date": "2025-07-01", "end_date": "2025-09-30"})
+    if "Q4" in prompt:
+        periods.append({"name": "Q4 2025", "start_date": "2025-10-01", "end_date": "2025-12-31"})
+    
+    # Match for specific months (e.g., "March 2025", "April 2025")
+    months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+    for month in months:
+        if month in prompt:
+            periods.append({"name": f"{month} 2025", "start_date": f"2025-{months.index(month)+1:02d}-01", "end_date": f"2025-{months.index(month)+1:02d}-28"})
+    
+    # Add custom date ranges if mentioned
+    if "from" in prompt and "to" in prompt:
+        start_date = extract_date_range_from_prompt(prompt)[0]
+        end_date = extract_date_range_from_prompt(prompt)[1]
+        periods.append({"name": f"{start_date} to {end_date}", "start_date": start_date, "end_date": end_date})
+    
+    return periods
 
 
-def sales_metrics_engine(prompt: str):
-    plan = extract_operation_plan(prompt)
+def sales_metrics_engine(prompt: str, conversation=None):
+    try:
+        # 1. Extract operation plan from the user's prompt
+        plan = extract_operation_plan(prompt)
 
-    # Date range fallback
-    if not plan.get('start_date') or not plan.get('end_date'):
-        start, end = extract_date_range_from_prompt(prompt)
-        plan['start_date'] = plan.get('start_date', start)
-        plan['end_date'] = plan.get('end_date', end)
+        # 2. Handle missing date ranges dynamically
+        if not plan.get('start_date') or not plan.get('end_date'):
+            # Try to extract the date range from past messages in the conversation
+            date_ranges = extract_dates_from_past_messages(conversation)
 
-    # Always construct filter for date range (overrides if present)
-    # Azure OData filters require ISO datetime!
-    start = ensure_azure_datetime(plan['start_date'])
-    end = ensure_azure_datetime(plan['end_date'])
-    if not plan.get('filter') or 'fkdat' not in plan['filter']:
-        plan['filter'] = f"fkdat ge {start} and fkdat le {end}"
+            if date_ranges:
+                plan['start_date'], plan['end_date'] = date_ranges[-2]  # Use the last two periods from conversation
+            else:
+                # Handle the case where no date ranges can be found
+                return {
+                    "answer": "I couldn't find any date ranges in your request or previous messages. Can you please provide a specific date range?",
+                    "suggestions": [
+                        "Try asking for a specific date range: 'Revenue for March 2025'.",
+                        "Or use a quarter or year: 'Revenue for Q1 2025' or 'Revenue for 2025'."
+                    ],
+                    "data": None
+                }
 
-    metric = plan['metric']
-    if metric == 'deterioration_rate':
-        result = handle_deterioration_rate(plan)
-    elif metric == 'profit_loss':
-        result = handle_profit_loss(plan)
-    elif metric == 'trend':
-        result = handle_trend(plan)
-    elif metric == 'comparison':
-        result = handle_comparison(plan)
-    elif metric == 'profitability':
-        result = handle_profitability(plan)
-    else:
-        result = handle_default(plan)
-    return {'operation_plan': plan, 'result': result}
+        # Ensure the filter includes the date range (using OData filter syntax)
+        start = ensure_azure_datetime(plan['start_date'])
+        end = ensure_azure_datetime(plan['end_date'])
+        if not plan.get('filter') or 'fkdat' not in plan['filter']:
+            plan['filter'] = f"fkdat ge {start} and fkdat le {end}"
+
+        # 3. Handle vague prompts such as "compare"
+        vague_prompts = ["compare", "compare that", "what about that", "more", "show more"]
+        if any(phrase in prompt.lower() for phrase in vague_prompts):
+            periods_to_compare = extract_periods_from_prompt(prompt)
+            print(periods_to_compare)
+
+            if not periods_to_compare:
+                # If periods are not provided, use the last two periods from past messages
+                # periods_to_compare = [{"name": "March 2025", "start_date": "2025-03-01", "end_date": "2025-03-31"},
+                #                       {"name": "May 2025", "start_date": "2025-05-01", "end_date": "2025-05-31"}]
+                return handle_fallback_to_llm(prompt, "date range", conversation)
+            comparison_results = {}
+            
+            for period in periods_to_compare:
+                filter_str = f"fkdat ge {period['start_date']} and fkdat le {period['end_date']}"
+                try:
+                    sales_data = aggregate_sum(filter_str, 'Revenue')
+                    comparison_results[period['name']] = sales_data
+                except Exception as e:
+                    # Fallback to LLM if there's an issue with comparison
+                    return handle_fallback_to_llm(prompt, "comparison", conversation)
+
+            # Construct the comparison message
+            comparison_message = "Here is the comparison of the sales data:\n"
+            for period, sales in comparison_results.items():
+                comparison_message += f"{period}: {sales}\n"
+
+            return {
+                "answer": comparison_message,
+                "result": comparison_results,
+                "operation_plan": None
+            }
+
+        # Regular handling for other metrics (e.g., deterioration_rate, profit_loss)
+        metric = plan['metric']
+        try:
+            if metric == 'deterioration_rate':
+                result = handle_deterioration_rate(plan)
+            elif metric == 'profit_loss':
+                result = handle_profit_loss(plan)
+            elif metric == 'trend':
+                result = handle_trend(plan)
+            elif metric == 'comparison':
+                result = handle_comparison(plan, conversation)
+            elif metric == 'profitability':
+                result = handle_profitability(plan)
+            else:
+                result = handle_default(plan)
+        except Exception as e:
+            # Fallback to LLM model for ambiguous or missing data
+            return handle_fallback_to_llm(prompt, "general error", conversation)
+        return {'operation_plan': plan, 'result': result}
+
+    except Exception as e:
+        # Catch unhandled exceptions and ask LLM for clarification
+         return handle_fallback_to_llm(prompt, "general error", conversation)
+
+def handle_fallback_to_llm(prompt, issue_type, conversation=None):
+    """
+    If the sales_metrics_engine cannot process the request, it will call the LLM for clarification.
+    """
+    # Build a prompt for the LLM model based on the issue type
+    if issue_type == "date range":
+        message = "I couldn't find a date range in your request. Could you please specify a date range, from the previous history'?"
+    elif issue_type == "comparison":
+        message = "I couldn't fetch sales data for the specified periods. Could you please provide specific periods like 'Revenue for March 2025 and May 2025'?"
+    elif issue_type == "general error":
+        message = "There seems to be an issue processing your request. Could you please provide more specific details about what you're looking for?"
+    
+    # Send the message to the LLM model for further processing
+    prompt = f"{message} Here's what I know so far: {prompt}"
+    response = generate_llm_answer(prompt, None, conversation)
+
+    return {
+        "answer": response,
+        "suggestions": [
+            "You can ask for revenue by specific month or year: 'Revenue for March 2025'.",
+            "Or you can compare periods like: 'Compare revenue for Q1 2025 and Q2 2025'."
+        ],
+        "data": None
+    }
+
 
 # def generate_llm_answer(prompt: str, result: dict) -> str:
 #     resp = openai_client.chat.completions.create(
@@ -258,41 +422,39 @@ def sales_metrics_engine(prompt: str):
 #     return resp.choices[0].message.content
 
 
-def generate_llm_answer(prompt: str, result: dict, conversation=None) -> str:
-    """
-    This function generates an answer from the LLM based on the user's prompt.
-    If conversation history exists, it's sent to the LLM with the new prompt.
-
-    :param prompt: The user's new query.
-    :param result: The sales data result to be passed to LLM.
-    :param conversation: The conversation object (used to fetch message history).
-    :return: The LLM's generated response.
-    """
-    # Prepare the base system message
+def generate_llm_answer(prompt: str, result: dict, conversation=None, suggestions=None) -> str:
     messages = [
-        {'role': 'system', 'content': 'You are a helpful sales analyst.'},
-        {'role': 'user', 'content': f"User asked: '{prompt}'"},
-        {'role': 'system', 'content': f"Result: {json.dumps(result)}"}
+        {'role': 'system', 'content': 'You are a helpful SAP sales analyst.'}
     ]
-
-    # If conversation history exists, include it
+    
+    # Include previous conversation history, clearly marked
     if conversation:
-        # Fetch the latest 5 messages for the conversation (if they exist)
         history_messages = Message.objects.filter(
-            conversation=conversation, is_deleted=False).order_by('-created_at')[:5]
-
-        # Add the historical messages to the LLM input
-        # Reverse to ensure chronological order
-        for message in reversed(history_messages):
-            role = 'user' if message.sender == 'user' else 'assistant'
-            # Prefix the historical messages with context: "User said" or "Assistant said"
-            messages.insert(1, {'role': role, 'content': message.text})
-
-    # Send the combined messages (history + new prompt) to the LLM
+            conversation=conversation, is_deleted=False
+        ).order_by('created_at')[:10]  # oldest to newest
+        
+        # Add each message as part of the conversation history
+        for msg in history_messages:
+            role = 'user' if msg.sender == 'user' else 'system'
+            messages.append({'role': role, 'content': f"[Previous message] {msg.text}"})
+    
+    # Add the new user prompt (clearly marked as new prompt)
+    messages.append({'role': 'user', 'content': f"[New user prompt] {prompt}"})
+    
+    # If any result data exists (from RAG), include that as well
+    if result:
+        messages.append({'role': 'system', 'content': f"Result: {json.dumps(result)}"})
+    
+    # Optionally, include suggestions if available
+    if suggestions:
+        messages.append({'role': 'system', 'content': f"Suggestions: {json.dumps(suggestions)}"})
+    print ("messages before call llm ",messages)
+    # Send the conversation context + user prompt to LLM
     resp = openai_client.chat.completions.create(
         model=deployment,
         messages=messages
     )
 
-    # Return the LLM's response
+    # Return the LLM's generated response
     return resp.choices[0].message.content
+

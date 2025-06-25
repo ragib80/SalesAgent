@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import TokenBlacklist
+from rest_framework_simplejwt.exceptions import TokenError
 
 # Custom Token Serializer (optional, to extend with user info)
 from django.shortcuts import render
@@ -35,10 +36,15 @@ class CustomTokenObtainPairView(TokenObtainPairView):
         # Call the parent class method for token creation
         response = super().post(request, *args, **kwargs)
 
-        # Optionally, add more data to the response (like user info)
-        response.data['message'] = 'Login successful!'
-        return response
+        # Get the user associated with the request
+        user = request.user
 
+        # Add additional data to the response
+        response.data['message'] = 'Login successful!'
+        response.data['user_uuid'] = str(user.uuid)  # Add user UUID
+        response.data['user_full_name'] = user.get_full_name()  # Add user full name
+
+        return response
 # models.py
 class CustomTokenObtainPairView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
@@ -46,28 +52,38 @@ class CustomTokenObtainPairView(TokenObtainPairView):
         print(response.data)  # Log the response data
         return response
 
-class LogoutAPIView(APIView):
-    # permission_classes = [IsAuthenticated]
 
+
+class LogoutAPIView(APIView):
     def post(self, request):
         """
-        Blacklist the user's refresh token on logout.
+        This endpoint will blacklist the user's refresh token on logout.
         """
         try:
-            # Get the current user's refresh token from the request
-            refresh_token = request.data.get("refresh_token")
+            # Get the refresh token from the Authorization header
+            refresh_token = request.data.get("refresh_token") or request.headers.get('Authorization')
 
             if not refresh_token:
                 return Response({"detail": "Refresh token is required."}, status=status.HTTP_400_BAD_REQUEST)
 
+            # If the token is prefixed with 'Bearer ', remove it
+            if refresh_token.startswith('Bearer '):  
+                refresh_token = refresh_token[7:]
+
             # Create a RefreshToken instance from the refresh token
             token = RefreshToken(refresh_token)
 
-            # Add the refresh token to the blacklist
-            TokenBlacklist.objects.create(refresh_token=str(token))
+            # Blacklist the refresh token
+            token.blacklist()
+
+            # Clear the user session by setting request.user to None
+            request.user = None  # Clear the user for this session
+            _user.value = None  # Clear thread-local storage
 
             # Return a success message
             return Response({"detail": "Successfully logged out."}, status=status.HTTP_200_OK)
 
+        except TokenError as e:
+            return Response({"detail": f"Token error: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "An error occurred during logout."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

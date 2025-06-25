@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',  # For token-based authentication
     'user_auth',
+    'rest_framework_simplejwt.token_blacklist',
 ]
 
 MIDDLEWARE = [
@@ -60,6 +61,7 @@ MIDDLEWARE = [
     'core.middleware.current_user.CurrentUserMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+     
 
 ]
 CORS_ALLOWED_ORIGINS = [
@@ -67,13 +69,13 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',  # Use JWT authentication
+     'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',  # for JWT tokens
+        # 'rest_framework.authentication.SessionAuthentication',  # for Session-based authentication (optional)
     ],
-    # 'DEFAULT_PERMISSION_CLASSES': [
-    #     # Ensure only authenticated users can access the API
-    #     'rest_framework.permissions.IsAuthenticated',
-    # ]
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
 }
 
 SIMPLE_JWT = {
@@ -81,9 +83,12 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=6),
     # Example: Refresh token expiration time
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-    'ROTATE_REFRESH_TOKENS': False,  # Set to True if you want to rotate refresh tokens
+   # Set to True if you want to rotate refresh tokens
     # If True, refresh tokens will be blacklisted after rotation
-    'BLACKLIST_AFTER_ROTATION': True,
+     'BLACKLIST_AFTER_ROTATION': True,  # Ensure tokens are blacklisted after rotation
+     # Set to True if you want to rotate refresh tokens
+    # If True, refresh tokens will be blacklisted after rotation
+    'ROTATE_REFRESH_TOKENS': True,  # Refresh tokens should be rotated
 }
 
 ROOT_URLCONF = 'core.urls'

@@ -16,12 +16,14 @@ class ConversationListCreateAPIView(APIView):
         """
         List all conversations for the logged-in user
         """
-        current_user = get_current_user()  # Get the current user
+        current_user = request.user  # Get the current user directly from request.user
+        print('current_user ',current_user)
         if current_user is None:
             return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
 
-        conversations = Conversation.objects.filter(
+        conversations = Conversation.active.filter(
             user=current_user, is_deleted=False)
+        print ("C U C ",conversations)
         serializer = ConversationSerializer(conversations, many=True)
         return Response(serializer.data)
 
@@ -29,7 +31,7 @@ class ConversationListCreateAPIView(APIView):
         """
         Create a new conversation for the logged-in user
         """
-        current_user = get_current_user()  # Get the current user
+        current_user = request.user  # Get the current user
         if current_user is None:
             return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
 
@@ -50,7 +52,7 @@ class ConversationRetrieveUpdateDestroyAPIView(APIView):
         """
         Retrieve a single conversation by its UUID
         """
-        current_user = get_current_user()  # Get the current user
+        current_user = request.user  # Get the current user
         if current_user is None:
             return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
 
@@ -63,7 +65,7 @@ class ConversationRetrieveUpdateDestroyAPIView(APIView):
         """
         Update an existing conversation
         """
-        current_user = get_current_user()  # Get the current user
+        current_user = request.user  # Get the current user
         if current_user is None:
             return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
 
@@ -80,7 +82,7 @@ class ConversationRetrieveUpdateDestroyAPIView(APIView):
         """
         Soft delete the conversation
         """
-        current_user = get_current_user()  # Get the current user
+        current_user = request.user  # Get the current user
         if current_user is None:
             return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
 
@@ -97,7 +99,7 @@ class ConversationMessagesAPIView(APIView):
         """
         List all messages for a specific conversation identified by its UUID
         """
-        current_user = get_current_user()  # Get the current user
+        current_user = request.user  # Get the current user
         if current_user is None:
             return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
 
@@ -111,7 +113,7 @@ class ConversationMessagesAPIView(APIView):
         """
         Create a new message for a specific conversation identified by its UUID
         """
-        current_user = get_current_user()  # Get the current user
+        current_user = request.user  # Get the current user
         if current_user is None:
             return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
 
@@ -140,7 +142,7 @@ class UserConversationsAPIView(APIView):
         """
         List all conversations for the logged-in user
         """
-        current_user = get_current_user()  # Get the current user
+        current_user = request.user  # Get the current user
         if current_user is None:
             return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
 
