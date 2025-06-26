@@ -8,7 +8,7 @@ from langchain_openai import AzureOpenAI
 
 from langchain.memory import ConversationBufferMemory
 from django.conf import settings
-
+from langchain_openai import AzureChatOpenAI
 # -------------------------------
 # 1. CONFIGURATION
 # -------------------------------
@@ -26,9 +26,10 @@ search_client = SearchClient(
 #     api_version="2024-02-15-preview",
 # )
 
-llm = AzureOpenAI(
-    azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-    api_key=os.getenv("AZURE_OPENAI_KEY"),
+llm = AzureChatOpenAI(
+    azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+    api_key=settings.AZURE_OPENAI_KEY,
+    deployment_name=settings.AZURE_OPENAI_DEPLOYMENT,   # <- REQUIRED!
     api_version="2025-01-01-preview"
 )
 print(llm.invoke("Say hello in JSON."))
