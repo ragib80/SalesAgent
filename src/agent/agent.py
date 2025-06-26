@@ -127,6 +127,13 @@ def parse_prompt_to_plan(prompt):
         llm_response = llm.invoke(llm_prompt).strip()
         print("==== LLM RAW RESPONSE ====")
         print(llm_response)  # <--- ADD THIS LINE
+        # If it's a message object, extract content:
+        if hasattr(llm_response, "content"):
+            llm_content = llm_response.content
+        else:
+            llm_content = str(llm_response)
+        print("==== LLM EXTRACTED CONTENT ====")
+        print(llm_content)
         try:
             plan = json.loads(llm_response.split('```json')[-1].split('```')[0] if '```json' in llm_response else llm_response)
         except Exception:
