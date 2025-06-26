@@ -114,3 +114,15 @@ def ensure_azure_datetime(date_str):
         return date_str
     # Add time and Zulu if missing
     return f"{date_str}T00:00:00Z"
+
+
+
+
+
+def fill_dates(plan):
+    now = datetime.now()
+    if not plan.get("start_date"):
+        plan["start_date"] = f"{now.year}-01-01"
+    if not plan.get("end_date"):
+        plan["end_date"] = f"{now.year}-12-31"
+    return plan
