@@ -5,7 +5,7 @@ from sales_analyzer.serializers import QueryRequestSerializer, QueryResponseSeri
 from agent.azure_clients import search_client, openai_client
 from django.conf import settings
 from django.views.generic import TemplateView
-from agent.agent import sales_metrics_engine, generate_llm_answer
+from agent.agent import handle_user_query
 from conversation.models.conversation import Conversation
 from conversation.models.message import Message
 from datetime import datetime
@@ -32,41 +32,53 @@ class ChatView(TemplateView):
 #         response_ser = ChatResponseSerializer(out)
 #         return Response(response_ser.data, status=status.HTTP_200_OK)
 
+
 class ChatAPIView(APIView):
     def post(self, request):
-        print("sad  fdsf", request.user)
+        try:
+            ser = ChatRequestSerializer(data=request.data)
+            ser.is_valid(raise_exception=True)
+            prompt = ser.validated_data['prompt']
 
-        # Deserialize and validate the input data
-        ser = ChatRequestSerializer(data=request.data)
-        ser.is_valid(raise_exception=True)
-        prompt = ser.validated_data['prompt']
+            # Create or get conversation
+            conversation_id = request.data.get("conversation_id")
+            if conversation_id:
+                conversation = self.get_or_create_conversation(request.user, conversation_uuid=conversation_id)
+            else:
+                conversation = self.create_new_conversation(request.user)
 
-        # If no existing conversation ID, create a new one
-        if not request.data.get("conversation_id"):
-            conversation = self.create_new_conversation(request.user)
-        else:
-            conversation = self.get_or_create_conversation(request.user, conversation_uuid=request.data.get("conversation_id"))
+            # >>>> Run your intelligent agent <<<<
+            result = handle_user_query(prompt)
+            # result is already a friendly LLM summary (answer)
+            answer = result if isinstance(result, str) else result.get("answer", "")
 
-        # Generate result using the sales_metrics_engine
-        result = sales_metrics_engine(prompt)
-        answer = generate_llm_answer(
-            prompt, result, conversation=conversation
-        )
+            # Store user & assistant messages for conversation context
+            self.create_message(conversation, 'user', prompt)
+            self.create_message(conversation, 'assistant', answer)
 
-        # Save user message and bot's response
-        self.create_message(conversation, 'user', prompt)
-        self.create_message(conversation, 'assistant', answer)
+            out = {
+                'answer': answer,
+                # Optionally attach structured results if your handle_user_query returns them
+                'data': result.get('result') if isinstance(result, dict) else None,
+                'operation_plan': result.get('operation_plan') if isinstance(result, dict) else None,
+            }
+            response_ser = ChatResponseSerializer(out)
+            return Response(response_ser.data, status=status.HTTP_200_OK)
 
-        out = {
-            'answer': answer,
-            'data': result.get('result'),
-            'operation_plan': result.get('operation_plan'),
-        }
+        except Exception as e:
+            # Always return a user-friendly error, never a stack trace.
+            out = {
+                'answer': (
+                    "Sorry, I couldn't process your request. "
+                    "Please try rephrasing your question, for example by adding a date, sales metric, or SAP entity."
+                ),
+                'data': None,
+                'operation_plan': None
+            }
+            response_ser = ChatResponseSerializer(out)
+            return Response(response_ser.data, status=status.HTTP_200_OK)
 
-        # Prepare the response
-        response_ser = ChatResponseSerializer(out)
-        return Response(response_ser.data, status=status.HTTP_200_OK)
-
+    # Conversation/message helpers
     def create_new_conversation(self, user):
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         conversation = Conversation.objects.create(
@@ -75,10 +87,6 @@ class ChatAPIView(APIView):
         return conversation
 
     def get_or_create_conversation(self, user, conversation_uuid=None):
-        """
-        This method checks if there's an existing conversation.
-        If not, it creates a new one.
-        """
         if conversation_uuid:
             existing_conversation = Conversation.objects.filter(
                 user=user, uuid=conversation_uuid, is_deleted=False
@@ -94,9 +102,6 @@ class ChatAPIView(APIView):
                 return existing_conversations.order_by('-created_at').first()
 
     def create_message(self, conversation, sender_role, message_content):
-        """
-        This method will create a new message under the conversation.
-        """
         Message.objects.create(
             conversation=conversation,
             sender=sender_role,
@@ -104,43 +109,43 @@ class ChatAPIView(APIView):
             is_deleted=False
         )
 
-
 class ExistingConversationAPIView(APIView):
     def post(self, request, conversation_uuid):
-        print(f"Existing Conversation - {conversation_uuid}:", request.user)
+        try:
+            ser = ChatRequestSerializer(data=request.data)
+            ser.is_valid(raise_exception=True)
+            prompt = ser.validated_data['prompt']
 
-        # Deserialize and validate the input data
-        ser = ChatRequestSerializer(data=request.data)
-        ser.is_valid(raise_exception=True)
-        prompt = ser.validated_data['prompt']
+            conversation = self.get_or_create_conversation(request.user, conversation_uuid)
 
-        # Get the existing conversation
-        conversation = self.get_or_create_conversation(request.user, conversation_uuid)
+            # >>>> Run your intelligent agent <<<<
+            result = handle_user_query(prompt)
+            answer = result if isinstance(result, str) else result.get("answer", "")
 
-        # Generate result using the sales_metrics_engine
-        result = sales_metrics_engine(prompt)
-        answer = generate_llm_answer(
-            prompt, result, conversation=conversation
-        )
+            self.create_message(conversation, 'user', prompt)
+            self.create_message(conversation, 'assistant', answer)
 
-        # Save user message and bot's response
-        self.create_message(conversation, 'user', prompt)
-        self.create_message(conversation, 'assistant', answer)
+            out = {
+                'answer': answer,
+                'data': result.get('result') if isinstance(result, dict) else None,
+                'operation_plan': result.get('operation_plan') if isinstance(result, dict) else None,
+            }
+            response_ser = ChatResponseSerializer(out)
+            return Response(response_ser.data, status=status.HTTP_200_OK)
 
-        out = {
-            'answer': answer,
-            'data': result.get('result'),
-            'operation_plan': result.get('operation_plan'),
-        }
-
-        # Prepare the response
-        response_ser = ChatResponseSerializer(out)
-        return Response(response_ser.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            out = {
+                'answer': (
+                    "Sorry, I couldn't process your request. "
+                    "Please try a more specific question, such as including a date, metric, or SAP entity."
+                ),
+                'data': None,
+                'operation_plan': None
+            }
+            response_ser = ChatResponseSerializer(out)
+            return Response(response_ser.data, status=status.HTTP_200_OK)
 
     def get_or_create_conversation(self, user, conversation_uuid):
-        """
-        This method checks if there's an existing conversation by UUID.
-        """
         existing_conversation = Conversation.objects.filter(
             user=user, uuid=conversation_uuid, is_deleted=False
         ).first()
@@ -154,9 +159,6 @@ class ExistingConversationAPIView(APIView):
         return conversation
 
     def create_message(self, conversation, sender_role, message_content):
-        """
-        This method will create a new message under the conversation.
-        """
         Message.objects.create(
             conversation=conversation,
             sender=sender_role,
