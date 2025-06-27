@@ -1,3 +1,4 @@
+from datetime import datetime
 import json
 from django.conf import settings
 from azure.core.credentials import AzureKeyCredential
@@ -48,7 +49,7 @@ COLUMN_MAP = {
 }
 
 # ---- 2. ODATA QUERY BUILDER (PAGINATION SUPPORTED) ----
-from datetime import datetime
+
 
 def build_odata_query(params):
     """
@@ -63,8 +64,10 @@ def build_odata_query(params):
     start = dr.get("start", "2024-01-01")
     end = dr.get("end", str(today))
     # Ensure proper ISO8601 with time and 'Z'
-    if len(start) == 10: start += "T00:00:00Z"
-    if len(end) == 10: end += "T23:59:59Z"
+    if len(start) == 10:
+        start += "T00:00:00Z"
+    if len(end) == 10:
+        end += "T23:59:59Z"
     filters.append(f"fkdat ge {start} and fkdat le {end}")
 
     # ----- OTHER FILTERS -----
@@ -82,9 +85,11 @@ def build_odata_query(params):
     filter_str = "$filter=" + " and ".join(filters) if filters else ""
 
     # ----- AGGREGATION & GROUP BY -----
-    metric_col = COLUMN_MAP.get(params.get("metric", "revenue").lower(), params.get("metric", "Revenue"))
+    metric_col = COLUMN_MAP.get(params.get(
+        "metric", "revenue").lower(), params.get("metric", "Revenue"))
     group_by = params.get("group_by")
-    group_by_col = COLUMN_MAP.get(group_by.lower(), group_by) if group_by else None
+    group_by_col = COLUMN_MAP.get(
+        group_by.lower(), group_by) if group_by else None
     agg_type = params.get("aggregation", "")
     apply_str = ""
 
@@ -92,7 +97,8 @@ def build_odata_query(params):
         apply_str = f"$apply=groupby(({group_by_col}"
         # Optional: handle group_by_2
         if params.get("group_by_2"):
-            gb2 = COLUMN_MAP.get(params["group_by_2"].lower(), params["group_by_2"])
+            gb2 = COLUMN_MAP.get(
+                params["group_by_2"].lower(), params["group_by_2"])
             apply_str += f", {gb2}"
         apply_str += f"), aggregate({metric_col} with sum as Total{metric_col.capitalize()}))"
     else:
@@ -106,9 +112,11 @@ def build_odata_query(params):
     # ----- ORDER BY, TOP N -----
     odata_parts = [filter_str, apply_str]
     if agg_type and "top" in agg_type and "top_n" in params:
-        odata_parts.append(f"$orderby=Total{metric_col.capitalize()} desc&$top={params['top_n']}")
+        odata_parts.append(
+            f"$orderby=Total{metric_col.capitalize()} desc&$top={params['top_n']}")
     elif params.get("order_by"):
-        order_col = COLUMN_MAP.get(params["order_by"].lower(), params["order_by"])
+        order_col = COLUMN_MAP.get(
+            params["order_by"].lower(), params["order_by"])
         order = params.get("order", "desc")
         odata_parts.append(f"$orderby={order_col} {order}")
 
@@ -116,6 +124,7 @@ def build_odata_query(params):
     print("\n==== Built OData query ====")
     print(odata_query)
     return odata_query
+
 
 # ---- 3. FUNCTION SCHEMA FOR LLM (OpenAI) ----
 openai_function_schema = {
@@ -146,6 +155,8 @@ openai_function_schema = {
 }
 
 # ---- 4. LLM EXTRACTION WITH OPENAI FUNCTION CALLING ----
+
+
 def extract_sap_sales_query_params(prompt: str) -> dict:
     print("\n=== extract_sap_sales_query_params CALLED ===")
     client = AzureOpenAI(
@@ -154,7 +165,7 @@ def extract_sap_sales_query_params(prompt: str) -> dict:
         api_version="2025-01-01-preview"
     )
 
-    print("\n=== client ===",client)
+    print("\n=== client ===", client)
     messages = [
         {"role": "system", "content":
             "You are a SAP sales analytics assistant. Given a natural language prompt, extract as much as possible for: "
@@ -168,7 +179,8 @@ def extract_sap_sales_query_params(prompt: str) -> dict:
             model=settings.AZURE_OPENAI_DEPLOYMENT,
             messages=messages,
             tools=[{"type": "function", "function": openai_function_schema}],
-            tool_choice={"type": "function", "function": {"name": "extract_sap_sales_query_params"}},
+            tool_choice={"type": "function", "function": {
+                "name": "extract_sap_sales_query_params"}},
             max_tokens=16300
         )
         print("Azure OpenAI raw response:", response)
@@ -187,12 +199,14 @@ def extract_sap_sales_query_params(prompt: str) -> dict:
         params["page"] = 1
     return params
 
+
 # ---- 5. AZURE SEARCH TOOL WITH PAGINATION AND FULL ACCURACY ----
 search_client = SearchClient(
     endpoint=settings.AZURE_SEARCH_ENDPOINT,
     index_name=settings.AZURE_SEARCH_INDEX,
     credential=AzureKeyCredential(settings.AZURE_SEARCH_KEY)
 )
+
 
 def azure_sales_odata_search(params):
     odata = build_odata_query(params)
@@ -202,7 +216,8 @@ def azure_sales_odata_search(params):
 
     # NEW: Parse $filter and $orderby from odata query
     filter_expr, order_by_expr = extract_filter_and_orderby_from_odata(odata)
-    print(f"\n==== Running Azure Search with filter: {filter_expr} | order_by: {order_by_expr} ====")
+    print(
+        f"\n==== Running Azure Search with filter: {filter_expr} | order_by: {order_by_expr} ====")
     results = []
     try:
         resp = search_client.search(
@@ -272,6 +287,8 @@ def extract_filter_and_orderby_from_odata(odata_query):
     return filter_str, order_by
 
 # ---- 7. MAIN HANDLER FOR DJANGO API ----
+
+
 def handle_user_query(prompt: str):
     """
     Main entry point to process user queries via the agent.
