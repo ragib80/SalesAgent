@@ -167,7 +167,7 @@ def extract_sap_sales_query_params(prompt: str) -> Dict[str, Any]:
 
     payload = rsp.choices[0].message.tool_calls[0].function.arguments
     params = json.loads(payload)
-    params.setdefault("page_size", 50)
+    params.setdefault("page_size", 200)
     params.setdefault("page", 1)
     return params
 
@@ -391,8 +391,10 @@ def handle_user_query(prompt: str) -> Dict[str, Any]:
     # Explicitly choose tool
     is_agg = bool(params.get("aggregation"))
     if is_agg:
+        print("aggrigate")
         data = stream_and_aggregate(params)
     else:
+        print("non aggrigate")
         data = azure_sales_row_search(params)
 
     # Summary prompt: different for agg vs. paginated
@@ -410,7 +412,7 @@ def handle_user_query(prompt: str) -> Dict[str, Any]:
         summary_prompt = (
             f"User asked: '{prompt}'.\n"
             f"Processed parameters: {json.dumps(params, indent=2)}\n"
-            f"Result snippet (first 20 rows/items): {json.dumps(data['result'][:20], indent=2)}\n"
+            f"Result snippet (first 20 rows/items): {json.dumps(data['result'][:50], indent=2)}\n"
             "Give a clear, business-friendly answer . "
             "If result is paginated, mention page & size."
         )

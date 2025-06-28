@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from sales_analyzer.serializers import QueryRequestSerializer, QueryResponseSerializer, ChatRequestSerializer, ChatResponseSerializer
+from sales_analyzer.serializers import QueryRequestSerializer, QueryResponseSerializer, ChatRequestSerializer, ChatResponseSerializer,FirstChatResponseSerializer
 from agent.azure_clients import search_client, openai_client
 from django.conf import settings
 from django.views.generic import TemplateView
@@ -49,33 +49,33 @@ class ChatAPIView(APIView):
 
             # >>>> Run your intelligent agent <<<<
             result = handle_user_query(prompt)
-            # result is already a friendly LLM summary (answer)
             answer = result if isinstance(result, str) else result.get("answer", "")
 
             # Store user & assistant messages for conversation context
             self.create_message(conversation, 'user', prompt)
             self.create_message(conversation, 'assistant', answer)
 
+            # Always return uuid!
             out = {
                 'answer': answer,
-                # Optionally attach structured results if your handle_user_query returns them
                 'data': result.get('result') if isinstance(result, dict) else None,
                 'operation_plan': result.get('operation_plan') if isinstance(result, dict) else None,
+                'uuid': str(conversation.uuid),  # <- ensure uuid is included
             }
-            response_ser = ChatResponseSerializer(out)
+            response_ser = FirstChatResponseSerializer(out)
             return Response(response_ser.data, status=status.HTTP_200_OK)
 
         except Exception as e:
-            # Always return a user-friendly error, never a stack trace.
             out = {
                 'answer': (
                     "Sorry, I couldn't process your request. "
                     "Please try rephrasing your question, for example by adding a date, sales metric, or SAP entity."
                 ),
                 'data': None,
-                'operation_plan': None
+                'operation_plan': None,
+                'uuid': None,  # Return None if error
             }
-            response_ser = ChatResponseSerializer(out)
+            response_ser = FirstChatResponseSerializer(out)
             return Response(response_ser.data, status=status.HTTP_200_OK)
 
     # Conversation/message helpers
@@ -108,6 +108,7 @@ class ChatAPIView(APIView):
             text=message_content,
             is_deleted=False
         )
+
 
 class ExistingConversationAPIView(APIView):
     def post(self, request, conversation_uuid):

@@ -21,3 +21,11 @@ class ChatResponseSerializer(serializers.Serializer):
     data           = serializers.JSONField()
     operation_plan = serializers.JSONField(required=False)
     # result     = serializers.JSONField(required=False)  # optional if you want raw
+
+
+
+class FirstChatResponseSerializer(serializers.Serializer):
+    answer         = serializers.CharField()
+    data           = serializers.JSONField()
+    operation_plan = serializers.JSONField(required=False)
+    uuid           = serializers.CharField()   # <-- Add this line

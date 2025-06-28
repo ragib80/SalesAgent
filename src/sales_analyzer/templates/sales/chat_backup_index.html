@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <!-- FontAwesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <style>
+        <style>
         body {
             font-family: 'Inter', sans-serif;
             background: #f6f8fa;
@@ -22,7 +22,10 @@
             display: flex;
             height: 100vh;
         }
-        /* Sidebar */
+        .new-chat-btn.active {
+            background-color: #10a37f; /* Active button color matches conversation active color */
+            color: white;
+        }
         .sidebar {
             width: 270px;
             background: #fff;
@@ -37,14 +40,15 @@
             overflow-y: auto;
             display: flex;
             flex-direction: column;
+            padding: 10px;
         }
         .sidebar.closed {
-            transform: translateX(-270px); /* Fully hides sidebar */
+            transform: translateX(-270px);
         }
         .sidebar-header {
             font-size: 22px;
             font-weight: 600;
-            padding: 15px 20px;
+            padding: 10px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -67,28 +71,38 @@
             border-radius: 6px;
             width: 100%;
         }
-       .sidebar .list-group-item {
-            background-color: #f8f9fa; /* Light gray background for inactive items */
-            color: #333; /* Dark text color */
-            border: 1px solid #e1e1e1; /* Light border for inactive items */
+        .logout-btn {
+            margin-top: auto;
+            margin-bottom: 10px;
+            background-color: #dc3545;
+            border: none;
+            color: #fff;
+            padding: 10px 15px;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 6px;
+            width: 100%;
         }
-
+        .sidebar .list-group-item {
+            background-color: #f8f9fa;
+            color: #333;
+            border: 1px solid #e1e1e1;
+            margin-bottom: 5px;
+            border-radius: 8px;
+        }
         .sidebar .list-group-item:hover {
-            background-color: #e1f7e2; /* Light hover effect for better interactivity */
+            background-color: #e1f7e2;
         }
-
-      .sidebar .list-group-item.active {
-            background-color: #10a37f; /* Green background for active chat */
-            color: white; /* White text color for active chat */
-            border-color: #10a37f; /* Border matching the background color */
+        .sidebar .list-group-item.active {
+            background-color: #10a37f;
+            color: white;
+            border-color: #10a37f;
         }
-
-        /* Main Chat */
         .main-chat {
             flex: 1;
             display: flex;
             flex-direction: column;
-            margin-left: 270px; /* Adjusted for the sidebar width */
+            margin-left: 270px;
             padding: 20px;
             background: #f6f8fa;
             transition: margin-left 0.3s ease;
@@ -105,6 +119,7 @@
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             margin-bottom: 20px;
             max-height: 80%;
+            position: relative;
         }
         .message {
             margin-bottom: 16px;
@@ -152,10 +167,46 @@
             text-align: center;
             color: #888;
         }
-        /* Auto Grow Input */
         .input-area textarea:focus {
             outline: none;
             border-color: #10a37f;
+        }
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            margin: 10px;
+        }
+        .typing-indicator .dot {
+            height: 8px;
+            width: 8px;
+            background-color: #ccc;
+            border-radius: 50%;
+            animation: blink 1.4s infinite both;
+        }
+        /* Logout Button Styling */
+        .logout-section {
+            margin-top: auto; /* Forces the logout button to be at the bottom */
+            padding-top: 20px; /* Space between the chat list and the logout button */
+        }
+
+        .logout-btn {
+            width: 100%; /* Makes the button span across the entire width of the sidebar */
+            padding: 10px 15px;
+            font-size: 16px;
+            background-color: transparent; /* Transparent background */
+            border: 1px solid #ccc; /* Light border */
+            color: #333; /* Text color */
+            display: flex;
+            align-items: center;
+            justify-content: flex-start; /* Align icon and text to the left */
+            border-radius: 4px; /* Rounded corners */
+            transition: all 0.3s ease; /* Smooth transition on hover */
+        }
+        .typing-indicator .dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator .dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes blink {
+            0%, 80%, 100% { opacity: 0; }
+            40% { opacity: 1; }
         }
         @media (max-width: 900px) {
             .main-chat {
@@ -172,10 +223,15 @@
             .sidebar.open {
                 transform: translateX(0);
             }
-            .messages {
-                padding: 16px;
-            }
         }
+        .message {
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
     </style>
 </head>
 <body>
@@ -194,11 +250,24 @@
             <!-- List of Chats, will populate dynamically -->
             <div class="no-conversations">No previous conversations</div>
         </div>
+        <div class="logout-section">
+            <button class="logout-btn">
+                <i class="fa fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
     </div>
 
     <!-- Main Chat Area -->
     <div class="main-chat">
-        <div class="messages"></div>
+        <div class="messages">
+
+             <div class="typing-indicator d-none" id="typing-indicator">
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+            </div>
+
+        </div>
         <form class="input-area d-flex gap-2">
             <textarea class="form-control flex-grow-1" rows="1" placeholder="Type a message..." style="resize: none;"></textarea>
             <button class="send-btn" type="submit"><i class="fa fa-paper-plane"></i></button>
@@ -265,26 +334,6 @@ function refreshToken() {
 }
 
 // Helper function to handle AJAX requests with authorization
-{% comment %} function sendAuthenticatedRequest(url, method, data = null, successCallback, errorCallback) {
-    const token = getAuthToken();
-
-    // If the token is not available, refresh it
-    if (!token) {
-        refreshToken();
-        return;
-    }
-
-    $.ajax({
-        url: apiBase + url,
-        method: method,
-        headers: {
-            'Authorization': 'Bearer ' + token  // Add the token to the Authorization header
-        },
-        data: data,
-        success: successCallback,
-        error: errorCallback
-    });
-} {% endcomment %}
 
 // Fetch the last 10 conversations for the user
 function fetchChats() {
@@ -303,6 +352,36 @@ function fetchChats() {
     });
 }
 
+function logOut(){
+    const token = localStorage.getItem('auth_token');  // Get the access token from localStorage
+        const refreshToken = localStorage.getItem('refresh_token');  // Get the refresh token
+
+        // Make a POST request to the logout API
+        $.ajax({
+            url: apiBase+'/user/logout/',  // Your logout API URL
+            method: 'POST',
+            headers: {
+            'Authorization': 'Bearer ' + token,  // Add the Bearer token in the header
+             },
+            data: {
+                refresh_token: refreshToken  // Pass the refresh token in the body
+            },
+            success: function(response) {
+                // On successful logout, clear the tokens and redirect
+                localStorage.removeItem('auth_token');
+                localStorage.removeItem('refresh_token');
+                localStorage.clear(); 
+                window.location.href = '/login';  // Redirect to the login page
+            },
+            error: function() {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Oops...',
+                    text: 'Logout failed. Please try again.',
+                });
+            }
+        });
+}
 // Fetch messages for a specific conversation by UUID
 function fetchMessages(chatId) {
     $('.messages').html('<div class="text-center text-muted">Loading...</div>');
@@ -320,39 +399,63 @@ function fetchMessages(chatId) {
                 </div>
             `);
         });
-        $('.messages').scrollTop($('.messages')[0].scrollHeight);
+        
+        $('#typing-indicator').appendTo('.messages').show();
+        $('.messages').animate({ scrollTop: $('.messages')[0].scrollHeight }, 300);
+
     }, function(xhr, status, error) {
         console.error("Error fetching messages:", error);
         $('.messages').html('<div class="text-center text-muted">Failed to load messages</div>');
     });
 }
 // Send a new message
+let isSubmitting = false;  // Prevent multiple submissions
+
+// Function to send a message
 function sendMessage(content) {
-    if (!content.trim()) return;
-
+    if (!content.trim() || isSubmitting) return;  // Avoid submitting empty or duplicate messages
+  
     const $input = $('.input-area textarea');
-    $input.prop('disabled', true);
-    $('.send-btn').prop('disabled', true);
+     $input.val('').prop('disabled', false).focus();  // Reset input field
+    $input.prop('disabled', true);  // Disable input field to prevent further typing during submission
+    $('.send-btn').prop('disabled', true);  // Disable send button to prevent multiple clicks
 
-    const token = localStorage.getItem('auth_token');  // Get the auth token from localStorage
+    // Show typing indicator while waiting for response
+    $('#typing-indicator').removeClass('d-none');
 
-    // Check if currentChatId exists (for existing conversations)
+    // Append the user's message immediately
+    const userMessageHtml = `
+        <div class="message user d-flex justify-content-end">
+            <div class="bubble">${content}</div>
+        </div>
+    `;
+    $('.messages').append(userMessageHtml);
+    $('.messages').animate({ scrollTop: $('.messages')[0].scrollHeight }, 300);
+
+    isSubmitting = true;  // Prevent further submissions until the response is received
+
+    // Send the message to the API
+    const token = localStorage.getItem('auth_token');
+
     if (currentChatId) {
-        // Send message under the existing conversation (add the token in the Authorization header)
         $.ajax({
-            url: apiBase + `/sales/query/existing/${currentChatId}/`,  // Use the new URL for existing conversations
+            url: apiBase + `/sales/query/existing/${currentChatId}/`,
             method: 'POST',
             headers: {
-                'Authorization': 'Bearer ' + token,  // Add the token to the Authorization header
+                'Authorization': 'Bearer ' + token,
             },
-            data: JSON.stringify({ prompt: content }),  // Send the content as a prompt in the request body
+            data: JSON.stringify({ prompt: content }),
             contentType: "application/json",
             success: function(response) {
-                fetchMessages(currentChatId);  // Fetch the updated messages for the existing conversation
-                $input.val('').prop('disabled', false).focus();
-                $('.send-btn').prop('disabled', false);
+                isSubmitting = false;  // Allow submission of new messages
+                $('#typing-indicator').addClass('d-none'); // Hide typing indicator after receiving the response
+                fetchMessages(currentChatId);  // Fetch the updated messages
+                $input.val('').prop('disabled', false).focus();  // Reset input field
+                $('.send-btn').prop('disabled', false);  // Enable send button again
             },
             error: function() {
+                isSubmitting = false;  // Allow submission of new messages
+                $('#typing-indicator').addClass('d-none');
                 Swal.fire({
                     icon: 'error',
                     title: 'Oops...',
@@ -363,34 +466,32 @@ function sendMessage(content) {
             }
         });
     } else {
-        // Case: Creating a new conversation and adding the first message
         $.ajax({
-            url: apiBase + "/sales/query/",  // Create a new conversation if no uuid is provided
+            url: apiBase + "/sales/query/",
             method: "POST",
             headers: {
-                'Authorization': 'Bearer ' + getAuthToken(),  // Add the token to the Authorization header
+                'Authorization': 'Bearer ' + getAuthToken(),
             },
-            data: JSON.stringify({ prompt: content }),  // Send the content as a prompt in the request body
+            data: JSON.stringify({ prompt: content }),
             contentType: "application/json",
             success: function(resp) {
                 if (resp && resp.uuid) {
-                    // Create a message after the new conversation is created
                     const newConversationId = resp.uuid;
-
                     $.ajax({
-                        url: apiBase + `/query/existing/${newConversationId}/`,  // Send the first message to the new conversation
+                        url: apiBase + `/query/existing/${newConversationId}/`,
                         method: 'POST',
                         headers: {
-                            'Authorization': 'Bearer ' + getAuthToken(),  // Add the token to the Authorization header
+                            'Authorization': 'Bearer ' + getAuthToken(),
                         },
-                        data: JSON.stringify({ prompt: content }),  // Send the content as a prompt
+                        data: JSON.stringify({ prompt: content }),
                         contentType: "application/json",
                         success: function() {
-                            currentChatId = newConversationId;  // Set the current chat to the newly created one
-                            fetchChats();  // Fetch the updated chat list
-                            fetchMessages(currentChatId);  // Fetch messages for the new conversation
+                            currentChatId = newConversationId;
+                            fetchChats();
+                            fetchMessages(currentChatId);
                         },
                         error: function() {
+                            $('#typing-indicator').addClass('d-none');
                             Swal.fire({
                                 icon: 'error',
                                 title: 'Oops...',
@@ -405,6 +506,7 @@ function sendMessage(content) {
                 $('.send-btn').prop('disabled', false);
             },
             error: function() {
+                $('#typing-indicator').addClass('d-none');
                 Swal.fire({
                     icon: 'error',
                     title: 'Oops...',
@@ -416,6 +518,22 @@ function sendMessage(content) {
         });
     }
 }
+
+// Handling Enter key to send a message
+$('.input-area textarea').on('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {  // If Enter key is pressed (not Shift+Enter)
+        e.preventDefault();  // Prevent the default action of adding a new line
+        const content = $(this).val();
+        sendMessage(content);  // Call sendMessage when Enter is pressed
+    }
+});
+
+// Send message on click of the send button
+$('.input-area').on('submit', function(e) {
+    e.preventDefault();
+    const content = $(this).find('textarea').val();
+    sendMessage(content);
+});
 
 // Start a new chat
 function startNewChat() {
@@ -447,6 +565,13 @@ function closeSidebar() {
 $(function() {
     fetchChats();
 
+    $('.logout-btn').on('click', function () {
+      // or remove auth_token & refresh_token individually
+        //window.location.href = '/login/'; // Adjust to your login page path
+        logOut()
+    });
+
+
     // Burger menu click
     $('#burger-btn').click(function() {
         const isOpen = $('.sidebar').hasClass('open');
@@ -461,6 +586,12 @@ $(function() {
     $('.sidebar').on('click', '.new-chat-btn', function() {
         startNewChat();
     });
+
+    $('.new-chat-btn').on('click', function() {
+        $(this).toggleClass('active'); // Toggle the 'active' class to show the active color
+        startNewChat();  // Your existing function for starting a new chat
+    });
+
 
     // Select chat
     $('.chat-list').on('click', '.list-group-item', function() {

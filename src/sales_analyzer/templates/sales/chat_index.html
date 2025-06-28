@@ -10,13 +10,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <!-- FontAwesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-        <style>
+    <style>
         body {
             font-family: 'Inter', sans-serif;
             background: #f6f8fa;
             margin: 0;
             padding: 0;
             height: 100vh;
+            overflow: hidden; /* Prevent body scroll */
         }
         .chat-container {
             display: flex;
@@ -34,7 +35,7 @@
             position: fixed;
             left: 0;
             top: 0;
-            transform: translateX(0);
+            transform: translateX(0 );
             transition: transform 0.3s ease;
             z-index: 1050;
             overflow-y: auto;
@@ -89,6 +90,7 @@
             border: 1px solid #e1e1e1;
             margin-bottom: 5px;
             border-radius: 8px;
+            text-align: left; /* Ensure text aligns left */
         }
         .sidebar .list-group-item:hover {
             background-color: #e1f7e2;
@@ -106,6 +108,7 @@
             padding: 20px;
             background: #f6f8fa;
             transition: margin-left 0.3s ease;
+            height: 100vh; /* Ensure main chat takes full height */
         }
         .main-chat.sidebar-closed {
             margin-left: 0;
@@ -118,7 +121,7 @@
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             margin-bottom: 20px;
-            max-height: 80%;
+            /* max-height: 80%; Removed as flex:1 handles height */
             position: relative;
         }
         .message {
@@ -147,11 +150,21 @@
             border-top: 1px solid #eee;
             display: flex;
             gap: 8px;
+            border-radius: 8px; /* Added for consistency */
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Added for consistency */
         }
         .input-area textarea {
             resize: none;
             width: 100%;
             font-size: 1rem;
+            border: 1px solid #ced4da; /* Default border */
+            border-radius: 0.375rem; /* Bootstrap default */
+            padding: 0.375rem 0.75rem; /* Bootstrap default */
+        }
+        .input-area textarea:focus {
+            outline: none;
+            border-color: #10a37f;
+            box-shadow: 0 0 0 0.25rem rgba(16, 163, 127, 0.25); /* Bootstrap focus shadow */
         }
         .send-btn {
             background: #10a37f;
@@ -161,20 +174,23 @@
             padding: 12px 16px;
             font-size: 1.3rem;
             cursor: pointer;
+            display: flex; /* For centering icon */
+            align-items: center;
+            justify-content: center;
+            width: 48px; /* Fixed width for circular button */
+            height: 48px; /* Fixed height for circular button */
+            flex-shrink: 0; /* Prevent shrinking */
         }
         .no-conversations {
             padding: 20px;
             text-align: center;
             color: #888;
         }
-        .input-area textarea:focus {
-            outline: none;
-            border-color: #10a37f;
-        }
         .typing-indicator {
             display: flex;
             gap: 4px;
-            margin: 10px;
+            /* margin: 10px; Removed as it's now part of a bubble */
+            align-items: center; /* Vertically align dots */
         }
         .typing-indicator .dot {
             height: 8px;
@@ -231,7 +247,6 @@
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
-
     </style>
 </head>
 <body>
@@ -260,13 +275,7 @@
     <!-- Main Chat Area -->
     <div class="main-chat">
         <div class="messages">
-
-             <div class="typing-indicator d-none" id="typing-indicator">
-                <span class="dot"></span>
-                <span class="dot"></span>
-                <span class="dot"></span>
-            </div>
-
+            <!-- Messages will be appended here dynamically -->
         </div>
         <form class="input-area d-flex gap-2">
             <textarea class="form-control flex-grow-1" rows="1" placeholder="Type a message..." style="resize: none;"></textarea>
@@ -281,21 +290,27 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <!-- marked.js for Markdown Parsing -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<!-- SweetAlert2 for alerts -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <script>
 const apiBase = "http://127.0.0.1:8000/api"; // Change to your DRF prefix
 let currentChatId = null;
+let isSubmitting = false;
+let $typingIndicatorElement = null; // To store the dynamically created typing indicator
 
 // Function to get the stored token from localStorage
-function getAuthToken() {
+function getAuthToken( ) {
     return localStorage.getItem('auth_token');
 }
 
+// Helper function for authenticated AJAX requests
 function sendAuthenticatedRequest(url, method, data = null, successCallback, errorCallback) {
-    const token = localStorage.getItem('auth_token');  // Get the auth token from localStorage
+    const token = localStorage.getItem('auth_token');
 
     if (!token) {
-        console.log("No auth token found.");
+        console.log("No auth token found. Redirecting to login.");
+        window.location.href = '/login'; // Redirect to your login page
         return;
     }
 
@@ -303,9 +318,10 @@ function sendAuthenticatedRequest(url, method, data = null, successCallback, err
         url: apiBase + url,
         method: method,
         headers: {
-            'Authorization': 'Bearer ' + token,  // Add the Bearer token in the header
+            'Authorization': 'Bearer ' + token,
         },
         data: data,
+        contentType: "application/json", // Ensure content type is set for POST/PUT requests
         success: successCallback,
         error: errorCallback
     });
@@ -314,93 +330,104 @@ function sendAuthenticatedRequest(url, method, data = null, successCallback, err
 // Function to refresh the token using the refresh token
 function refreshToken() {
     $.ajax({
-        url: '/api/user/token/refresh/',  // Token refresh endpoint
+        url: apiBase + '/user/token/refresh/', // Adjust if your refresh endpoint is different
         method: 'POST',
         data: {
-            refresh: localStorage.getItem('refresh_token')  // Get the refresh token from localStorage
+            refresh: localStorage.getItem('refresh_token')
         },
         success: function(response) {
-            // Save the new access token and refresh token
             localStorage.setItem('auth_token', response.access);
             localStorage.setItem('refresh_token', response.refresh);
             console.log('Token refreshed successfully!');
-            // Retry the original API request
-            fetchChats();
+            fetchChats(); // Re-fetch chats after token refresh
         },
         error: function() {
             console.log('Failed to refresh token');
+            localStorage.clear(); // Clear all tokens
+            window.location.href = '/login'; // Redirect to login on failure
         }
     });
 }
 
-// Helper function to handle AJAX requests with authorization
-
 // Fetch the last 10 conversations for the user
-function fetchChats() {
+// Added a callback parameter to ensure actions happen AFTER chats are fetched and rendered
+function fetchChats(callback = null) {
     sendAuthenticatedRequest('/conversations/', 'GET', null, function(response) {
-        console.log(response);
+        console.log("Fetched chats:", response);
         const $list = $('.chat-list').empty();
-        response.forEach(chat => {
-            let title = chat.title || 'Untitled Chat';
-            $list.append(
-                `<button class="list-group-item list-group-item-action ${chat.id === currentChatId ? 'active' : ''}" data-id="${chat.uuid}">${title}</button>`
-            );
-        });
+        if (response.length === 0) {
+            $list.append('<div class="no-conversations">No previous conversations</div>');
+        } else {
+            response.forEach(chat => {
+                let title = chat.title || 'Untitled Chat';
+                $list.append(
+                    `<button class="list-group-item list-group-item-action ${chat.uuid === currentChatId ? 'active' : ''}" data-id="${chat.uuid}">${title}</button>`
+                );
+            });
+        }
+        if (callback && typeof callback === 'function') {
+            callback(); // Execute callback after chats are fetched and DOM is updated
+        }
     }, function(xhr, status, error) {
-        console.log('Error occurred:', error);
-        console.log('Response:', xhr.responseText);  // Log the response to see the error details
+        console.error('Error fetching chats:', error);
+        console.log('Response:', xhr.responseText);
+        if (xhr.status === 401) {
+            refreshToken(); // Attempt to refresh token on unauthorized error
+        }
     });
 }
 
+// Logout function
 function logOut(){
-    const token = localStorage.getItem('auth_token');  // Get the access token from localStorage
-        const refreshToken = localStorage.getItem('refresh_token');  // Get the refresh token
+    const token = localStorage.getItem('auth_token');
+    const refreshToken = localStorage.getItem('refresh_token');
 
-        // Make a POST request to the logout API
-        $.ajax({
-            url: apiBase+'/user/logout/',  // Your logout API URL
-            method: 'POST',
-            headers: {
-            'Authorization': 'Bearer ' + token,  // Add the Bearer token in the header
-             },
-            data: {
-                refresh_token: refreshToken  // Pass the refresh token in the body
-            },
-            success: function(response) {
-                // On successful logout, clear the tokens and redirect
-                localStorage.removeItem('auth_token');
-                localStorage.removeItem('refresh_token');
-                localStorage.clear(); 
-                window.location.href = '/login';  // Redirect to the login page
-            },
-            error: function() {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Oops...',
-                    text: 'Logout failed. Please try again.',
-                });
-            }
-        });
+    $.ajax({
+        url: apiBase+'/user/logout/', // Your logout API URL
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + token,
+        },
+        data: JSON.stringify({ refresh_token: refreshToken }), // Send as JSON
+        contentType: "application/json",
+        success: function(response) {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.clear();
+            window.location.href = '/login'; // Redirect to the login page
+        },
+        error: function(xhr, status, error) {
+            console.error("Logout failed:", error, xhr.responseText);
+            Swal.fire({
+                icon: 'error',
+                title: 'Oops...',
+                text: 'Logout failed. Please try again.',
+            });
+        }
+    });
 }
+
 // Fetch messages for a specific conversation by UUID
 function fetchMessages(chatId) {
-    $('.messages').html('<div class="text-center text-muted">Loading...</div>');
+    $('.messages').html('<div class="text-center text-muted">Loading messages...</div>');
 
     sendAuthenticatedRequest(`/conversations/${chatId}/messages/`, 'GET', null, function(data) {
-        console.log(data);
+        console.log("Fetched messages for chat", chatId, ":", data);
         const $messages = $('.messages').empty();
-        data.forEach(msg => {
-            const isUser = msg.sender === "user";
-            const bubbleClass = isUser ? 'user' : 'assistant';
-            let html = marked.parse(msg.text);  // Render markdown
-            $messages.append(`
-                <div class="message ${bubbleClass} d-flex ${isUser ? 'justify-content-end' : 'justify-content-start'}">
-                    <div class="bubble">${html}</div>
-                </div>
-            `);
-        });
-        
-        $('#typing-indicator').appendTo('.messages').show();
+        if (data.length === 0) {
+            $messages.append('<div class="text-center text-muted">Start a conversation!</div>');
+        } else {
+            data.forEach(msg => {
+                const isUser = msg.sender === "user";
+                const bubbleClass = isUser ? 'user' : 'assistant';
+                let html = marked.parse(msg.text);
+                $messages.append(`
+                    <div class="message ${bubbleClass} d-flex ${isUser ? 'justify-content-end' : 'justify-content-start'}">
+                        <div class="bubble">${html}</div>
+                    </div>
+                `);
+            });
+        }
         $('.messages').animate({ scrollTop: $('.messages')[0].scrollHeight }, 300);
 
     }, function(xhr, status, error) {
@@ -408,123 +435,131 @@ function fetchMessages(chatId) {
         $('.messages').html('<div class="text-center text-muted">Failed to load messages</div>');
     });
 }
-// Send a new message
-let isSubmitting = false;  // Prevent multiple submissions
 
 // Function to send a message
 function sendMessage(content) {
-    if (!content.trim() || isSubmitting) return;  // Avoid submitting empty or duplicate messages
-  
-    const $input = $('.input-area textarea');
-     $input.val('').prop('disabled', false).focus();  // Reset input field
-    $input.prop('disabled', true);  // Disable input field to prevent further typing during submission
-    $('.send-btn').prop('disabled', true);  // Disable send button to prevent multiple clicks
+    if (!content.trim() || isSubmitting) return;
 
-    // Show typing indicator while waiting for response
-    $('#typing-indicator').removeClass('d-none');
+    const $input = $('.input-area textarea');
+    const $messagesContainer = $('.messages');
+
+    // Disable input and send button
+    $input.prop('disabled', true);
+    $('.send-btn').prop('disabled', true);
 
     // Append the user's message immediately
-    const userMessageHtml = `
+    $messagesContainer.append(`
         <div class="message user d-flex justify-content-end">
-            <div class="bubble">${content}</div>
+            <div class="bubble">${marked.parse(content)}</div>
         </div>
-    `;
-    $('.messages').append(userMessageHtml);
-    $('.messages').animate({ scrollTop: $('.messages')[0].scrollHeight }, 300);
+    `);
+    $messagesContainer.animate({ scrollTop: $messagesContainer[0].scrollHeight }, 300);
 
-    isSubmitting = true;  // Prevent further submissions until the response is received
+    isSubmitting = true;
 
-    // Send the message to the API
-    const token = localStorage.getItem('auth_token');
+    // Typing indicator
+    $typingIndicatorElement = $(`
+        <div class="message assistant d-flex justify-content-start" id="assistant-typing-indicator">
+            <div class="bubble typing-indicator">
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+            </div>
+        </div>
+    `);
+    $messagesContainer.append($typingIndicatorElement);
+    $messagesContainer.animate({ scrollTop: $messagesContainer[0].scrollHeight }, 300);
+
+    // Figure out if this is a new chat BEFORE the request!
+    let isCreatingNewChat = !currentChatId;
+
+    let apiUrl;
+    let requestData = { prompt: content };
 
     if (currentChatId) {
-        $.ajax({
-            url: apiBase + `/sales/query/existing/${currentChatId}/`,
-            method: 'POST',
-            headers: {
-                'Authorization': 'Bearer ' + token,
-            },
-            data: JSON.stringify({ prompt: content }),
-            contentType: "application/json",
-            success: function(response) {
-                isSubmitting = false;  // Allow submission of new messages
-                $('#typing-indicator').addClass('d-none'); // Hide typing indicator after receiving the response
-                fetchMessages(currentChatId);  // Fetch the updated messages
-                $input.val('').prop('disabled', false).focus();  // Reset input field
-                $('.send-btn').prop('disabled', false);  // Enable send button again
-            },
-            error: function() {
-                isSubmitting = false;  // Allow submission of new messages
-                $('#typing-indicator').addClass('d-none');
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Oops...',
-                    text: 'Failed to send message. Please try again later.',
-                });
-                $input.prop('disabled', false);
-                $('.send-btn').prop('disabled', false);
-            }
-        });
+        apiUrl = `/sales/query/existing/${currentChatId}/`;
     } else {
-        $.ajax({
-            url: apiBase + "/sales/query/",
-            method: "POST",
-            headers: {
-                'Authorization': 'Bearer ' + getAuthToken(),
-            },
-            data: JSON.stringify({ prompt: content }),
-            contentType: "application/json",
-            success: function(resp) {
-                if (resp && resp.uuid) {
-                    const newConversationId = resp.uuid;
-                    $.ajax({
-                        url: apiBase + `/query/existing/${newConversationId}/`,
-                        method: 'POST',
-                        headers: {
-                            'Authorization': 'Bearer ' + getAuthToken(),
-                        },
-                        data: JSON.stringify({ prompt: content }),
-                        contentType: "application/json",
-                        success: function() {
-                            currentChatId = newConversationId;
-                            fetchChats();
-                            fetchMessages(currentChatId);
-                        },
-                        error: function() {
-                            $('#typing-indicator').addClass('d-none');
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Oops...',
-                                text: 'Failed to send message. Please try again later.',
-                            });
-                            $input.prop('disabled', false);
-                            $('.send-btn').prop('disabled', false);
-                        }
-                    });
+        apiUrl = "/sales/query/";
+    }
+
+    sendAuthenticatedRequest(apiUrl, 'POST', JSON.stringify(requestData),
+        function(response) {
+            isSubmitting = false;
+            if ($typingIndicatorElement) {
+                $typingIndicatorElement.remove();
+                $typingIndicatorElement = null;
+            }
+
+            // Debugging info:
+            console.log("sendMessage response:", response, "isCreatingNewChat:", isCreatingNewChat);
+
+            if (isCreatingNewChat && response && response.uuid) {
+                const newChatUuid = response.uuid;
+                currentChatId = newChatUuid;
+
+                // Append assistant reply immediately if present (snappy UX)
+                if (response.assistant_message && response.assistant_message.text) {
+                    $messagesContainer.append(`
+                        <div class="message assistant d-flex justify-content-start">
+                            <div class="bubble">${marked.parse(response.assistant_message.text)}</div>
+                        </div>
+                    `);
+                    $messagesContainer.animate({ scrollTop: $messagesContainer[0].scrollHeight }, 300);
                 }
+
+                // Now update the sidebar and select the chat (with safe timing)
+                fetchChats(() => {
+                    setTimeout(() => {
+                        // This triggers the sidebar highlight and fetchMessages
+                        $(`.chat-list .list-group-item[data-id="${newChatUuid}"]`).trigger('click');
+                    }, 0);
+                });
+
+                // Re-enable input and send button for next message
                 $input.val('').prop('disabled', false).focus();
                 $('.send-btn').prop('disabled', false);
-            },
-            error: function() {
-                $('#typing-indicator').addClass('d-none');
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Oops...',
-                    text: 'Failed to create a new conversation. Please try again later.',
-                });
-                $input.prop('disabled', false);
+
+            } else {
+                // Existing chat: append the assistant's reply as usual
+                if (response && response.assistant_message && response.assistant_message.text) {
+                    $messagesContainer.append(`
+                        <div class="message assistant d-flex justify-content-start">
+                            <div class="bubble">${marked.parse(response.assistant_message.text)}</div>
+                        </div>
+                    `);
+                    $messagesContainer.animate({ scrollTop: $messagesContainer[0].scrollHeight }, 300);
+                } else if (currentChatId) {
+                    // Defensive: fallback to fetching all messages
+                    fetchMessages(currentChatId);
+                }
+                // Re-enable input and send button
+                $input.val('').prop('disabled', false).focus();
                 $('.send-btn').prop('disabled', false);
             }
-        });
-    }
+        },
+        function(xhr, status, error) {
+            isSubmitting = false;
+            if ($typingIndicatorElement) {
+                $typingIndicatorElement.remove();
+                $typingIndicatorElement = null;
+            }
+            Swal.fire({
+                icon: 'error',
+                title: 'Oops...',
+                text: 'Failed to send message. Please try again later.',
+            });
+            $input.prop('disabled', false);
+            $('.send-btn').prop('disabled', false);
+        }
+    );
 }
 
 // Handling Enter key to send a message
 $('.input-area textarea').on('keydown', function(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {  // If Enter key is pressed (not Shift+Enter)
-        e.preventDefault();  // Prevent the default action of adding a new line
+    if (e.key === 'Enter' && !e.shiftKey) { // If Enter key is pressed (not Shift+Enter)
+        e.preventDefault(); // Prevent the default action of adding a new line
         const content = $(this).val();
-        sendMessage(content);  // Call sendMessage when Enter is pressed
+        sendMessage(content); // Call sendMessage when Enter is pressed
     }
 });
 
@@ -537,18 +572,20 @@ $('.input-area').on('submit', function(e) {
 
 // Start a new chat
 function startNewChat() {
-    currentChatId = null;
-    $('.chat-list .list-group-item').removeClass('active');
-    $('.messages').empty();
-    $('.input-area textarea').val('').focus();
+    currentChatId = null; // Clear current chat ID
+    $('.chat-list .list-group-item').removeClass('active'); // Deactivate all sidebar items
+    $('.messages').empty().append('<div class="text-center text-muted">Start a new conversation!</div>'); // Clear messages and show prompt
+    $('.input-area textarea').val('').focus(); // Clear input and focus
+    $('.new-chat-btn').addClass('active'); // Ensure new chat button is active
 }
 
 // Select an existing chat
 function selectChat(chatId) {
     currentChatId = chatId;
-    $('.chat-list .list-group-item').removeClass('active');
-    $(`.chat-list .list-group-item[data-id="${chatId}"]`).addClass('active');
-    fetchMessages(chatId);
+    $('.chat-list .list-group-item').removeClass('active'); // Deactivate all sidebar items
+    $(`.chat-list .list-group-item[data-id="${chatId}"]`).addClass('active'); // Activate selected item
+    $('.new-chat-btn').removeClass('active'); // Deactivate new chat button
+    fetchMessages(chatId); // Fetch messages for the selected chat
 }
 
 // Sidebar burger toggle
@@ -562,17 +599,16 @@ function closeSidebar() {
     $('.main-chat').removeClass('sidebar-closed');
 }
 
+// Document ready function
 $(function() {
-    fetchChats();
+    fetchChats(); // Initial fetch of chats on page load
 
+    // Logout button click handler
     $('.logout-btn').on('click', function () {
-      // or remove auth_token & refresh_token individually
-        //window.location.href = '/login/'; // Adjust to your login page path
-        logOut()
+        logOut();
     });
 
-
-    // Burger menu click
+    // Burger menu click handler
     $('#burger-btn').click(function() {
         const isOpen = $('.sidebar').hasClass('open');
         if (isOpen) {
@@ -582,28 +618,15 @@ $(function() {
         }
     });
 
-    // New chat
+    // New chat button click handler
     $('.sidebar').on('click', '.new-chat-btn', function() {
         startNewChat();
     });
 
-    $('.new-chat-btn').on('click', function() {
-        $(this).toggleClass('active'); // Toggle the 'active' class to show the active color
-        startNewChat();  // Your existing function for starting a new chat
-    });
-
-
-    // Select chat
+    // Select chat from list click handler
     $('.chat-list').on('click', '.list-group-item', function() {
         const chatId = $(this).data('id');
         selectChat(chatId);
-    });
-
-    // Send message
-    $('.input-area').on('submit', function(e) {
-        e.preventDefault();
-        const content = $(this).find('textarea').val();
-        sendMessage(content);
     });
 
     // Auto grow textarea
@@ -611,9 +634,10 @@ $(function() {
         this.style.height = 'auto';
         this.style.height = (this.scrollHeight) + 'px';
     });
+
+    // Initialize with a new chat view
+    startNewChat();
 });
-
-
 </script>
 </body>
 </html>
