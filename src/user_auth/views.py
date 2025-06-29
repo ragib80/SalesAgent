@@ -10,7 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import TokenBlacklist
 from rest_framework_simplejwt.exceptions import TokenError
-
+from rest_framework.views import exception_handler
 # Custom Token Serializer (optional, to extend with user info)
 from django.shortcuts import render
 
@@ -56,34 +56,62 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 class LogoutAPIView(APIView):
     def post(self, request):
-        """
-        This endpoint will blacklist the user's refresh token on logout.
-        """
         try:
-            # Get the refresh token from the Authorization header
             refresh_token = request.data.get("refresh_token") or request.headers.get('Authorization')
+            print(f"Received refresh_token: {refresh_token}")
 
             if not refresh_token:
                 return Response({"detail": "Refresh token is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-            # If the token is prefixed with 'Bearer ', remove it
-            if refresh_token.startswith('Bearer '):  
+            if refresh_token.startswith('Bearer '):
                 refresh_token = refresh_token[7:]
 
-            # Create a RefreshToken instance from the refresh token
             token = RefreshToken(refresh_token)
-
-            # Blacklist the refresh token
             token.blacklist()
-
-            # Clear the user session by setting request.user to None
-            request.user = None  # Clear the user for this session
-            _user.value = None  # Clear thread-local storage
-
-            # Return a success message
             return Response({"detail": "Successfully logged out."}, status=status.HTTP_200_OK)
 
         except TokenError as e:
+            print("TokenError:", e)
+            if "Token is blacklisted" in str(e):
+                return Response({"detail": "Already logged out."}, status=status.HTTP_200_OK)
             return Response({"detail": f"Token error: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({"detail": "An error occurred during logout."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # PRINT THE STACK TRACE for debugging
+            import traceback; traceback.print_exc()
+            return Response({"detail": f"An error occurred during logout: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# class LogoutAPIView(APIView):
+#     def post(self, request):
+#         """
+#         This endpoint will blacklist the user's refresh token on logout.
+#         """
+#         try:
+#             # Get the refresh token from the Authorization header
+#             refresh_token = request.data.get("refresh_token") or request.headers.get('Authorization')
+#             print("Received refresh_token:", refresh_token)
+
+#             if not refresh_token:
+#                 return Response({"detail": "Refresh token is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+#             # If the token is prefixed with 'Bearer ', remove it
+#             if refresh_token.startswith('Bearer '):  
+#                 refresh_token = refresh_token[7:]
+
+#             # Create a RefreshToken instance from the refresh token
+#             token = RefreshToken(refresh_token)
+
+#             # Blacklist the refresh token
+#             token.blacklist()
+
+#             # Clear the user session by setting request.user to None
+#             request.user = None  # Clear the user for this session
+#             _user.value = None  # Clear thread-local storage
+
+#             # Return a success message
+#             return Response({"detail": "Successfully logged out."}, status=status.HTTP_200_OK)
+
+#         except TokenError as e:
+#             return Response({"detail": f"Token error: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+#         except Exception as e:
+#             return Response({"detail": "An error occurred during logout."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

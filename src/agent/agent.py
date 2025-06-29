@@ -6,16 +6,22 @@ import math
 import collections
 from datetime import datetime
 from typing import Dict, Any, List, Optional
-
+import hashlib
 from django.conf import settings
 from azure.core.credentials import AzureKeyCredential
 from azure.search.documents import SearchClient
 from langchain.tools import Tool
 from langchain.memory import ConversationBufferMemory
+from langchain.memory import ConversationSummaryBufferMemory
 from langchain.agents import initialize_agent, AgentType
+from langgraph.prebuilt import create_react_agent
 from langchain_openai import AzureChatOpenAI
 from openai import AzureOpenAI
+from django.core.cache import cache
+from langgraph.checkpoint.base import BaseCheckpointSaver
 
+
+import threading
 # ────────────────────────────────────────────────────────────────────────────────
 # 1. COLUMN MAP (add / rename here only)
 # ────────────────────────────────────────────────────────────────────────────────
@@ -340,19 +346,6 @@ def azure_sales_row_search(params: Dict[str, Any]) -> Dict[str, Any]:
         "result": rows,
     }
 
-
-# ────────────────────────────────────────────────────────────────────────────────
-# 8. LANGCHAIN – tools & agent
-# ────────────────────────────────────────────────────────────────────────────────
-llm = AzureChatOpenAI(
-    azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
-    api_key=settings.AZURE_OPENAI_KEY,
-    deployment_name=settings.AZURE_OPENAI_DEPLOYMENT,
-    api_version="2025-01-01-preview",
-)
-
-memory = ConversationBufferMemory(memory_key="chat_history")
-
 extractor_tool = Tool(
     name="SAPSalesQueryExtractor",
     func=extract_sap_sales_query_params,
@@ -372,39 +365,255 @@ row_fetch_tool = Tool(
     description="Fetches raw SAP-sales rows page-by-page (no aggregation).",
 )
 
-agent = initialize_agent(
-    tools=[extractor_tool, aggregator_tool, row_fetch_tool],
-    llm=llm,
-    agent=AgentType.OPENAI_FUNCTIONS,
-    memory=memory,
-    verbose=False,
+tools = [extractor_tool, aggregator_tool, row_fetch_tool]
+
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 8. LANGCHAIN – tools & agent
+# ────────────────────────────────────────────────────────────────────────────────
+llm = AzureChatOpenAI(
+    azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+    api_key=settings.AZURE_OPENAI_KEY,
+    deployment_name=settings.AZURE_OPENAI_DEPLOYMENT,
+    api_version="2025-01-01-preview",
 )
+
+# memory = ConversationBufferMemory(memory_key="chat_history")
+
+# extractor_tool = Tool(
+#     name="SAPSalesQueryExtractor",
+#     func=extract_sap_sales_query_params,
+#     description="Extracts SAP-sales query meta-data from user text.",
+# )
+
+# aggregator_tool = Tool(
+#     name="SAPSalesAggregator",
+#     func=stream_and_aggregate,
+#     description=("Streams rows matching the filter and computes "
+#                  "sum/average/min/max/count on the fly. Supports grouping by month/quarter/year and Top N."),
+# )
+
+# row_fetch_tool = Tool(
+#     name="AzureSAPSalesRowFetcher",
+#     func=azure_sales_row_search,
+#     description="Fetches raw SAP-sales rows page-by-page (no aggregation).",
+# )
+# 4. Per-conversation memory & agent factory (threadsafe)
+# ------------------------------------------------------------------------------
+
+# These are quick in-memory dicts for demo/dev.
+# In production, use Django cache/Redis for real persistence and scale.
+
+
+# --------------------------------------------------------------------------
+# Django cache-backed per-conversation memory
+# --------------------------------------------------------------------------
+
+
+#latest :class DjangoCacheSaver(BaseCheckpointSaver):
+# Django-backed persistent memory saver for LangGraph
+
+
+class DjangoCacheSaver(BaseCheckpointSaver):
+    def __init__(self, timeout=86400):
+        self.timeout = timeout
+
+    def _key_to_str(self, key_tuple):
+        # Use thread_id as string if possible
+        if isinstance(key_tuple, (tuple, list)):
+            thread_id = key_tuple[0] if key_tuple and isinstance(key_tuple[0], str) else None
+            if thread_id:
+                return f"thread:{thread_id}"
+        # fallback
+        import hashlib
+        return "thread:" + hashlib.md5(str(key_tuple).encode()).hexdigest()
+
+    def get_tuple(self, key_tuple):
+        return cache.get(self._key_to_str(key_tuple))
+
+    def set_tuple(self, key_tuple, value):
+        cache.set(self._key_to_str(key_tuple), value, timeout=self.timeout)
+
+    def put(self, *args, **kwargs):
+        # put(config, key, value, ..., **kwargs)
+        if len(args) >= 3:
+            key = args[1]
+            value = args[2]
+        elif len(args) == 2:
+            key, value = args
+        else:
+            raise Exception("Not enough arguments to put()")
+        self.set_tuple(key, value)
+
+    def put_writes(self, *args, **kwargs):
+        """
+        Support both (writes) and (config, writes, namespace, ...)
+        - writes is always a list of (config, key, value, ...) tuples
+        """
+        if len(args) == 1:
+            writes = args[0]
+        elif len(args) >= 2:
+            writes = args[1]
+        else:
+            writes = []
+
+        for w in writes:
+            # Usually: (config, key, value, ...)
+            if len(w) >= 3:
+                _, key, value = w[:3]
+                self.set_tuple(key, value)
+
+
+    def list(self):
+        return []
+
+    def get(self, key):
+        return self.get_tuple(key)
+
+checkpointer = DjangoCacheSaver()
+
+print ("checkpointer ",checkpointer)
+
+# LangGraph Agent
+agent_executor = create_react_agent(
+    model=llm,
+    tools=tools,
+    checkpointer=checkpointer
+)
+
+def get_summary_buffer_memory(conversation_id: str, timeout=60*60*24):
+    """Loads or creates ConversationSummaryBufferMemory for this conversation using Django cache."""
+    print("calling  get_summary_buffer_memory")
+    key_summary = f"chat:summary:{conversation_id}"
+    key_buffer = f"chat:buffer:{conversation_id}"
+    summary = cache.get(key_summary)
+    buffer = cache.get(key_buffer)
+    print("mesummary ",summary)
+    memory = ConversationSummaryBufferMemory(
+    llm=llm,
+    max_token_limit=1500,
+    memory_key="chat_history",
+    return_messages=True,
+    )
+
+
+    # Restore persisted state if exists
+    if summary:
+        memory.moving_summary_buffer = summary
+    if buffer:
+        memory.chat_memory.messages = buffer
+    return memory
+def get_conversation_memory(conversation_id: str, timeout=60*60*24) -> ConversationBufferMemory:
+    key = f"chat:memory:{conversation_id}"
+    buffer = cache.get(key)
+    if buffer is None:
+        buffer = []
+    memory = ConversationBufferMemory(
+        memory_key="chat_history",
+        return_messages=True,
+    )
+    memory.chat_memory.messages = buffer
+    return memory
+
+def save_summary_buffer_memory(conversation_id: str, memory: ConversationSummaryBufferMemory, timeout=60*60*24):
+    print("Saving summary buffer for conversation:", conversation_id)
+    print("moving_summary_buffer:", memory.moving_summary_buffer)
+    print("chat_memory.messages:", memory.chat_memory.messages)
+    cache.set(f"chat:summary:{conversation_id}", memory.moving_summary_buffer, timeout=timeout)
+    cache.set(f"chat:buffer:{conversation_id}", memory.chat_memory.messages, timeout=timeout)
+
+# agent = initialize_agent(
+#     tools=[extractor_tool, aggregator_tool, row_fetch_tool],
+#     llm=llm,
+#     agent=AgentType.OPENAI_FUNCTIONS,
+#     memory=memory,
+#     verbose=False,
+# )
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 9. PUBLIC API – what your Django view will call
 # ────────────────────────────────────────────────────────────────────────────────
-
-
-def handle_user_query(prompt: str) -> Dict[str, Any]:
-    params = extract_sap_sales_query_params(prompt)
-
-    # Explicitly choose tool
-    is_agg = bool(params.get("aggregation"))
+def build_summary_prompt_from_history(memory, user_prompt, data, params, is_agg):
+    """
+    Build a summary prompt for the LLM, including relevant chat history for context-aware answers.
+    """
+    history_lines = []
+    # Use last N Q/A pairs
+    if hasattr(memory, "buffer_as_messages"):
+        msgs = memory.buffer_as_messages[-8:]  # last 4 Q/A pairs (8 messages)
+        last_q = None
+        for msg in msgs:
+            if msg.type == "human":
+                last_q = msg.content
+            elif msg.type == "ai" and last_q:
+                history_lines.append(f"Q: {last_q}\nA: {msg.content}")
+                last_q = None
+    # Now add the current question/data
     if is_agg:
-        print("aggrigate")
-        data = stream_and_aggregate(params)
+        history_lines.append(
+            f"Q: {user_prompt}\nA: Aggregated result: {json.dumps(data['result'], indent=2)}"
+        )
     else:
-        print("non aggrigate")
-        data = azure_sales_row_search(params)
+        history_lines.append(
+            f"Q: {user_prompt}\nA: Result snippet: {json.dumps(data['result'][:50], indent=2)}"
+        )
+    chat_history_text = "\n\n".join(history_lines)
+    return (
+        f"Below is the recent conversation history between a business user and an SAP analytics assistant.\n"
+        f"{chat_history_text}\n\n"
+        "Based on the conversation above, provide a clear, business-friendly answer to the last user query. "
+        "If comparisons are requested, analyze trends, differences, or patterns. "
+        "If result is paginated, mention page & size. "
+        "Never refer to rows, tokens, or internal processing."
+    )
 
-    # Summary prompt: different for agg vs. paginated
+
+def handle_user_query(prompt: str, conversation_id: str = "default") -> Dict[str, Any]:
+    # --- Use LangGraph agent to pick/run the correct tool, track memory, etc. ---
+    thread_config = {"configurable": {"thread_id": conversation_id}}
+    messages = [{"role": "user", "content": prompt}]
+
+    # The agent will call your tools, and their outputs will be in intermediate_steps
+    result = agent_executor.invoke({"messages": messages}, thread_config)
+    print("result agent_executor  ",result)
+
+    # Find the tool output
+    tool_data = None
+    params = None
+    is_agg = None
+    # Try to parse from the agent's intermediate steps (depends on tool setup)
+    for step in (result.get("intermediate_steps") or []):
+        tool_call = step.get("tool_calls", [{}])[0]
+        if tool_call.get("name") == "SAPSalesAggregator":
+            tool_data = tool_call.get("output")
+            params = tool_call.get("input")
+            is_agg = True
+        elif tool_call.get("name") == "AzureSAPSalesRowFetcher":
+            tool_data = tool_call.get("output")
+            params = tool_call.get("input")
+            is_agg = False
+        elif tool_call.get("name") == "SAPSalesQueryExtractor":
+            params = tool_call.get("output")
+
+    # Fallback for param extraction if not found
+    if params is None:
+        params = extract_sap_sales_query_params(prompt)
+    if is_agg is None:
+        is_agg = bool(params.get("aggregation"))
+
+    # --- Compose your custom summary prompt using the actual data ---
+    if tool_data and isinstance(tool_data, dict):
+        data = tool_data
+    else:
+        # fallback to direct call if agent/tools misfire
+        data = stream_and_aggregate(params) if is_agg else azure_sales_row_search(params)
+
     if is_agg:
-        print("dfsd")
         summary_prompt = (
             f"User asked: '{prompt}'.\n"
             f"Processed parameters: {json.dumps(params, indent=2)}\n"
             f"Aggregated result: {json.dumps(data['result'], indent=2)}\n"
-            "Give a clear, business-friendly answer . "
+            "Give a clear, business-friendly answer. "
             "Highlight which group is uptrending if possible, and avoid any pagination language. "
             "Do not mention rows, pages, or limits—summarize based on the full dataset."
         )
@@ -412,9 +621,9 @@ def handle_user_query(prompt: str) -> Dict[str, Any]:
         summary_prompt = (
             f"User asked: '{prompt}'.\n"
             f"Processed parameters: {json.dumps(params, indent=2)}\n"
-            f"Result snippet (first 20 rows/items): {json.dumps(data['result'][:50], indent=2)}\n"
-            "Give a clear, business-friendly answer . "
-            "If result is paginated, mention page & size."
+            f"Result snippet : {json.dumps(data['result'][:50], indent=2)}\n"
+            "Give a clear, business-friendly answer. "
+            "Do not mention rows, pages, or limits—summarize based on the full dataset"
         )
 
     answer = llm.invoke(summary_prompt).content
@@ -423,4 +632,6 @@ def handle_user_query(prompt: str) -> Dict[str, Any]:
         "answer": answer,
         "data": data,
         "operation_plan": params,
+        "steps": result.get("intermediate_steps"),
+        "chat_history": result.get("messages"),
     }

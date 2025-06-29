@@ -9,7 +9,7 @@ from agent.agent import handle_user_query
 from conversation.models.conversation import Conversation
 from conversation.models.message import Message
 from datetime import datetime
-
+import traceback
 
 class ChatView(TemplateView):
     template_name = 'sales/chat_index.html'
@@ -47,8 +47,13 @@ class ChatAPIView(APIView):
             else:
                 conversation = self.create_new_conversation(request.user)
 
-            # >>>> Run your intelligent agent <<<<
-            result = handle_user_query(prompt)
+            #  Run  agent 
+            # result = handle_user_query(prompt)
+            print("prompt recived  ",prompt)
+
+            result = handle_user_query(prompt, conversation_id=str(conversation.uuid))
+       
+
             answer = result if isinstance(result, str) else result.get("answer", "")
 
             # Store user & assistant messages for conversation context
@@ -73,8 +78,10 @@ class ChatAPIView(APIView):
                 ),
                 'data': None,
                 'operation_plan': None,
-                'uuid': None,  # Return None if error
+                'uuid': None,
             }
+            print("Exception occurred:", repr(e))  # This prints the exception type and message
+            traceback.print_exc()  # This prints the full traceback to help with debugging
             response_ser = FirstChatResponseSerializer(out)
             return Response(response_ser.data, status=status.HTTP_200_OK)
 
@@ -119,8 +126,10 @@ class ExistingConversationAPIView(APIView):
 
             conversation = self.get_or_create_conversation(request.user, conversation_uuid)
 
-            # >>>> Run your intelligent agent <<<<
-            result = handle_user_query(prompt)
+            # > Run agent 
+            # result = handle_user_query(prompt)
+            result = handle_user_query(prompt, conversation_id=str(conversation.uuid))
+
             answer = result if isinstance(result, str) else result.get("answer", "")
 
             self.create_message(conversation, 'user', prompt)

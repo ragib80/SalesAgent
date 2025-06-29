@@ -176,3 +176,11 @@ AZURE_OPENAI_ENDPOINT = os.getenv('AZURE_OPENAI_ENDPOINT')
 AZURE_OPENAI_KEY = os.getenv('AZURE_OPENAI_KEY')
 AZURE_OPENAI_DEPLOYMENT = os.getenv('AZURE_OPENAI_DEPLOYMENT')
 AZURE_OPENAI_EMBED_DEPLOYMENT = os.getenv('AZURE_OPENAI_EMBED_DEPLOYMENT')
+
+
+JAZZMIN_SETTINGS = {
+    "site_brand": "SAP Y-Sales Admin",
+    "site_header": "SAP Y-Sales Admin Dashboard",
+    "site_title": "SAP Y-Sales Admin",
+    # ...more config
+}

@@ -54,8 +54,8 @@
                         password: password
                     },
                     success: function(response) {
-                        alert(response.refresh)
-                        localStorage.clear(); // or remove auth_token & refresh_token individually
+                       
+                        //localStorage.clear(); // or remove auth_token & refresh_token individually
                         // On success, store the token and redirect
                         localStorage.setItem('auth_token', response.access);
                          localStorage.setItem('refresh_token', response.refresh);
