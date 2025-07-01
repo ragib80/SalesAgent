@@ -19,7 +19,7 @@ from langchain_openai import AzureChatOpenAI
 from openai import AzureOpenAI
 from django.core.cache import cache
 from langgraph.checkpoint.base import BaseCheckpointSaver
-
+from urllib.parse import parse_qs, unquote_plus
 
 import threading
 # ────────────────────────────────────────────────────────────────────────────────
@@ -46,6 +46,7 @@ COLUMN_MAP: Dict[str, str] = {
     "billing_date": "fkdat",
     "item_position": "posnr",
     "product_description": "arktx",
+    "product": "arktx",
     "unit_of_measure": "meins",
     "volume_unit": "voleh",
     "territory": "Territory",
@@ -99,7 +100,30 @@ COLUMN_MAP: Dict[str, str] = {
 # 2. BUILD PURE-$filter ODATA QUERY
 # ────────────────────────────────────────────────────────────────────────────────
 def build_odata_filter(params: Dict[str, Any]) -> str:
+    """
+    Return a $filter string (no $apply), enforcing that params["filters"]
+    is always a dict—even if originally supplied as a string—and honoring
+    date_range & explicit filters.
+    """
+    # — Normalize filters: turn a string like "A eq 'X' and B eq 'Y'" into a dict
+    f = params.get("filters")
+    if isinstance(f, str):
+        filters_dict: Dict[str, Any] = {}
+        # split on " and " to get individual clauses
+        for clause in f.split(" and "):
+            if " eq " in clause:
+                col, val = clause.split(" eq ", 1)
+                col = col.strip()
+                val = val.strip()
+                # strip surrounding single quotes, if present
+                if val.startswith("'") and val.endswith("'"):
+                    val = val[1:-1]
+                filters_dict[col] = val
+        params["filters"] = filters_dict
+
     filters: List[str] = []
+
+    # — Date range —
     dr = params.get("date_range", {}) or {}
     today = datetime.utcnow().date()
     start = dr.get("start", "2024-01-01")
@@ -109,55 +133,187 @@ def build_odata_filter(params: Dict[str, Any]) -> str:
     if len(end) == 10:
         end += "T23:59:59Z"
     filters.append(f"fkdat ge {start} and fkdat le {end}")
+
+    # — Other filters —
     for k, v in (params.get("filters") or {}).items():
         if v in (None, ""):
             continue
         col = COLUMN_MAP.get(k.lower(), k)
-        clause = f"{col} eq {v}" if isinstance(v, (int, float)) else f"{col} eq '{v}'"
+        if isinstance(v, (int, float)):
+            clause = f"{col} eq {v}"
+        else:
+            # assume string
+            clause = f"{col} eq '{v}'"
         filters.append(clause)
+
+    # combine
     return "$filter=" + " and ".join(filters)
+
 
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 3. AZURE METRIC AGGREGATION (FACET) HELPER
 # ────────────────────────────────────────────────────────────────────────────────
 def azure_metric_aggregate(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Uses Azure AI Search facets to compute SUM on Revenue,
+    nested by one or more group_by fields.
+    """
+    # 1) Resolve metric & group_by list
     metric_col = COLUMN_MAP.get(params.get("metric", "revenue").lower(), "Revenue")
-    odata = build_odata_filter(params).replace("$filter=", "")
-    gb1 = params.get("group_by")
-    gb2 = params.get("group_by_2")
-    gb1_field = COLUMN_MAP.get(gb1.lower(), gb1) if gb1 else None
-    gb2_field = COLUMN_MAP.get(gb2.lower(), gb2) if gb2 else None
-    if gb1_field and gb2_field:
-        facet_expr = f"{gb1_field} > {gb2_field} > ({metric_col}, metric: sum)"
-    elif gb1_field:
-        facet_expr = f"{gb1_field} > ({metric_col}, metric: sum)"
+    gb = params.get("group_by")
+    # accept string or list
+    if isinstance(gb, str) and gb:
+        group_fields = [gb]
+    elif isinstance(gb, list):
+        group_fields = gb
     else:
-        facet_expr = f"({metric_col}, metric: sum)"
-    resp = search_client.search(
+        group_fields = []
+
+    # map to actual index field names
+    group_fields = [
+        COLUMN_MAP.get(f.lower(), f)
+        for f in group_fields
+        if f
+    ]
+
+    # 2) Build a single nested facet expression:
+    #    e.g. ["Field1 > Field2 > (Revenue, metric: sum)"]
+    if group_fields:
+        nested = " > ".join(group_fields) + f" > ({metric_col}, metric: sum)"
+        facets = [nested]
+    else:
+        # no grouping → just a sum of the metric
+        facets = [f"({metric_col}, metric: sum)"]
+
+    # 3) Build $filter clause
+    odata_filter = build_odata_filter(params)[len("$filter="):]  # strip prefix
+
+    # 4) Call Azure Search
+    results = search_client.search(
         search_text="*",
-        filter=odata,
-        facets=[facet_expr],
-        top=0
+        filter=odata_filter,
+        facets=facets,
+        top=0,            # we only want facets
+        include_total_count=False,
     )
-    raw = resp.facets or {}
-    rows: List[Dict[str, Any]] = []
-    if gb1_field and gb2_field:
-        for b1 in raw.get(gb1_field, []):
-            for b2 in b1.get("@search.facets", {}).get(gb2_field, []):
-                s = b2.get("@search.facets", {}).get(metric_col, [{}])[0].get("sum", 0)
-                rows.append({gb1: b1["value"], gb2: b2["value"], "sum": s})
-    elif gb1_field:
-        for b in raw.get(gb1_field, []):
-            s = b.get("@search.facets", {}).get(metric_col, [{}])[0].get("sum", 0)
-            rows.append({gb1: b["value"], "sum": s})
+
+    # 5) Parse nested facets into a flat list of dicts
+    # Azure returns a nested dict under results.facets, matching the first group name
+    raw_facets = results.facets or {}
+    # drill into the first (and only) facet key
+    top_key = next(iter(raw_facets), None)
+    buckets = raw_facets.get(top_key, [])
+
+    def recurse(buckets, depth=0, prefix=None):
+        out = []
+        for b in buckets:
+            val = b["value"]
+            sum_metric = b.get("@search.facets", {}).get(metric_col, [{}])[0].get("sum", 0)
+            key = (prefix or []) + [val]
+            # if there are deeper sub-facets:
+            sub = b.get("value", None)
+            nested_key = group_fields[depth + 1] if depth + 1 < len(group_fields) else None
+            if nested_key and b.get("facets", {}).get(nested_key):
+                # recurse into that list
+                sub_buckets = b["facets"][nested_key]
+                out.extend(recurse(sub_buckets, depth + 1, key))
+            else:
+                # leaf node
+                row = {group_fields[i]: key[i] for i in range(len(key))}
+                row["sum"] = sum_metric
+                out.append(row)
+        return out
+
+    result_rows = recurse(buckets)
+
+    return {
+        "filter": odata_filter,
+        "metric": metric_col,
+        "aggregation": "sum",
+        "group_by": group_fields,
+        "result": result_rows,
+    }
+
+
+
+def _normalize_params(arg):
+    # If it’s already a dict, return it
+    if isinstance(arg, dict):
+        return arg
+
+    # If it’s JSON text, load it
+    if isinstance(arg, str):
+        try:
+            return json.loads(arg)
+        except json.JSONDecodeError:
+            # Maybe it’s a URL-encoded query string
+            qs = parse_qs(arg)
+            out = {}
+            for k, v in qs.items():
+                val = v[0]
+                if val.startswith("{") and val.endswith("}"):
+                    try:
+                        out[k] = json.loads(val)
+                    except json.JSONDecodeError:
+                        out[k] = val
+                else:
+                    out[k] = unquote_plus(val)
+            return out
+
+    raise ValueError(f"Cannot normalize params from type={type(arg)}")
+
+
+def sap_sales_aggregator(arg1: Any) -> Dict[str, Any]:
+    # 1) Normalize incoming params
+    params = _normalize_params(arg1)
+
+    # 2) Normalize aggregation verb into one of the supported set
+    agg = str(params.get("aggregation", "")).lower()
+    if agg not in AGG_SUPPORTED:
+        # If they passed the metric name, treat as sum; else default to sum
+        agg = "sum"
+    params["aggregation"] = agg
+
+    # 3) Ensure paging defaults (for any fallbacks)
+    params.setdefault("page", 1)
+    params.setdefault("page_size", 50)
+
+    # 4) Dispatch:
+    #    - If it's a simple SUM on one level of grouping → use Azure facets
+    #    - Otherwise → stream & aggregate in Python
+    use_azure = (agg == "sum" and isinstance(params.get("group_by"), (str, list)))
+    if use_azure:
+        result = azure_metric_aggregate(params)
     else:
-        total = raw.get(metric_col, [{}])[0].get("sum", 0)
-        rows.append({"all": "total", "sum": total})
+        result = stream_and_aggregate(params)
+
+    # 5) Apply Top-N slicing & ordering client-side on the aggregation field
     top_n = params.get("top_n")
-    if top_n:
-        rows = sorted(rows, key=lambda r: r["sum"], reverse=True)[:top_n]
-    return {"filter": odata, "metric": metric_col, "aggregation": "sum", "group_by": gb1, "group_by_2": gb2, "result": rows}
+    if top_n and isinstance(result.get("result"), list):
+        # aggregation key in each row ('sum','average','min','max','count')
+        key = agg
+        desc = params.get("order", "desc").lower() == "desc"
+        result["result"] = sorted(
+            result["result"],
+            key=lambda r: r.get(key, 0),
+            reverse=desc
+        )[:top_n]
+
+    return result
+
+
+def sap_sales_rowfetcher(arg1: Any) -> Dict[str, Any]:
+    # 1) Normalize incoming parameters (JSON string, query-string, or dict)
+    params = _normalize_params(arg1)
+
+    # 2) Ensure pagination defaults so we never KeyError
+    params.setdefault("page", 1)
+    params.setdefault("page_size", 50)
+
+    # 3) Delegate to the raw row fetcher
+    return azure_sales_row_search(params)
+
 
 
 def extract_filter_and_orderby(odata_query: str) -> tuple[Optional[str], Optional[str]]:
@@ -236,7 +392,7 @@ def extract_sap_sales_query_params(prompt: str) -> Dict[str, Any]:
 
     payload = rsp.choices[0].message.tool_calls[0].function.arguments
     params = json.loads(payload)
-    params.setdefault("page_size", 200)
+    params.setdefault("page_size", 50)
     params.setdefault("page", 1)
     return params
 
@@ -418,18 +574,29 @@ extractor_tool = Tool(
     description="Extracts SAP-sales query meta-data from user text.",
 )
 
+# aggregator_tool = Tool(
+#     name="SAPSalesAggregator",
+#     func=lambda params: azure_metric_aggregate(params) if params.get("aggregation") == "sum" else stream_and_aggregate(params),
+#     description="Aggregates SAP sales: uses Azure facet for sum, streams otherwise.",
+# )
+
 aggregator_tool = Tool(
-    name="SAPSalesAggregator",
-    func=lambda params: azure_metric_aggregate(params) if params.get("aggregation") == "sum" else stream_and_aggregate(params),
+    name="SAPSalesAggregator",           # exactly this name
+    func=sap_sales_aggregator,           # your wrapper
     description="Aggregates SAP sales: uses Azure facet for sum, streams otherwise.",
 )
 
+# row_fetch_tool = Tool(
+#     name="AzureSAPSalesRowFetcher",
+#     func=azure_sales_row_search,
+#     description="Fetches raw SAP-sales rows page-by-page (no aggregation).",
+# )
+
 row_fetch_tool = Tool(
-    name="AzureSAPSalesRowFetcher",
-    func=azure_sales_row_search,
+    name="AzureSAPSalesRowFetcher",      # exactly this name
+    func=sap_sales_rowfetcher,           # your wrapper
     description="Fetches raw SAP-sales rows page-by-page (no aggregation).",
 )
-
 
 tools = [extractor_tool, aggregator_tool, row_fetch_tool]
 
