@@ -68,33 +68,96 @@ COLUMN_MAP: Dict[str, str] = {
 # ────────────────────────────────────────────────────────────────────────────────
 
 
-def build_odata_filter(params: Dict[str, Any]) -> str:
-    """Return a $filter string (no $apply) honoring date_range & explicit filters."""
-    filters: List[str] = []
+# def build_odata_filter(params: Dict[str, Any]) -> str:
+#     """Return a $filter string (no $apply) honoring date_range & explicit filters."""
+#     filters: List[str] = []
 
-    # Date range
+#     # Date range
+#     dr = params.get("date_range", {}) or {}
+#     today = datetime.utcnow().date()
+#     start = dr.get("start", "2024-01-01")
+#     end = dr.get("end", str(today))
+
+#     if len(start) == 10:
+#         start += "T00:00:00Z"
+#     if len(end) == 10:
+#         end += "T23:59:59Z"
+
+#     filters.append(f"fkdat ge {start} and fkdat le {end}")
+
+#     # Other filters
+#     for k, v in (params.get("filters") or {}).items():
+#         if v in (None, ""):
+#             continue
+#         col = COLUMN_MAP.get(k.lower(), k)
+#         clause = f"{col} eq {v}" if isinstance(
+#             v, (int, float)) else f"{col} eq '{v}'"
+#         filters.append(clause)
+
+#     return "$filter=" + " and ".join(filters)
+# ────────────────────────────────────────────────────────────────────────────────
+# 2. BUILD PURE-$filter ODATA QUERY
+# ────────────────────────────────────────────────────────────────────────────────
+def build_odata_filter(params: Dict[str, Any]) -> str:
+    filters: List[str] = []
     dr = params.get("date_range", {}) or {}
     today = datetime.utcnow().date()
     start = dr.get("start", "2024-01-01")
     end = dr.get("end", str(today))
-
     if len(start) == 10:
         start += "T00:00:00Z"
     if len(end) == 10:
         end += "T23:59:59Z"
-
     filters.append(f"fkdat ge {start} and fkdat le {end}")
-
-    # Other filters
     for k, v in (params.get("filters") or {}).items():
         if v in (None, ""):
             continue
         col = COLUMN_MAP.get(k.lower(), k)
-        clause = f"{col} eq {v}" if isinstance(
-            v, (int, float)) else f"{col} eq '{v}'"
+        clause = f"{col} eq {v}" if isinstance(v, (int, float)) else f"{col} eq '{v}'"
         filters.append(clause)
-
     return "$filter=" + " and ".join(filters)
+
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 3. AZURE METRIC AGGREGATION (FACET) HELPER
+# ────────────────────────────────────────────────────────────────────────────────
+def azure_metric_aggregate(params: Dict[str, Any]) -> Dict[str, Any]:
+    metric_col = COLUMN_MAP.get(params.get("metric", "revenue").lower(), "Revenue")
+    odata = build_odata_filter(params).replace("$filter=", "")
+    gb1 = params.get("group_by")
+    gb2 = params.get("group_by_2")
+    gb1_field = COLUMN_MAP.get(gb1.lower(), gb1) if gb1 else None
+    gb2_field = COLUMN_MAP.get(gb2.lower(), gb2) if gb2 else None
+    if gb1_field and gb2_field:
+        facet_expr = f"{gb1_field} > {gb2_field} > ({metric_col}, metric: sum)"
+    elif gb1_field:
+        facet_expr = f"{gb1_field} > ({metric_col}, metric: sum)"
+    else:
+        facet_expr = f"({metric_col}, metric: sum)"
+    resp = search_client.search(
+        search_text="*",
+        filter=odata,
+        facets=[facet_expr],
+        top=0
+    )
+    raw = resp.facets or {}
+    rows: List[Dict[str, Any]] = []
+    if gb1_field and gb2_field:
+        for b1 in raw.get(gb1_field, []):
+            for b2 in b1.get("@search.facets", {}).get(gb2_field, []):
+                s = b2.get("@search.facets", {}).get(metric_col, [{}])[0].get("sum", 0)
+                rows.append({gb1: b1["value"], gb2: b2["value"], "sum": s})
+    elif gb1_field:
+        for b in raw.get(gb1_field, []):
+            s = b.get("@search.facets", {}).get(metric_col, [{}])[0].get("sum", 0)
+            rows.append({gb1: b["value"], "sum": s})
+    else:
+        total = raw.get(metric_col, [{}])[0].get("sum", 0)
+        rows.append({"all": "total", "sum": total})
+    top_n = params.get("top_n")
+    if top_n:
+        rows = sorted(rows, key=lambda r: r["sum"], reverse=True)[:top_n]
+    return {"filter": odata, "metric": metric_col, "aggregation": "sum", "group_by": gb1, "group_by_2": gb2, "result": rows}
 
 
 def extract_filter_and_orderby(odata_query: str) -> tuple[Optional[str], Optional[str]]:
@@ -346,6 +409,9 @@ def azure_sales_row_search(params: Dict[str, Any]) -> Dict[str, Any]:
         "result": rows,
     }
 
+# ────────────────────────────────────────────────────────────────────────────────
+# 6. TOOLS
+# ────────────────────────────────────────────────────────────────────────────────
 extractor_tool = Tool(
     name="SAPSalesQueryExtractor",
     func=extract_sap_sales_query_params,
@@ -354,9 +420,8 @@ extractor_tool = Tool(
 
 aggregator_tool = Tool(
     name="SAPSalesAggregator",
-    func=stream_and_aggregate,
-    description=("Streams rows matching the filter and computes "
-                 "sum/average/min/max/count on the fly. Supports grouping by month/quarter/year and Top N."),
+    func=lambda params: azure_metric_aggregate(params) if params.get("aggregation") == "sum" else stream_and_aggregate(params),
+    description="Aggregates SAP sales: uses Azure facet for sum, streams otherwise.",
 )
 
 row_fetch_tool = Tool(
@@ -364,6 +429,7 @@ row_fetch_tool = Tool(
     func=azure_sales_row_search,
     description="Fetches raw SAP-sales rows page-by-page (no aggregation).",
 )
+
 
 tools = [extractor_tool, aggregator_tool, row_fetch_tool]
 
@@ -377,6 +443,8 @@ llm = AzureChatOpenAI(
     deployment_name=settings.AZURE_OPENAI_DEPLOYMENT,
     api_version="2025-01-01-preview",
 )
+
+
 
 # memory = ConversationBufferMemory(memory_key="chat_history")
 
@@ -471,10 +539,8 @@ class DjangoCacheSaver(BaseCheckpointSaver):
         return self.get_tuple(key)
 
 checkpointer = DjangoCacheSaver()
-
 print ("checkpointer ",checkpointer)
-
-# LangGraph Agent
+#langgraph agent
 agent_executor = create_react_agent(
     model=llm,
     tools=tools,
@@ -598,6 +664,7 @@ def handle_user_query(prompt: str, conversation_id: str = "default") -> Dict[str
     # Fallback for param extraction if not found
     if params is None:
         params = extract_sap_sales_query_params(prompt)
+        print()
     if is_agg is None:
         is_agg = bool(params.get("aggregation"))
 
