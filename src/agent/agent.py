@@ -20,7 +20,6 @@ from openai import AzureOpenAI
 from django.core.cache import cache
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from urllib.parse import parse_qs, unquote_plus
-import re
 
 import threading
 # ────────────────────────────────────────────────────────────────────────────────
@@ -65,37 +64,6 @@ COLUMN_MAP: Dict[str, str] = {
     "group_key": "GK",
 }
 
-
-BUSINESS_AREA_MAP: Dict[str, str] = {
-    "depo":    "1000",  # if you want a generic 'depo' name
-    "dhaka factory":   "1000",
-    "chittagong factory": "1100",
-    "mirsarai factory":   "1200",
-    "dhaka sales":       "4000",
-    "chittagong sales":  "4010",
-    "sylhet sales":      "4020",
-    "comilla sales":     "4030",
-    "rajshahi sales":    "4040",
-    "bogra sales":       "4050",
-    "khulna sales":      "4060",
-    "mymensing sales":   "4070",
-    "barishal sales":    "4080",
-    "rangpur sales":     "4090",
-    "feni sales":        "4100",
-    "dhaka south":       "4110",
-    "brahmanbaria sales":"4120",
-    "dhaka north":       "4130",
-    "test business area":"4500",
-    "pphd":              "5000",
-    "berger design studio":"5010",
-    "berger training institute":"5020",
-    "berger tech consulting lt":"5100",
-    "jenson & nicholson bd ltd":"6000",
-    "jnbl 2nd unit dhaka":"6100",
-    "berger becker bangladesh":"7000",
-    "berger fosroc limited":"8000",
-    "corporate":"9000",
-}
 # ────────────────────────────────────────────────────────────────────────────────
 # 2. BUILD PURE-$filter ODATA QUERY (no $apply, skips Azure limits)
 # ────────────────────────────────────────────────────────────────────────────────
@@ -180,6 +148,7 @@ def build_odata_filter(params: Dict[str, Any]) -> str:
 
     # combine
     return "$filter=" + " and ".join(filters)
+
 
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -833,106 +802,62 @@ def build_summary_prompt_from_history(memory, user_prompt, data, params, is_agg)
 
 
 def handle_user_query(prompt: str, conversation_id: str = "default") -> Dict[str, Any]:
-    # 1) Invoke the agent as before to get params/tool outputs
+    # --- Use LangGraph agent to pick/run the correct tool, track memory, etc. ---
     thread_config = {"configurable": {"thread_id": conversation_id}}
     messages = [{"role": "user", "content": prompt}]
-    result = agent_executor.invoke({"messages": messages}, thread_config)
 
-    # 2) Extract tool outputs & params
+    # The agent will call your tools, and their outputs will be in intermediate_steps
+    result = agent_executor.invoke({"messages": messages}, thread_config)
+    print("result agent_executor  ",result)
+
+    # Find the tool output
     tool_data = None
     params = None
     is_agg = None
-    for step in result.get("intermediate_steps", []):
-        call = step.get("tool_calls", [{}])[0]
-        name = call.get("name")
-        if name == "SAPSalesAggregator":
-            tool_data, params, is_agg = call.get("output"), call.get("input"), True
-        elif name == "AzureSAPSalesRowFetcher":
-            tool_data, params, is_agg = call.get("output"), call.get("input"), False
-        elif name == "SAPSalesQueryExtractor":
-            params = call.get("output")
+    # Try to parse from the agent's intermediate steps (depends on tool setup)
+    for step in (result.get("intermediate_steps") or []):
+        tool_call = step.get("tool_calls", [{}])[0]
+        if tool_call.get("name") == "SAPSalesAggregator":
+            tool_data = tool_call.get("output")
+            params = tool_call.get("input")
+            is_agg = True
+        elif tool_call.get("name") == "AzureSAPSalesRowFetcher":
+            tool_data = tool_call.get("output")
+            params = tool_call.get("input")
+            is_agg = False
+        elif tool_call.get("name") == "SAPSalesQueryExtractor":
+            params = tool_call.get("output")
 
-    # fallback
+    # Fallback for param extraction if not found
     if params is None:
         params = extract_sap_sales_query_params(prompt)
+        print()
     if is_agg is None:
         is_agg = bool(params.get("aggregation"))
 
-    # 3) If this is an aggregation AND it looks like a compare/ vs  question:
-    if is_agg and re.search(r"\bcompare\b", prompt, re.I) and re.search(r"\bvs?\.?\b", prompt, re.I):
-        # a) figure out the field to split on
-        #    (we assume the extractor put both values into params["filters"])
-        raw_filters = params.get("filters")
-        # normalize to dict
-        if isinstance(raw_filters, str):
-            # e.g. "division_name eq 'Decorative' and division_name eq 'Marine Paints'"
-            filters_dict = {}
-            for clause in raw_filters.split(" and "):
-                if " eq " in clause:
-                    k, v = clause.split(" eq ", 1)
-                    filters_dict.setdefault(k.strip(), []).append(v.strip().strip("'"))
-            params["filters"] = filters_dict
-        # b) pull out the two compare-keys
-        field, values = next(iter(params["filters"].items()))
-        if len(values) >= 2:
-            left_val, right_val = values[0], values[1]
-        else:
-            # fallback: try parsing from prompt directly
-            parts = re.split(r"\bvs?\.?\b", prompt, flags=re.I)
-            left_val = parts[0].split()[-1]
-            right_val = parts[1].split()[-1]
-
-        # c) build two param sets
-        def single_filter_params(value):
-            p = dict(params)
-            p["filters"] = {field: value}
-            return p
-
-        p1, p2 = single_filter_params(left_val), single_filter_params(right_val)
-        r1, r2 = sap_sales_aggregator(p1), sap_sales_aggregator(p2)
-
-        # d) now hand off to a mini-prompt that gives both totals
-        left_sum  = r1["result"][0].get("sum", 0) if r1["result"] else 0
-        right_sum = r2["result"][0].get("sum", 0) if r2["result"] else 0
-
-        summary_prompt = f"""
-User asked: {prompt}
-
-- {left_val}: {left_sum:,}
-- {right_val}: {right_sum:,}
-
-Please write a concise business-friendly comparison highlighting which is stronger in total revenue, any key drivers, and overall takeaway.
-"""
-        answer = llm.invoke(summary_prompt).content
-        return {
-            "answer": answer,
-            "data": {"left": r1, "right": r2},
-            "operation_plan": params,
-            "steps": result.get("intermediate_steps"),
-            "chat_history": result.get("messages"),
-        }
-
-    # 4) Otherwise fall back to the existing single-aggregation flow
+    # --- Compose your custom summary prompt using the actual data ---
     if tool_data and isinstance(tool_data, dict):
         data = tool_data
     else:
-        data = sap_sales_aggregator(params) if is_agg else sap_sales_rowfetcher(params)
+        # fallback to direct call if agent/tools misfire
+        data = stream_and_aggregate(params) if is_agg else azure_sales_row_search(params)
 
-    # 5) Build your summary prompt as before
     if is_agg:
         summary_prompt = (
             f"User asked: '{prompt}'.\n"
             f"Processed parameters: {json.dumps(params, indent=2)}\n"
             f"Aggregated result: {json.dumps(data['result'], indent=2)}\n"
             "Give a clear, business-friendly answer. "
-            "Highlight trends, and avoid pagination language."
+            "Highlight which group is uptrending if possible, and avoid any pagination language. "
+            "Do not mention rows, pages, or limits—summarize based on the full dataset."
         )
     else:
         summary_prompt = (
             f"User asked: '{prompt}'.\n"
             f"Processed parameters: {json.dumps(params, indent=2)}\n"
-            f"Result snippet: {json.dumps(data['result'][:10], indent=2)}\n"
-            "Give a clear, business-friendly answer."
+            f"Result snippet : {json.dumps(data['result'][:50], indent=2)}\n"
+            "Give a clear, business-friendly answer. "
+            "Do not mention rows, pages, or limits—summarize based on the full dataset"
         )
 
     answer = llm.invoke(summary_prompt).content

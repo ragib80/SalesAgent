@@ -489,7 +489,7 @@ function sendMessage(content) {
 
     let apiUrl;
     let requestData = { prompt: content };
-
+     $input.val('').prop('disabled', false).focus();
     if (currentChatId) {
         apiUrl = `/sales/query/existing/${currentChatId}/`;
     } else {
@@ -510,8 +510,9 @@ function sendMessage(content) {
             if (isCreatingNewChat && response && response.uuid) {
                 const newChatUuid = response.uuid;
                 currentChatId = newChatUuid;
-
+             
                 // Append assistant reply immediately if present (snappy UX)
+
                 if (response.assistant_message && response.assistant_message.text) {
                     $messagesContainer.append(`
                         <div class="message assistant d-flex justify-content-start">
@@ -535,6 +536,7 @@ function sendMessage(content) {
 
             } else {
                 // Existing chat: append the assistant's reply as usual
+                          console.log("ee ",response.assistant_messag)
                 if (response && response.assistant_message && response.assistant_message.text) {
                     $messagesContainer.append(`
                         <div class="message assistant d-flex justify-content-start">
@@ -590,7 +592,7 @@ $('.input-area').on('submit', function(e) {
 function startNewChat() {
     currentChatId = null; // Clear current chat ID
     $('.chat-list .list-group-item').removeClass('active'); // Deactivate all sidebar items
-    $('.messages').empty().append('<div class="text-center text-muted">Start a new conversation!</div>'); // Clear messages and show prompt
+    $('.messages').empty().append('<div class="text-center text-muted"><b> Start a new conversation!</b></div>'); // Clear messages and show prompt
     $('.input-area textarea').val('').focus(); // Clear input and focus
     $('.new-chat-btn').addClass('active'); // Ensure new chat button is active
 }
