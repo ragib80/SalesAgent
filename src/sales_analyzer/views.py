@@ -51,7 +51,8 @@ class ChatAPIView(APIView):
             # result = handle_user_query(prompt)
             print("prompt recived  ",prompt)
 
-            result = handle_user_query(prompt, conversation_id=str(conversation.uuid))
+            # result = handle_user_query(prompt, conversation_id=str(conversation.uuid))
+            result = handle_user_query(prompt)
        
 
             answer = result if isinstance(result, str) else result.get("answer", "")
