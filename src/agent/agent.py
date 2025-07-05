@@ -1,20 +1,19 @@
-# agent.py  –  end-to-end SAP-ADX conversational agent
+# agent.py ─ Simplified SAP Sales bot for Azure ADX (YSales)
 import os, re, json
 from functools import lru_cache
+
 from django.conf import settings
 from azure.kusto.data import KustoClient, KustoConnectionStringBuilder
 from azure.kusto.data.exceptions import KustoApiError
-from langchain_openai import AzureChatOpenAI
-from langgraph.prebuilt import create_react_agent
-from langchain.tools import Tool
 
-# ─────────────────── 1. ADX Connector ────────────────────
+from langchain_openai import AzureChatOpenAI
+
+# ───────────────────────── 1.  ADX helper ──────────────────────────
 class ADXTool:
     def __init__(self, cluster: str, database: str):
         kcsb = KustoConnectionStringBuilder.with_aad_device_authentication(cluster)
         self.client = KustoClient(kcsb)
         self.database = database
-
     def run(self, kql: str):
         tbl = self.client.execute(self.database, kql).primary_results[0]
         cols = [c.column_name for c in tbl.columns]
@@ -28,115 +27,130 @@ def adx() -> ADXTool:
         getattr(settings, "ADX_DATABASE", os.getenv("ADX_DATABASE")),
     )
 
-query_adx_tool = Tool(
-    name="query_adx",
-    func=lambda q: "\n".join(json.dumps(r) for r in adx().run(q)[1][:20]),
-    description="Run a KQL query against {TABLE_NAME} and return first 20 rows.",
-)
+# ───────────────────────── 2.  Prompt assets ───────────────────────
+TABLE_NAME = "SAPSalesInfos"
 
-# ─────────────────── 2. Prompt assets ────────────────────
-FIELD_MAPPINGS = {       # ←-- trimmed for brevity – keep your full mapping
-    "revenue": "Revenue", "brand": "wgbez", "division": "spart_text",
-    "customer": "cname",  "quantity": "fkimg", "date": "FKDAT_TEMP",
+FIELD_MAPPINGS = {
+    "revenue":"Revenue","quantity":"fkimg","volume":"volum","customer":"cname",
+    "brand":"wgbez","product name":"arktx","product":"arktx","category":"matkl",
+    "division":"spart_text","company code":"bukrs","sales org":"vkorg",
+    "dist channel":"vtweg","distribution channel":"vtweg","business area":"gsber",
+    "credit control area":"kkber","customer group":"kukla","account group":"ktokd",
+    "sales group":"vkgrp_c","sales office":"vkbur_c","payer id":"Payer_DL",
+    "product code":"matnr","unit":"meins","volume unit":"voleh","business group":"GK",
+    "territory":"Territory","sales zone":"Szone","date":"FKDAT_TEMP",
+    "fkdat":"FKDAT_TEMP","cost":"Cost"
 }
 MAPPING_STR = "\n".join(f'"{k}": "{v}"' for k, v in FIELD_MAPPINGS.items())
-# agent.py   – put this near the top
-TABLE_NAME = "YSales"          # <-- your actual ADX table
 
 KUSTO_SCHEMA = """
-.create table {TABLE_NAME}  (
-    Id:long, FKDAT_TEMP:datetime, Revenue:real, wgbez:string, spart_text:string,
-    fkimg:real, cname:string, ...
+.create table YSales (
+    Id: long, CreatedTime: datetime, ModifiedTime: datetime, bukrs: string,
+    spart: string, matkl: string, wgbez: string, matnr: string, vkorg: string,
+    kunrg: string, kunnr_sh: string, Payer_DL: string, vbeln: string, vkbur_c: string,
+    vkgrp_c: string, kukla: string, fkdat: datetime, posnr: string, arktx: string,
+    meins: string, voleh: string, Territory: string, Szone: string, cname: string,
+    spart_text: string, Revenue: real, gsber: string, fkimg: real, volum: real,
+    ktokd: string, vtweg: string, erzet_T: string, kkber: string, FKDAT_TEMP: string,
+    GK: string, Cost: real
 )
 """
 
-SYSTEM_PROMPT_BASE = (
+SYSTEM_PROMPT_KQL = (
     "You are an expert Kusto (ADX) analyst for SAP sales data.\n"
-    "Translate the business request into **valid KQL only** – no markdown, comments or explanations.\n"
+    "Output **only raw KQL**, no markdown or commentary.\n"
     "Rules:\n"
-    "• Use the column names from the mapping/schema.\n"
-    "• If you need a date range use:\n"
-    "    let StartDate = ago(90d);\n"
-    "    let EndDate   = now();\n"
-    "  (two scalar let statements, each ending with a semicolon.)\n"
+    "• Use the table YSales and columns below.\n"
+    "• If a date range is required, declare:\n"
+    "      let StartDate = datetime(YYYY-MM-DD);\n"
+    "      let EndDate   = datetime(YYYY-MM-DD);\n"
+    "  Or use ago(…) if relative.\n"
     "• End every statement with a semicolon.\n"
-    "• Return plain text (real new-lines, no \\n literals).\n\n"
-    "Business-to-column mapping:\n" + MAPPING_STR +
+    "• Provide real line-breaks (no \\n literals).\n\n"
+    "Business → column mapping:\n" + MAPPING_STR +
     "\n\nTable schema:\n" + KUSTO_SCHEMA
 )
 
-# ─────────────────── 3. LLM & agent ──────────────────────
+# ───────────────────────── 3.  LLM instance ────────────────────────
 llm = AzureChatOpenAI(
-    azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
-    api_key=settings.AZURE_OPENAI_KEY,
-    api_version="2025-01-01-preview",
-    azure_deployment=settings.AZURE_OPENAI_DEPLOYMENT,
-    temperature=0,
+    azure_endpoint   = settings.AZURE_OPENAI_ENDPOINT,
+    api_key          = settings.AZURE_OPENAI_KEY,
+    api_version      = "2025-01-01-preview",
+    azure_deployment = settings.AZURE_OPENAI_DEPLOYMENT,
+    temperature      = 0,
 )
-react_agent = create_react_agent(model=llm, tools=[query_adx_tool])
 
-# ─────────────────── 4. Helpers ──────────────────────────
-# def _extract_kql(raw: str) -> str:
-#     """Strip ``` fences/backticks + turn \\n into real new-lines."""
-#     fenced = re.search(r"```(?:kql|kusto)?\s*([\s\S]*?)```", raw, re.I)
-#     raw = fenced.group(1) if fenced else raw
-#     raw = raw.strip("`").strip().replace("\\n", "\n").replace("\\r", "")
-#     lines = [ln for ln in raw.splitlines()
-#              if ln.strip() and not ln.lstrip().startswith(("--", "#"))]
-#     return "\n".join(lines)
-
+# ───────────────────────── 4.  Helpers ────────────────────────────
 def _extract_kql(raw: str) -> str:
-    """Clean LLM KQL: strip fences, unescape \\n/\\r/\\t, normalise quotes/dashes."""
+    """Remove ``` fences/backticks and unescape \\n / \\r / \\t."""
     fenced = re.search(r"```(?:kql|kusto)?\s*([\s\S]*?)```", raw, re.I)
     raw = fenced.group(1) if fenced else raw
-    raw = (
-        raw.strip("` …")
-        .replace("\\n", "\n").replace("\\r", "").replace("\\t", "\t")
-        .replace("’", "'").replace("“", '"').replace("”", '"').replace("–", "-")
-    )
-    lines = [ln for ln in raw.splitlines() if ln.strip() and not ln.lstrip().startswith(("--", "#"))]
-    return "\n".join(lines)
+    raw = raw.strip("`").replace("\\n", "\n").replace("\\r", "").replace("\\t", "\t")
+    return raw.replace("SAPSalesInfos", TABLE_NAME).strip()
+
+def generate_kql(user_req: str, strict=False) -> str:
+    prompt = SYSTEM_PROMPT_KQL
+    if strict:
+        prompt += "\n\nSTRICT MODE: previous query failed. Return corrected KQL only."
+    prompt += f"\n\nUser request: {user_req}"
+    response = llm.invoke([{"role":"user","content":prompt}]).content
+    return _extract_kql(response)
 
 
-def _ask_for_kql(user_request: str, strict: bool = False) -> str:
-    """Single LLM call that returns cleaned KQL."""
-    prompt = SYSTEM_PROMPT_BASE + (
-        "\n\n>>> STRICT MODE – previous KQL had syntax errors, fix them now and return only KQL." 
-        if strict else ""
-    ) + f"\n\nUser request: {user_request}"
-    raw = react_agent.invoke({"messages":[{"role":"user","content":prompt}]})
-    if isinstance(raw, dict):
-        raw = " ".join(str(v) for v in raw.values())
-    return _extract_kql(raw)
 
-# ─────────────────── 5. Public API ───────────────────────
-def handle_user_query(user_prompt: str) -> str:
-    # 1. Generate KQL (first attempt)
-    kql = _ask_for_kql(user_prompt)
-
-    # 2. Query ADX – try once; on syntax error, reprompt in STRICT mode
+# ───────────────────────── 5.  Main entry ─────────────────────────
+# ───────────────────────── 5.  Main entry ─────────────────────────
+def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -> str:
+    """
+    Analyse a natural-language prompt and return a business summary.
+    `conversation_id` is accepted for future multi-turn support but
+    is not used in the current implementation.
+    """
+    kql = generate_kql(user_prompt)
     for attempt in (1, 2):
         try:
             cols, rows = adx().run(kql)
             break
-        except KustoApiError as e:
+        except KustoApiError as err:
             if attempt == 1:
-                kql = _ask_for_kql(user_prompt, strict=True)
+                kql = generate_kql(user_prompt, strict=True)
                 continue
-            return f"❌ ADX syntax error even after retry.\nKQL:\n{kql}\n\n{e}"
+            return f"❌ ADX error even after retry\n---KQL---\n{kql}\n\n{err}"
+
     if not rows:
-        return "No data found for that request."
+        return "No data found."
 
     sample = [dict(zip(cols, r)) for r in rows[:20]]
     summary_prompt = (
         f"User asked: {user_prompt}\n\n"
-        f"Data sample (20 rows):\n{json.dumps(sample, indent=2)}\n\n"
-        "Write a concise, business-friendly insight."
+        f"Sample (20 rows):\n{json.dumps(sample, indent=2)}\n\n"
+        "Provide a concise business insight. Give the full amount.Amount is in BDT"
     )
-    return llm.invoke([{"role":"user","content":summary_prompt}]).content
+    return llm.invoke([{"role": "user", "content": summary_prompt}]).content
 
-# ─────────────────── 6. CLI test (optional) ──────────────
-# if __name__ == "__main__":
-#     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
-#     import django; django.setup()
-#     print(handle_user_query("Which brands had declining sales in the last 3 months?"))
+
+
+# def handle_user_query(user_prompt: str) -> str:
+#     kql = generate_kql(user_prompt)
+#     for attempt in (1, 2):
+#         try:
+#             cols, rows = adx().run(kql)
+#             break
+#         except KustoApiError as err:
+#             if attempt == 1:
+#                 kql = generate_kql(user_prompt, strict=True)
+#                 continue
+#             return f"❌ ADX error even after retry\n---KQL---\n{kql}\n\n{err}"
+
+#     if not rows:
+#         return "No data found."
+
+#     sample = [dict(zip(cols, r)) for r in rows[:20]]
+#     summary_prompt = (
+#         f"User asked: {user_prompt}\n\n"
+#         f"Sample (20 rows):\n{json.dumps(sample, indent=2)}\n\n"
+#         "Provide a concise business insight.Give the full amount."
+#     )
+#     return llm.invoke([{"role":"user","content":summary_prompt}]).content
+
+
