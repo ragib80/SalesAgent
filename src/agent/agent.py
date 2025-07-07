@@ -1,7 +1,7 @@
 # agent.py ─ Simplified SAP Sales bot for Azure ADX (SAPSalesInfos)
 import os, re, json
 from functools import lru_cache
-
+import datetime
 from django.conf import settings
 from azure.kusto.data import KustoClient, KustoConnectionStringBuilder
 from azure.kusto.data.exceptions import KustoApiError
@@ -31,11 +31,11 @@ def adx() -> ADXTool:
 TABLE_NAME = "SAPSalesInfos"
 
 FIELD_MAPPINGS = {
-    "revenue":"Revenue","quantity":"fkimg","volume":"volum","customer":"cname",
+    "revenue":"Revenue","quantity":"fkimg","volume":"volum","Dealer":"cname",
     "brand":"wgbez","product name":"arktx","product":"arktx","category":"matkl",
     "division":"spart_text","company code":"bukrs","sales org":"vkorg",
     "dist channel":"vtweg","distribution channel":"vtweg","business area":"gsber",
-    "credit control area":"kkber","customer group":"kukla","account group":"ktokd",
+    "credit control area":"kkber","Dealer group":"kukla","account group":"ktokd",
     "sales group":"vkgrp_c","sales office":"vkbur_c","payer id":"Payer_DL",
     "product code":"matnr","unit":"meins","volume unit":"voleh","business group":"GK",
     "territory":"Territory","sales zone":"Szone","date":"fkdat",
@@ -56,6 +56,37 @@ KUSTO_SCHEMA = """
 )
 """
 
+GSBER_MAPPING = {
+    "Dhaka Factory": "1000",
+    "Chittagong Factory": "1100",
+    "Mirsarai Factory": "1200",
+    "Dhaka Sales": "4000",
+    "Chittagong Sales": "4010",
+    "Sylhet Sales": "4020",
+    "Comilla Sales": "4030",
+    "Rajshahi Sales": "4040",
+    "Bogra Sales": "4050",
+    "Khulna Sales": "4060",
+    "Mymensing Sales": "4070",
+    "Barishal Sales": "4080",
+    "Rangpur Sales": "4090",
+    "Feni Sales": "4100",
+    "Dhaka South": "4110",  # Mapping "Dhaka South" to gsber == '4110'
+    "Brahmanbaria Sales": "4120",
+    "Dhaka North": "4130",
+    "Test Business Area": "4500",
+    "PPHD": "5000",
+    "Berger Design Studio": "5010",
+    "Berger Training Institute": "5020",
+    "Berger Tech Consulting Ltd": "5100",
+    "Jenson & Nicholson BD Ltd": "6000",
+    "JNBL 2nd Unit Dhaka": "6100",
+    "Berger Becker Bangladesh": "7000",
+    "Berger Fosroc Limited": "8000",
+    "Corporate": "9000"
+}
+GSBER_MAPPING_STR = "\n".join(f'"{k}": "{v}"' for k, v in GSBER_MAPPING.items())
+
 SYSTEM_PROMPT_KQL = (
     "You are an expert Kusto (ADX) analyst for SAP sales data.\n"
     "Output **only raw KQL**, no markdown or commentary.\n"
@@ -68,6 +99,7 @@ SYSTEM_PROMPT_KQL = (
     "• End every statement with a semicolon.\n"
     "• Provide real line-breaks (no \\n literals).\n\n"
     "Business → column mapping:\n" + MAPPING_STR +
+    "\n\nDepo/Business Area → column Value mapping:\n" + GSBER_MAPPING_STR +
     "\n\nTable schema:\n" + KUSTO_SCHEMA
 )
 
@@ -93,20 +125,58 @@ def generate_kql(user_req: str, strict=False) -> str:
     if strict:
         prompt += "\n\nSTRICT MODE: previous query failed. Return corrected KQL only."
     prompt += f"\n\nUser request: {user_req}"
+    print("_extract_kql-------------",prompt)
     response = llm.invoke([{"role":"user","content":prompt}]).content
+
     return _extract_kql(response)
 
 
 
 # ───────────────────────── 5.  Main entry ─────────────────────────
-# ───────────────────────── 5.  Main entry ─────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def format_dates(kql_query: str) -> str:
+    """Ensure all date-like strings are properly formatted as datetime literals."""
+    return re.sub(r'(\d{4}-\d{2}-\d{2})', r'datetime(\1)', kql_query)
+
 def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -> str:
     """
-    Analyse a natural-language prompt and return a business summary.
-    `conversation_id` is accepted for future multi-turn support but
-    is not used in the current implementation.
+    Dynamically handle SAP Sales prompts, ensuring correct KQL generation.
     """
+    
+    # Generate raw KQL from the user prompt using LLM
     kql = generate_kql(user_prompt)
+
+    # Print the generated query for debugging
+    print(f"Generated KQL Query: {kql}")
+
+    # Format the dates dynamically
+    kql = format_dates(kql)
+
+    # Handle known issues like '3mo' to '90d' for date ranges
+    kql = re.sub(r'ago\(3mo\)', 'ago(90d)', kql, flags=re.I)
+
+    # Fix unsupported functions like `startofquarter`, replacing with `startofmonth`
+    kql = re.sub(r'startofquarter\((.*?)\)', r'startofmonth(\1)', kql, flags=re.I)
+
+    # Explicitly handle the 'gsber' filter if the query asks for 'Dhaka South' or similar locations
+    if "Dhaka South" in user_prompt or "dealer" in user_prompt:
+        kql += " | where gsber == '4110'"  # Add filter for Dhaka South (gsber == '4110')
+
+    # Execute the query and handle retries
     for attempt in (1, 2):
         try:
             cols, rows = adx().run(kql)
@@ -117,20 +187,36 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
                 continue
             return f"❌ ADX error even after retry\n---KQL---\n{kql}\n\n{err}"
 
+    # If no data found, provide feedback
     if not rows:
-        return "No data found."
+        return "No data found matching your criteria. Please refine your query."
 
+    # Check if 'gsber' exists in columns and map business area codes if required
+    if 'gsber' in cols:
+        gsber_idx = cols.index("gsber")
+        for row in rows:
+            row[gsber_idx] = GSBER_MAPPING.get(str(row[gsber_idx]), row[gsber_idx])
+
+    # Sample rows for summarization
     sample = [dict(zip(cols, r)) for r in rows[:20]]
     summary_prompt = (
         f"User asked: {user_prompt}\n\n"
-        f"Sample (20 rows):\n{json.dumps(sample, indent=2)}\n\n"
-        "Provide a concise business insight. Give the full amount.Amount is in BDT"
+        f"Data:\n{json.dumps(sample, indent=2)}\n\n"
+        "Based on the data Provide a concise business insight, mentioning Depots/Sales Offices clearly. "
+        "Include all monetary values in BDT."
     )
+
+    # Get the summarized result from LLM
     return llm.invoke([{"role": "user", "content": summary_prompt}]).content
 
 
-
-# def handle_user_query(user_prompt: str) -> str:
+# ───────────────────────── 5.  Main entry ─────────────────────────
+# def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -> str:
+#     """
+#     Analyse a natural-language prompt and return a business summary.
+#     `conversation_id` is accepted for future multi-turn support but
+#     is not used in the current implementation.
+#     """
 #     kql = generate_kql(user_prompt)
 #     for attempt in (1, 2):
 #         try:
@@ -146,11 +232,13 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
 #         return "No data found."
 
 #     sample = [dict(zip(cols, r)) for r in rows[:20]]
+#     print('sample ',sample)
 #     summary_prompt = (
 #         f"User asked: {user_prompt}\n\n"
 #         f"Sample (20 rows):\n{json.dumps(sample, indent=2)}\n\n"
-#         "Provide a concise business insight.Give the full amount."
+#         "Provide a concise business insight. Give the full amount.Amount is in BDT"
 #     )
-#     return llm.invoke([{"role":"user","content":summary_prompt}]).content
+#     return llm.invoke([{"role": "user", "content": summary_prompt}]).content
+
 
 
