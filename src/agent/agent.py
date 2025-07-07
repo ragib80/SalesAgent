@@ -1,4 +1,4 @@
-# agent.py ─ Simplified SAP Sales bot for Azure ADX (YSales)
+# agent.py ─ Simplified SAP Sales bot for Azure ADX (SAPSalesInfos)
 import os, re, json
 from functools import lru_cache
 
@@ -38,13 +38,13 @@ FIELD_MAPPINGS = {
     "credit control area":"kkber","customer group":"kukla","account group":"ktokd",
     "sales group":"vkgrp_c","sales office":"vkbur_c","payer id":"Payer_DL",
     "product code":"matnr","unit":"meins","volume unit":"voleh","business group":"GK",
-    "territory":"Territory","sales zone":"Szone","date":"FKDAT_TEMP",
-    "fkdat":"FKDAT_TEMP","cost":"Cost"
+    "territory":"Territory","sales zone":"Szone","date":"fkdat",
+    "fkdat":"fkdat","cost":"Cost"
 }
 MAPPING_STR = "\n".join(f'"{k}": "{v}"' for k, v in FIELD_MAPPINGS.items())
 
 KUSTO_SCHEMA = """
-.create table YSales (
+.create table SAPSalesInfos (
     Id: long, CreatedTime: datetime, ModifiedTime: datetime, bukrs: string,
     spart: string, matkl: string, wgbez: string, matnr: string, vkorg: string,
     kunrg: string, kunnr_sh: string, Payer_DL: string, vbeln: string, vkbur_c: string,
@@ -60,7 +60,7 @@ SYSTEM_PROMPT_KQL = (
     "You are an expert Kusto (ADX) analyst for SAP sales data.\n"
     "Output **only raw KQL**, no markdown or commentary.\n"
     "Rules:\n"
-    "• Use the table YSales and columns below.\n"
+    "• Use the table SAPSalesInfos and columns below.\n"
     "• If a date range is required, declare:\n"
     "      let StartDate = datetime(YYYY-MM-DD);\n"
     "      let EndDate   = datetime(YYYY-MM-DD);\n"
