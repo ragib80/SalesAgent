@@ -152,9 +152,11 @@ def format_dates(kql_query: str) -> str:
     """Ensure all date-like strings are properly formatted as datetime literals."""
     return re.sub(r'(\d{4}-\d{2}-\d{2})', r'datetime(\1)', kql_query)
 
+
 def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -> str:
     """
-    Dynamically handle SAP Sales prompts, ensuring correct KQL generation.
+    Dynamically handle SAP Sales prompts, ensuring correct KQL generation,
+    and map business area/territory to the correct 'gsber' code.
     """
     
     # Generate raw KQL from the user prompt using LLM
@@ -172,9 +174,18 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
     # Fix unsupported functions like `startofquarter`, replacing with `startofmonth`
     kql = re.sub(r'startofquarter\((.*?)\)', r'startofmonth(\1)', kql, flags=re.I)
 
-    # Explicitly handle the 'gsber' filter if the query asks for 'Dhaka South' or similar locations
-    if "Dhaka South" in user_prompt or "dealer" in user_prompt:
-        kql += " | where gsber == '4110'"  # Add filter for Dhaka South (gsber == '4110')
+    # Dynamically map the business area/territory name to the corresponding gsber code
+    for territory, gsber_value in GSBER_MAPPING.items():
+        if territory.lower() in user_prompt.lower():  # If user mentions a territory/business area
+            # Replace the filter on Territory with gsber for the matching business area
+            kql = re.sub(r"where Territory == .+?", f"where gsber == '{gsber_value}'", kql)
+            break  # Once mapped, no need to continue
+
+    # Detect trend direction (increase or decline) dynamically from the user's prompt
+    if "declining" in user_prompt.lower() or "downtrending" in user_prompt.lower():
+        kql = kql.replace("RevenueChange < 0", "RevenueChange < 0")  # Declining trend
+    elif "increasing" in user_prompt.lower() or "uptrending" in user_prompt.lower():
+        kql = kql.replace("RevenueChange < 0", "RevenueChange > 0")  # Increasing trend
 
     # Execute the query and handle retries
     for attempt in (1, 2):
@@ -191,24 +202,17 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
     if not rows:
         return "No data found matching your criteria. Please refine your query."
 
-    # Check if 'gsber' exists in columns and map business area codes if required
-    if 'gsber' in cols:
-        gsber_idx = cols.index("gsber")
-        for row in rows:
-            row[gsber_idx] = GSBER_MAPPING.get(str(row[gsber_idx]), row[gsber_idx])
-
     # Sample rows for summarization
     sample = [dict(zip(cols, r)) for r in rows[:20]]
     summary_prompt = (
         f"User asked: {user_prompt}\n\n"
-        f"Data:\n{json.dumps(sample, indent=2)}\n\n"
-        "Based on the data Provide a concise business insight, mentioning Depots/Sales Offices clearly. "
+        f"Sample (20 rows):\n{json.dumps(sample, indent=2)}\n\n"
+        "Provide a concise business insight, mentioning Depots/Sales Offices clearly. "
         "Include all monetary values in BDT."
     )
 
     # Get the summarized result from LLM
     return llm.invoke([{"role": "user", "content": summary_prompt}]).content
-
 
 # ───────────────────────── 5.  Main entry ─────────────────────────
 # def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -> str:
