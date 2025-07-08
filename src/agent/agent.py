@@ -39,7 +39,7 @@ FIELD_MAPPINGS = {
     "sales group":"vkgrp_c","sales office":"vkbur_c","payer id":"Payer_DL",
     "product code":"matnr","unit":"meins","volume unit":"voleh","business group":"GK",
     "territory":"Territory","sales zone":"Szone","date":"fkdat",
-    "fkdat":"fkdat","cost":"Cost"
+    "fkdat":"fkdat"
 }
 MAPPING_STR = "\n".join(f'"{k}": "{v}"' for k, v in FIELD_MAPPINGS.items())
 
