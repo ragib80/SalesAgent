@@ -135,24 +135,20 @@ def generate_kql(user_req: str, strict=False) -> str:
 # ───────────────────────── 5.  Main entry ─────────────────────────
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 def format_dates(kql_query: str) -> str:
     """Ensure all date-like strings are properly formatted as datetime literals."""
     return re.sub(r'(\d{4}-\d{2}-\d{2})', r'datetime(\1)', kql_query)
 
+# Detect trend from user prompt (e.g., increasing, declining, etc.)
+def detect_trend(user_prompt: str) -> str:
+    if any(word in user_prompt.lower() for word in ["declining", "downtrending", "negative growth", "falling", "decrease"]):
+        return "declining"
+    elif any(word in user_prompt.lower() for word in ["increasing", "uptrending", "positive growth", "rising", "growth"]):
+        return "increasing"
+    else:
+        return "stable"
 
+# Handle user queries dynamically and generate the corresponding KQL query
 def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -> str:
     """
     Dynamically handle SAP Sales prompts, ensuring correct KQL generation,
@@ -182,10 +178,15 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
             break  # Once mapped, no need to continue
 
     # Detect trend direction (increase or decline) dynamically from the user's prompt
-    if "declining" in user_prompt.lower() or "downtrending" in user_prompt.lower():
+    trend = detect_trend(user_prompt)
+
+    if trend == "declining":
         kql = kql.replace("RevenueChange < 0", "RevenueChange < 0")  # Declining trend
-    elif "increasing" in user_prompt.lower() or "uptrending" in user_prompt.lower():
+    elif trend == "increasing":
         kql = kql.replace("RevenueChange < 0", "RevenueChange > 0")  # Increasing trend
+    else:
+        # For stable or other trends, you can just leave it as it is or do any specific handling
+        kql = kql.replace("RevenueChange < 0", "RevenueChange == 0")  # Stable trend (no change)
 
     # Execute the query and handle retries
     for attempt in (1, 2):
