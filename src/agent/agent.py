@@ -154,7 +154,14 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
     Dynamically handle SAP Sales prompts, ensuring correct KQL generation,
     and map business area/territory to the correct 'gsber' code.
     """
-    
+    # Check if the user's prompt contains a valid date or range
+    date_pattern = r'(\d{4}-\d{2}-\d{2})|(\d{4})|(from\s+\w+\s+\d{4})|(to\s+\w+\s+\d{4})|(\bago\b\s*\(\d+[a-zA-Z]*\))'
+    date_matches = re.findall(date_pattern, user_prompt)
+
+    # If no date range or date references found, ask the user for one
+    if not date_matches:
+        user_prompt += " Please specify a date range for the data (e.g., from 2025-01-01 to 2025-12-31)."
+
     # Generate raw KQL from the user prompt using LLM
     kql = generate_kql(user_prompt)
 
@@ -197,23 +204,29 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
             if attempt == 1:
                 kql = generate_kql(user_prompt, strict=True)
                 continue
-            return f"❌ ADX error even after retry\n---KQL---\n{kql}\n\n{err}"
+            # Log the error and return user-friendly feedback.
+            print(f"Error: {err}")
+            return "Please refine your query for better results. I’m learning day by day and will help you improve your query."
 
     # If no data found, provide feedback
     if not rows:
-        return "No data found matching your criteria. Please refine your query."
+        return "No data found matching your criteria. Please refine your query for more specific results."
 
-    # Sample rows for summarization
-    sample = [dict(zip(cols, r)) for r in rows[:20]]
-    summary_prompt = (
+    # Prepare the data for LLM to process
+    result_data = [dict(zip(cols, r)) for r in rows[:20]]  # Get top 5 rows or adjust as needed
+    result_prompt = (
         f"User asked: {user_prompt}\n\n"
-        f"Sample (20 rows):\n{json.dumps(sample, indent=2)}\n\n"
-        "Provide a concise business insight, mentioning Depots/Sales Offices clearly. "
-        "Include all monetary values in BDT."
+        f"Sample Data:\n{json.dumps(result_data, indent=2)}\n\n"
+        "Based on the query results, format the output in bulleted format. "
+        "If the result is numerical or comparative, bullet points for proper indication . If it's categorical or simple, use bullet points. "
+        "After formatting, provide a concise business insight related to the data, such as trends, patterns, or key takeaways. Give the full amount.Amount is in BDT"
     )
 
-    # Get the summarized result from LLM
-    return llm.invoke([{"role": "user", "content": summary_prompt}]).content
+    # Let LLM decide on how to format the result: tabular or bulleted
+    formatted_result = llm.invoke([{"role": "user", "content": result_prompt}]).content
+
+    return formatted_result
+
 
 # ───────────────────────── 5.  Main entry ─────────────────────────
 # def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -> str:
