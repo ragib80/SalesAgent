@@ -49,7 +49,21 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 class CustomTokenObtainPairView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
-        print(response.data)  # Log the response data
+        serializer = self.get_serializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+            user = serializer.user  # This is the user who just authenticated!
+        except Exception:
+            user = None
+        
+        print( user.username)
+
+        if user is not None:
+            response.data['user_uuid'] = str(user.uuid)
+            response.data['username'] = str(user.username)
+        # response.data['user_uuid'] = str(user.uuid)  # Add user UUID
+        # response.data['user_full_name'] = user.get_full_name()  # Add user full name
+        print( response.data)
         return response
 
 

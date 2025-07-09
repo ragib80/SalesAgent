@@ -54,11 +54,13 @@
                         password: password
                     },
                     success: function(response) {
-                       
+                         //console.log(response)
+                       //alert(response.user_full_name)
                         //localStorage.clear(); // or remove auth_token & refresh_token individually
                         // On success, store the token and redirect
                         localStorage.setItem('auth_token', response.access);
                          localStorage.setItem('refresh_token', response.refresh);
+                         localStorage.setItem('username', response.username);
                         window.location.href = '/api/sales/index/';  // Redirect to a dashboard or home page
                     },
                     error: function() {
