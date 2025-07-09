@@ -95,7 +95,7 @@ SYSTEM_PROMPT_KQL = (
     "• If a date range is required, declare:\n"
     "      let StartDate = datetime(YYYY-MM-DD);\n"
     "      let EndDate   = datetime(YYYY-MM-DD);\n"
-    "  Or use ago(…) if relative.\n"
+ 
     "• End every statement with a semicolon.\n"
     "• Provide real line-breaks (no \\n literals).\n\n"
     "Business → column mapping:\n" + MAPPING_STR +
@@ -331,4 +331,3 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
 #     formatted_result = llm.invoke([{"role": "user", "content": result_prompt}]).content
 
 #     return formatted_result
-
