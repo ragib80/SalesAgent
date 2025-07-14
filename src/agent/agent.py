@@ -1,4 +1,4 @@
-# agent.py ─ Simplified SAP Sales bot for Azure ADX (SAPSalesInfos)
+# agent.py ─ SAP Sales bot for Azure ADX (SAPSalesInfos)
 import os, re, json
 from functools import lru_cache
 import datetime
@@ -95,13 +95,51 @@ SYSTEM_PROMPT_KQL = (
     "• If a date range is required, declare:\n"
     "      let StartDate = datetime(YYYY-MM-DD);\n"
     "      let EndDate   = datetime(YYYY-MM-DD);\n"
- 
+    "• For monthly aggregation, group by month: | summarize sum(Revenue) by Month = bin(fkdat, 30d)\n"
+    "• For weekly aggregation, use bin(fkdat, 7d); for daily, bin(fkdat, 1d)\n"
+    "• For yearly aggregation, use bin(fkdat, 1y).\n"
+    "• To calculate previous period's revenue, use prev(TotalRevenue, 1).\n"
+    "• To calculate revenue growth, use the difference between current period and previous period.\n"
+    "• To calculate percentage growth, use: RevenueGrowthPercent = (RevenueGrowth / PreviousPeriodRevenue) * 100\n"
     "• End every statement with a semicolon.\n"
     "• Provide real line-breaks (no \\n literals).\n\n"
+    
     "Business → column mapping:\n" + MAPPING_STR +
     "\n\nDepo/Business Area (gsber) → column Value mapping:\n" + GSBER_MAPPING_STR +
-    "\n\nTable schema:\n" + KUSTO_SCHEMA
+    "\n\nTable schema:\n" + KUSTO_SCHEMA +
+
+    "\nExample KQLs for reference:\n"
+    "1. **Monthly Revenue Growth (April 2025):**\n"
+    "SAPSalesInfos\n"
+    "| where fkdat >= datetime(2025-04-01) and fkdat <= datetime(2025-04-30)\n"
+    "| summarize TotalRevenue = sum(Revenue) by Month = bin(fkdat, 30d)\n"
+    "| serialize\n"
+    "| extend PreviousMonthRevenue = prev(TotalRevenue, 1)\n"
+    "| extend RevenueGrowth = TotalRevenue - PreviousMonthRevenue\n"
+    "| extend RevenueGrowthPercent = iif(PreviousMonthRevenue != 0, todouble(RevenueGrowth) / todouble(PreviousMonthRevenue) * 100, 0.0)\n"
+
+    "2. **Weekly Revenue Growth (4/7/2025 - 4/14/2025):**\n"
+    "SAPSalesInfos\n"
+    "| where fkdat >= datetime(2025-04-01) and fkdat <= datetime(2025-04-30)\n"
+    "| summarize TotalRevenue = sum(Revenue) by Week = bin(fkdat, 7d)\n"
+    "| serialize\n"
+    "| extend PreviousWeekRevenue = prev(TotalRevenue, 1)\n"
+    "| extend RevenueGrowth = TotalRevenue - PreviousWeekRevenue\n"
+    "| extend RevenueGrowthPercent = iif(PreviousWeekRevenue != 0, todouble(RevenueGrowth) / todouble(PreviousWeekRevenue) * 100, 0.0)\n"
+
+    "3. **Yearly Revenue Growth (2025):**\n"
+    "SAPSalesInfos\n"
+    "| where fkdat >= datetime(2025-01-01) and fkdat <= datetime(2025-12-31)\n"
+    "| summarize TotalRevenue = sum(Revenue) by Year = bin(fkdat, 1y)\n"
+    "| serialize\n"
+    "| extend PreviousYearRevenue = prev(TotalRevenue, 1)\n"
+    "| extend RevenueGrowth = TotalRevenue - PreviousYearRevenue\n"
+    "| extend RevenueGrowthPercent = iif(PreviousYearRevenue != 0, todouble(RevenueGrowth) / todouble(PreviousYearRevenue) * 100, 0.0)\n"
+
+    "\nPlease note that the query should be based on the user’s input for **periodicity** (daily, monthly, or yearly) and the corresponding **date range**.\n"
 )
+
+
 
 # ───────────────────────── 3.  LLM instance ────────────────────────
 llm = AzureChatOpenAI(
@@ -127,17 +165,49 @@ def generate_kql(user_req: str, strict=False) -> str:
     prompt += f"\n\nUser request: {user_req}"
     print("_extract_kql-------------",prompt)
     response = llm.invoke([{"role":"user","content":prompt}]).content
-
     return _extract_kql(response)
-
-
-
-# ───────────────────────── 5.  Main entry ─────────────────────────
-
 
 def format_dates(kql_query: str) -> str:
     """Ensure all date-like strings are properly formatted as datetime literals."""
     return re.sub(r'(\d{4}-\d{2}-\d{2})', r'datetime(\1)', kql_query)
+
+def detect_period_aggregation(prompt: str):
+    prompt = prompt.lower()
+    if 'daily' in prompt or 'per day' in prompt:
+        return '1d'
+    elif 'weekly' in prompt or 'per week' in prompt:
+        return '1w'
+    elif 'monthly' in prompt or 'per month' in prompt or 'by month' in prompt:
+        return '1mo'
+    elif 'quarterly' in prompt or 'per quarter' in prompt:
+        return '3mo'
+    elif 'yearly' in prompt or 'per year' in prompt:
+        return '1y'
+    else:
+        return None
+
+def detect_trend_request(prompt: str):
+    keywords = ['trend', 'uptrend', 'downtrend', 'growth', 'decline', 'increase', 'decrease', 'compare', 'comparison', 'difference', 'change']
+    for k in keywords:
+        if k in prompt.lower():
+            return True
+    return False
+
+def extract_month_year_pairs(prompt: str):
+    # Extracts specific months/years like "January 2025", "Feb 2025", etc.
+    # Returns a list of tuples: [('2025-01-01', '2025-01-31'), ...]
+    import calendar
+    month_names = {m.lower(): i for i, m in enumerate(calendar.month_name) if m}
+    month_names.update({m.lower(): i for i, m in enumerate(calendar.month_abbr) if m})
+    results = []
+    for match in re.finditer(r'(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s,]+(\d{4})', prompt, re.I):
+        month = month_names[match.group(1).lower()]
+        year = int(match.group(2))
+        start = datetime.date(year, month, 1)
+        last_day = calendar.monthrange(year, month)[1]
+        end = datetime.date(year, month, last_day)
+        results.append((str(start), str(end)))
+    return results
 
 # Detect trend from user prompt (e.g., increasing, declining, etc.)
 def detect_trend(user_prompt: str) -> str:
@@ -148,76 +218,74 @@ def detect_trend(user_prompt: str) -> str:
     else:
         return "stable"
 
-# Handle user queries dynamically and generate the corresponding KQL query
-
-
-
-import datetime
-import re
+# ───────────────────────── 5.  Main entry ─────────────────────────
 
 def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -> str:
     """
     Dynamically handle SAP Sales prompts, ensuring correct KQL generation,
     and map business area/territory to the correct 'gsber' code.
     """
-    # Check for "last n months" pattern in the user prompt
+
+    # 1. Handle "last n months"
     last_n_months_match = re.search(r'last\s+(\d+)\s+month[s]?', user_prompt, re.IGNORECASE)
-    
-    # If "last n months" is detected in the user prompt
     if last_n_months_match:
         n_months = int(last_n_months_match.group(1))
-        
-        # Calculate the current date (today)
         end_date = datetime.datetime.now()
-        
-        # Calculate the start date as n months ago from today
-        start_date = end_date - datetime.timedelta(days=n_months * 30)  # Approximate 30 days per month
-        
-        # Format the start and end dates as datetime strings for KQL
+        start_date = end_date - datetime.timedelta(days=n_months * 30)  # Approximate
         start_date_str = start_date.strftime("%Y-%m-%d")
         end_date_str = end_date.strftime("%Y-%m-%d")
-        
-        # Update the user prompt with the dynamic date range
         user_prompt += f" from {start_date_str} to {end_date_str}"
-    
-    # If no date range or "last n months" is not found, ask the user for one
-    else:
-        user_prompt += " Please specify a date range for the data (e.g., from 2025-01-01 to 2025-12-31)."
-    
-    # Generate raw KQL from the user prompt using LLM
-    kql = generate_kql(user_prompt)
 
-    # Print the generated query for debugging
+    # 2. Check for periodic aggregation request
+    period = detect_period_aggregation(user_prompt)
+    if period:
+        user_prompt += f" Please group the result by period using bin(fkdat, {period}). Show the sum of Revenue for each period."
+
+    # 3. Check for trend/comparison requests
+    if detect_trend_request(user_prompt):
+        user_prompt += (
+            " For trend or comparison analysis, group by period (e.g., bin(fkdat, 1mo)) or the appropriate period, "
+            "calculate sum(Revenue) per period, and show the difference or percent change between periods if relevant."
+        )
+
+    # 4. Handle explicit month comparisons (e.g. "Compare January 2025 and February 2025")
+    month_years = extract_month_year_pairs(user_prompt)
+    if len(month_years) >= 2:
+        # Only filter for the earliest to latest month to keep the data
+        start, _ = month_years[0]
+        _, end = month_years[-1]
+        user_prompt += f" from {start} to {end}. Please group by month and show sum(Revenue) for each month."
+
+    # 5. If no date range or "last n months" is not found, ask user
+    date_in_prompt = re.search(r'(\d{4}-\d{2}-\d{2})|(\d{4})|(from\s+\w+\s+\d{4})|(to\s+\w+\s+\d{4})|(\bago\b\s*\(\d+[a-zA-Z]*\))', user_prompt)
+    if not (last_n_months_match or date_in_prompt or month_years):
+        user_prompt += " Please specify a date range for the data (e.g., from 2025-01-01 to 2025-12-31)."
+
+    # 6. Generate raw KQL from the user prompt using LLM
+    kql = generate_kql(user_prompt)
     print(f"Generated KQL Query: {kql}")
 
-    # Format the dates dynamically
+    # 7. Post-process KQL for formatting and fixes
     kql = format_dates(kql)
-
-    # Handle known issues like '3mo' to '90d' for date ranges
     kql = re.sub(r'ago\(3mo\)', 'ago(90d)', kql, flags=re.I)
-
-    # Fix unsupported functions like `startofquarter`, replacing with `startofmonth`
     kql = re.sub(r'startofquarter\((.*?)\)', r'startofmonth(\1)', kql, flags=re.I)
 
-    # Dynamically map the business area/territory name to the corresponding gsber code
+    # 8. Map business area/territory name to gsber code
     for territory, gsber_value in GSBER_MAPPING.items():
-        if territory.lower() in user_prompt.lower():  # If user mentions a territory/business area
-            # Replace the filter on Territory with gsber for the matching business area
+        if territory.lower() in user_prompt.lower():
             kql = re.sub(r"where Territory == .+?", f"where gsber == '{gsber_value}'", kql)
-            break  # Once mapped, no need to continue
+            break
 
-    # Detect trend direction (increase or decline) dynamically from the user's prompt
+    # 9. Trend direction (increase/decline)
     trend = detect_trend(user_prompt)
-
     if trend == "declining":
-        kql = kql.replace("RevenueChange < 0", "RevenueChange < 0")  # Declining trend
+        kql = kql.replace("RevenueChange < 0", "RevenueChange < 0")
     elif trend == "increasing":
-        kql = kql.replace("RevenueChange < 0", "RevenueChange > 0")  # Increasing trend
+        kql = kql.replace("RevenueChange < 0", "RevenueChange > 0")
     else:
-        # For stable or other trends, you can just leave it as it is or do any specific handling
-        kql = kql.replace("RevenueChange < 0", "RevenueChange == 0")  # Stable trend (no change)
+        kql = kql.replace("RevenueChange < 0", "RevenueChange == 0")
 
-    # Execute the query and handle retries
+    # 10. Execute the query and handle retries
     for attempt in (1, 2):
         try:
             cols, rows = adx().run(kql)
@@ -226,16 +294,15 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
             if attempt == 1:
                 kql = generate_kql(user_prompt, strict=True)
                 continue
-            # Log the error and return user-friendly feedback.
             print(f"Error: {err}")
             return "Please refine your query for better results. I’m learning day by day and will help you improve your query."
 
-    # If no data found, provide feedback
+    # 11. No data found case
     if not rows:
         return "No data found matching your criteria. Please refine your query for more specific results."
 
-    # Prepare the data for LLM to process
-    result_data = [dict(zip(cols, r)) for r in rows[:20]]  # Get top 5 rows or adjust as needed
+    # 12. Prepare sample data for summary LLM
+    result_data = [dict(zip(cols, r)) for r in rows[:20]]
     result_prompt = (
         f"User asked: {user_prompt}\n\n"
         f"Sample Data:\n{json.dumps(result_data, indent=2)}\n\n"
@@ -244,90 +311,7 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
         "After formatting, provide a concise business insight related to the data, such as trends, patterns, or key takeaways. Amount is in BDT."
         "If Needed,Based on the Sample  context data  give meaningful business-related suggestions such as increasing sales, revenue."
     )
-
-    # Let LLM decide on how to format the result: tabular or bulleted
     formatted_result = llm.invoke([{"role": "user", "content": result_prompt}]).content
-
     return formatted_result
 
-
-
-
-# def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -> str:
-#     """
-#     Dynamically handle SAP Sales prompts, ensuring correct KQL generation,
-#     and map business area/territory to the correct 'gsber' code.
-#     """
-#     # Check if the user's prompt contains a valid date or range
-#     date_pattern = r'(\d{4}-\d{2}-\d{2})|(\d{4})|(from\s+\w+\s+\d{4})|(to\s+\w+\s+\d{4})|(\bago\b\s*\(\d+[a-zA-Z]*\))'
-#     date_matches = re.findall(date_pattern, user_prompt)
-
-#     # If no date range or date references found, ask the user for one
-#     if not date_matches:
-#         user_prompt += " Please specify a date range for the data (e.g., from 2025-01-01 to 2025-12-31)."
-
-#     # Generate raw KQL from the user prompt using LLM
-#     kql = generate_kql(user_prompt)
-
-#     # Print the generated query for debugging
-#     print(f"Generated KQL Query: {kql}")
-
-#     # Format the dates dynamically
-#     kql = format_dates(kql)
-
-#     # Handle known issues like '3mo' to '90d' for date ranges
-#     kql = re.sub(r'ago\(3mo\)', 'ago(90d)', kql, flags=re.I)
-
-#     # Fix unsupported functions like `startofquarter`, replacing with `startofmonth`
-#     kql = re.sub(r'startofquarter\((.*?)\)', r'startofmonth(\1)', kql, flags=re.I)
-
-#     # Dynamically map the business area/territory name to the corresponding gsber code
-#     for territory, gsber_value in GSBER_MAPPING.items():
-#         if territory.lower() in user_prompt.lower():  # If user mentions a territory/business area
-#             # Replace the filter on Territory with gsber for the matching business area
-#             kql = re.sub(r"where Territory == .+?", f"where gsber == '{gsber_value}'", kql)
-#             break  # Once mapped, no need to continue
-
-#     # Detect trend direction (increase or decline) dynamically from the user's prompt
-#     trend = detect_trend(user_prompt)
-
-#     if trend == "declining":
-#         kql = kql.replace("RevenueChange < 0", "RevenueChange < 0")  # Declining trend
-#     elif trend == "increasing":
-#         kql = kql.replace("RevenueChange < 0", "RevenueChange > 0")  # Increasing trend
-#     else:
-#         # For stable or other trends, you can just leave it as it is or do any specific handling
-#         kql = kql.replace("RevenueChange < 0", "RevenueChange == 0")  # Stable trend (no change)
-
-#     # Execute the query and handle retries
-#     for attempt in (1, 2):
-#         try:
-#             cols, rows = adx().run(kql)
-#             break
-#         except KustoApiError as err:
-#             if attempt == 1:
-#                 kql = generate_kql(user_prompt, strict=True)
-#                 continue
-#             # Log the error and return user-friendly feedback.
-#             print(f"Error: {err}")
-#             return "Please refine your query for better results. I’m learning day by day and will help you improve your query."
-
-#     # If no data found, provide feedback
-#     if not rows:
-#         return "No data found matching your criteria. Please refine your query for more specific results."
-
-#     # Prepare the data for LLM to process
-#     result_data = [dict(zip(cols, r)) for r in rows[:20]]  # Get top 5 rows or adjust as needed
-#     result_prompt = (
-#         f"User asked: {user_prompt}\n\n"
-#         f"Sample Data:\n{json.dumps(result_data, indent=2)}\n\n"
-#         "Based on the query results, format the output in bulleted format. "
-#         "If the result is numerical or comparative, bullet points for proper indication . If it's categorical or simple, use bullet points. "
-#         "After formatting, provide a concise business insight related to the data, such as trends, patterns, or key takeaways. Give the full amount.Amount is in BDT"
-#         "If possible give businness related suggestion such as incresing sales, revinue  related to the data. "
-#     )
-
-#     # Let LLM decide on how to format the result: tabular or bulleted
-#     formatted_result = llm.invoke([{"role": "user", "content": result_prompt}]).content
-
-#     return formatted_result
+# END OF FILE
