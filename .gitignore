@@ -5,3 +5,4 @@ src/core/.env
 venv/
 
 src/**/__pycache__/
+src/db.sqlite3
