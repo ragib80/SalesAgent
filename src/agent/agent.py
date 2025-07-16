@@ -1,19 +1,32 @@
-# agent.py ─ SAP Sales bot for Azure ADX (SAPSalesInfos)
-import os, re, json
-from functools import lru_cache
+# agent.py ─ Simplified SAP Sales bot for Azure ADX (SAPSalesInfos)
+
+import os
+import re
+import json
 import datetime
+from functools import lru_cache
 from django.conf import settings
+
+import dateparser
 from azure.kusto.data import KustoClient, KustoConnectionStringBuilder
 from azure.kusto.data.exceptions import KustoApiError
-
+# CORRECTED IMPORTS
+from langchain.prompts import PromptTemplate
+from langchain.chains.base import Chain
+from typing import ClassVar, List
+from langchain.chains import SequentialChain
+from langchain_core.runnables import RunnableSequence
 from langchain_openai import AzureChatOpenAI
 
-# ───────────────────────── 1.  ADX helper ──────────────────────────
+
+
+# ──────────────────────── 1. ADX helper ────────────────────────────
 class ADXTool:
     def __init__(self, cluster: str, database: str):
         kcsb = KustoConnectionStringBuilder.with_aad_device_authentication(cluster)
         self.client = KustoClient(kcsb)
         self.database = database
+
     def run(self, kql: str):
         tbl = self.client.execute(self.database, kql).primary_results[0]
         cols = [c.column_name for c in tbl.columns]
@@ -27,7 +40,7 @@ def adx() -> ADXTool:
         getattr(settings, "ADX_DATABASE", os.getenv("ADX_DATABASE")),
     )
 
-# ───────────────────────── 2.  Prompt assets ───────────────────────
+# ─────────────────────── 2. Prompt assets ──────────────────────────
 TABLE_NAME = "SAPSalesInfos"
 
 FIELD_MAPPINGS = {
@@ -38,8 +51,7 @@ FIELD_MAPPINGS = {
     "credit control area":"kkber","Dealer group":"kukla","account group":"ktokd",
     "sales group":"vkgrp_c","sales office":"vkbur_c","payer id":"Payer_DL",
     "product code":"matnr","unit":"meins","volume unit":"voleh","business group":"GK",
-    "territory":"Territory","sales zone":"Szone","date":"fkdat",
-    "fkdat":"fkdat"
+    "territory":"Territory","sales zone":"Szone","date":"fkdat","fkdat":"fkdat"
 }
 MAPPING_STR = "\n".join(f'"{k}": "{v}"' for k, v in FIELD_MAPPINGS.items())
 
@@ -71,7 +83,7 @@ GSBER_MAPPING = {
     "Barishal Sales": "4080",
     "Rangpur Sales": "4090",
     "Feni Sales": "4100",
-    "Dhaka South": "4110",  # Mapping "Dhaka South" to gsber == '4110'
+    "Dhaka South": "4110",
     "Brahmanbaria Sales": "4120",
     "Dhaka North": "4130",
     "Test Business Area": "4500",
@@ -88,60 +100,19 @@ GSBER_MAPPING = {
 GSBER_MAPPING_STR = "\n".join(f'"{k}": "{v}"' for k, v in GSBER_MAPPING.items())
 
 SYSTEM_PROMPT_KQL = (
-    "You are an expert Kusto (ADX) analyst for SAP sales data.\n"
-    "Output **only raw KQL**, no markdown or commentary.\n"
-    "Rules:\n"
-    "• Use the table SAPSalesInfos and columns below.\n"
-    "• If a date range is required, declare:\n"
-    "      let StartDate = datetime(YYYY-MM-DD);\n"
-    "      let EndDate   = datetime(YYYY-MM-DD);\n"
-    "• For monthly aggregation, group by month: | summarize sum(Revenue) by Month = bin(fkdat, 30d)\n"
-    "• For weekly aggregation, use bin(fkdat, 7d); for daily, bin(fkdat, 1d)\n"
-    "• For yearly aggregation, use bin(fkdat, 1y).\n"
-    "• To calculate previous period's revenue, use prev(TotalRevenue, 1).\n"
-    "• To calculate revenue growth, use the difference between current period and previous period.\n"
-    "• To calculate percentage growth, use: RevenueGrowthPercent = (RevenueGrowth / PreviousPeriodRevenue) * 100\n"
-    "• End every statement with a semicolon.\n"
-    "• Provide real line-breaks (no \\n literals).\n\n"
-    
-    "Business → column mapping:\n" + MAPPING_STR +
-    "\n\nDepo/Business Area (gsber) → column Value mapping:\n" + GSBER_MAPPING_STR +
-    "\n\nTable schema:\n" + KUSTO_SCHEMA +
-
-    "\nExample KQLs for reference:\n"
-    "1. **Monthly Revenue Growth (April 2025):**\n"
-    "SAPSalesInfos\n"
-    "| where fkdat >= datetime(2025-04-01) and fkdat <= datetime(2025-04-30)\n"
-    "| summarize TotalRevenue = sum(Revenue) by Month = bin(fkdat, 30d)\n"
-    "| serialize\n"
-    "| extend PreviousMonthRevenue = prev(TotalRevenue, 1)\n"
-    "| extend RevenueGrowth = TotalRevenue - PreviousMonthRevenue\n"
-    "| extend RevenueGrowthPercent = iif(PreviousMonthRevenue != 0, todouble(RevenueGrowth) / todouble(PreviousMonthRevenue) * 100, 0.0)\n"
-
-    "2. **Weekly Revenue Growth (4/7/2025 - 4/14/2025):**\n"
-    "SAPSalesInfos\n"
-    "| where fkdat >= datetime(2025-04-01) and fkdat <= datetime(2025-04-30)\n"
-    "| summarize TotalRevenue = sum(Revenue) by Week = bin(fkdat, 7d)\n"
-    "| serialize\n"
-    "| extend PreviousWeekRevenue = prev(TotalRevenue, 1)\n"
-    "| extend RevenueGrowth = TotalRevenue - PreviousWeekRevenue\n"
-    "| extend RevenueGrowthPercent = iif(PreviousWeekRevenue != 0, todouble(RevenueGrowth) / todouble(PreviousWeekRevenue) * 100, 0.0)\n"
-
-    "3. **Yearly Revenue Growth (2025):**\n"
-    "SAPSalesInfos\n"
-    "| where fkdat >= datetime(2025-01-01) and fkdat <= datetime(2025-12-31)\n"
-    "| summarize TotalRevenue = sum(Revenue) by Year = bin(fkdat, 1y)\n"
-    "| serialize\n"
-    "| extend PreviousYearRevenue = prev(TotalRevenue, 1)\n"
-    "| extend RevenueGrowth = TotalRevenue - PreviousYearRevenue\n"
-    "| extend RevenueGrowthPercent = iif(PreviousYearRevenue != 0, todouble(RevenueGrowth) / todouble(PreviousYearRevenue) * 100, 0.0)\n"
-
-    "\nPlease note that the query should be based on the user’s input for **periodicity** (daily, monthly, or yearly) and the corresponding **date range**.\n"
+    "You are an expert Kusto (ADX) analyst for SAPSalesInfos.\n"
+    "Generate only raw KQL (no markdown, no code fences, no backticks).\n"
+    "Use table SAPSalesInfos and the date range below.\n\n"
+    "Business → column mapping:\n"
+    + MAPPING_STR
+    + "\n\nDepo/Business Area (gsber) → column Value mapping:\n"
+    + GSBER_MAPPING_STR
+    + "\n\nTable schema:\n"
+    + KUSTO_SCHEMA
 )
 
 
-
-# ───────────────────────── 3.  LLM instance ────────────────────────
+# ───────────────────────── 3. LLM instance ───────────────────────────
 llm = AzureChatOpenAI(
     azure_endpoint   = settings.AZURE_OPENAI_ENDPOINT,
     api_key          = settings.AZURE_OPENAI_KEY,
@@ -149,169 +120,409 @@ llm = AzureChatOpenAI(
     azure_deployment = settings.AZURE_OPENAI_DEPLOYMENT,
     temperature      = 0,
 )
+# ─────────────────────── 1. Define your KQL prompt ──────────────────────
+kql_prompt = PromptTemplate(
+    input_variables=["system_prompt", "user_prompt", "start_date", "end_date"],
+    template="""
+{system_prompt}
 
-# ───────────────────────── 4.  Helpers ────────────────────────────
+let StartDate = datetime({start_date});
+let EndDate   = datetime({end_date});
+
+User request:
+{user_prompt}
+
+Output only raw KQL.
+"""
+)
+
+# ──────────────────── 2. Build the RunnableSequence ───────────────────
+# This “|” operator wires the PromptTemplate into your Azure LLM
+kql_runnable = RunnableSequence(first=kql_prompt, last=llm)
+
+# 3. Inside your KQLRunnableChain._call():
+class KQLRunnableChain(Chain):
+    input_keys  = ["user_prompt", "start_date", "end_date"]
+    output_keys = ["raw_kql"]
+
+    def _call(self, inputs):
+        payload = {
+            "system_prompt": SYSTEM_PROMPT_KQL,    # ← here
+            "user_prompt":   inputs["user_prompt"],
+            "start_date":    inputs["start_date"],
+            "end_date":      inputs["end_date"],
+        }
+        raw_kql = kql_runnable.invoke(payload)
+        return {"raw_kql": raw_kql}
+# ───────────────────────── 4. Extract & Generate KQL ─────────────────
+
+
 def _extract_kql(raw: str) -> str:
-    """Remove ``` fences/backticks and unescape \\n / \\r / \\t."""
-    fenced = re.search(r"```(?:kql|kusto)?\s*([\s\S]*?)```", raw, re.I)
-    raw = fenced.group(1) if fenced else raw
-    raw = raw.strip("`").replace("\\n", "\n").replace("\\r", "").replace("\\t", "\t")
-    return raw.replace("SAPSalesInfos", TABLE_NAME).strip()
+    """
+    Strip Markdown fences/backticks and unescape any literal \n or \t.
+    Returns a plain KQL string.
+    """
+    # 1) Remove fenced code blocks ```…```
+    raw = re.sub(r'```(?:kql|kusto)?\s*([\s\S]*?)```', r'\1', raw, flags=re.I)
+    # 2) Remove any remaining backticks
+    raw = raw.replace("`", "")
+    # 3) Unescape JSON-style literals
+    raw = raw.replace("\\n", "\n").replace("\\t", "\t").replace("\\r", "")
+    return raw.strip()
+
+
+
 
 def generate_kql(user_req: str, strict=False) -> str:
-    prompt = SYSTEM_PROMPT_KQL
+    # HERE is where you assemble the prompt:
+    prompt = SYSTEM_PROMPT_KQL + "\n\nUser request: " + user_req
+
     if strict:
-        prompt += "\n\nSTRICT MODE: previous query failed. Return corrected KQL only."
-    prompt += f"\n\nUser request: {user_req}"
-    print("_extract_kql-------------",prompt)
-    response = llm.invoke([{"role":"user","content":prompt}]).content
-    return _extract_kql(response)
+        prompt += "\n\nSTRICT MODE: previous query failed—return corrected KQL only."
 
+    raw = llm.invoke([{"role":"user", "content": prompt}]).content
+    return _extract_kql(raw)
+
+
+
+
+# ──────────────────────── 5. Formatting Helpers ───────────────────────
+# def format_dates(kql_query: str) -> str:
+#     """Wrap any YYYY-MM-DD literals in datetime()."""
+#     return re.sub(r'(\d{4}-\d{2}-\d{2})', r'datetime(\1)', kql_query)
 def format_dates(kql_query: str) -> str:
-    """Ensure all date-like strings are properly formatted as datetime literals."""
-    return re.sub(r'(\d{4}-\d{2}-\d{2})', r'datetime(\1)', kql_query)
+    """
+    Wrap raw YYYY-MM-DD tokens in datetime(...) only if they
+    aren’t already inside a datetime() call.
+    """
+    # Step 1: clean up any accidental nested datetime()
+    kql_query = re.sub(
+        r'datetime\s*\(\s*datetime\s*\(\s*([0-9]{4}-[0-9]{2}-[0-9]{2})\s*\)\s*\)',
+        r'datetime(\1)',
+        kql_query,
+        flags=re.IGNORECASE,
+    )
+    # Step 2: wrap any bare dates
+    return re.sub(
+        r'(?<!datetime\()(\d{4}-\d{2}-\d{2})(?!\))',
+        r'datetime(\1)',
+        kql_query,
+    )
 
-def detect_period_aggregation(prompt: str):
-    prompt = prompt.lower()
-    if 'daily' in prompt or 'per day' in prompt:
-        return '1d'
-    elif 'weekly' in prompt or 'per week' in prompt:
-        return '1w'
-    elif 'monthly' in prompt or 'per month' in prompt or 'by month' in prompt:
-        return '1mo'
-    elif 'quarterly' in prompt or 'per quarter' in prompt:
-        return '3mo'
-    elif 'yearly' in prompt or 'per year' in prompt:
-        return '1y'
-    else:
-        return None
 
-def detect_trend_request(prompt: str):
-    keywords = ['trend', 'uptrend', 'downtrend', 'growth', 'decline', 'increase', 'decrease', 'compare', 'comparison', 'difference', 'change']
-    for k in keywords:
-        if k in prompt.lower():
-            return True
-    return False
-
-def extract_month_year_pairs(prompt: str):
-    # Extracts specific months/years like "January 2025", "Feb 2025", etc.
-    # Returns a list of tuples: [('2025-01-01', '2025-01-31'), ...]
-    import calendar
-    month_names = {m.lower(): i for i, m in enumerate(calendar.month_name) if m}
-    month_names.update({m.lower(): i for i, m in enumerate(calendar.month_abbr) if m})
-    results = []
-    for match in re.finditer(r'(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s,]+(\d{4})', prompt, re.I):
-        month = month_names[match.group(1).lower()]
-        year = int(match.group(2))
-        start = datetime.date(year, month, 1)
-        last_day = calendar.monthrange(year, month)[1]
-        end = datetime.date(year, month, last_day)
-        results.append((str(start), str(end)))
-    return results
-
-# Detect trend from user prompt (e.g., increasing, declining, etc.)
 def detect_trend(user_prompt: str) -> str:
-    if any(word in user_prompt.lower() for word in ["declining", "downtrending", "negative growth", "falling", "decrease"]):
+    low = user_prompt.lower()
+    if any(w in low for w in ["declining","downtrending","negative growth","falling","decrease"]):
         return "declining"
-    elif any(word in user_prompt.lower() for word in ["increasing", "uptrending", "positive growth", "rising", "growth"]):
+    if any(w in low for w in ["increasing","uptrending","positive growth","rising","growth"]):
         return "increasing"
-    else:
-        return "stable"
+    return "stable"
 
-# ───────────────────────── 5.  Main entry ─────────────────────────
+# ──────────────────────── 6. Date-Parsing Chain ───────────────────────
 
-def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -> str:
-    """
-    Dynamically handle SAP Sales prompts, ensuring correct KQL generation,
-    and map business area/territory to the correct 'gsber' code.
-    """
+class DateRangeChain(Chain):
+    input_keys: ClassVar[List[str]]  = ["user_prompt"]
+    output_keys: ClassVar[List[str]] = ["start_date", "end_date"]
 
-    # 1. Handle "last n months"
-    last_n_months_match = re.search(r'last\s+(\d+)\s+month[s]?', user_prompt, re.IGNORECASE)
-    if last_n_months_match:
-        n_months = int(last_n_months_match.group(1))
-        end_date = datetime.datetime.now()
-        start_date = end_date - datetime.timedelta(days=n_months * 30)  # Approximate
-        start_date_str = start_date.strftime("%Y-%m-%d")
-        end_date_str = end_date.strftime("%Y-%m-%d")
-        user_prompt += f" from {start_date_str} to {end_date_str}"
+    def _call(self, inputs):
+        print("▶️ DateRangeChain._call inputs:", inputs)
+        text = inputs["user_prompt"].strip().lower()
+        now = datetime.datetime.now()
 
-    # 2. Check for periodic aggregation request
-    period = detect_period_aggregation(user_prompt)
-    if period:
-        user_prompt += f" Please group the result by period using bin(fkdat, {period}). Show the sum of Revenue for each period."
+        # 1) Explicit “from YYYY-MM-DD to YYYY-MM-DD”
+        m = re.search(r'from\s+(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})', text)
+        if m:
+            out = {
+                "start_date": m.group(1),
+                "end_date":   m.group(2),
+            }
+            print("✅ Parsed explicit range:", out)
+            return out
 
-    # 3. Check for trend/comparison requests
-    if detect_trend_request(user_prompt):
-        user_prompt += (
-            " For trend or comparison analysis, group by period (e.g., bin(fkdat, 1mo)) or the appropriate period, "
-            "calculate sum(Revenue) per period, and show the difference or percent change between periods if relevant."
+        # 2) Relative “last N days/weeks/months/years”
+        m = re.search(r'last\s+(\d+)\s+(day|days|week|weeks|month|months|year|years)', text)
+        if m:
+            n, unit = int(m.group(1)), m.group(2)
+            if 'day' in unit:
+                delta = datetime.timedelta(days=n)
+            elif 'week' in unit:
+                delta = datetime.timedelta(weeks=n)
+            elif 'month' in unit:
+                delta = datetime.timedelta(days=30 * n)
+            else:
+                delta = datetime.timedelta(days=365 * n)
+            start = now - delta
+            out = {
+                "start_date": start.strftime("%Y-%m-%d"),
+                "end_date":   now.strftime("%Y-%m-%d"),
+            }
+            print(f"✅ Parsed 'last {n} {unit}':", out)
+            return out
+
+        # 3) “today” / “yesterday”
+        if re.search(r'\btoday\b', text):
+            today = now.strftime("%Y-%m-%d")
+            out = {"start_date": today, "end_date": today}
+            print("✅ Parsed 'today':", out)
+            return out
+
+        if re.search(r'\byesterday\b', text):
+            y = (now - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+            out = {"start_date": y, "end_date": y}
+            print("✅ Parsed 'yesterday':", out)
+            return out
+
+        # 4) “this week” / “last week”
+        if re.search(r'\bthis\s+week\b', text):
+            start = now - datetime.timedelta(days=now.weekday())
+            end   = start + datetime.timedelta(days=6)
+            out = {
+                "start_date": start.strftime("%Y-%m-%d"),
+                "end_date":   end.strftime("%Y-%m-%d"),
+            }
+            print("✅ Parsed 'this week':", out)
+            return out
+
+        if re.search(r'\blast\s+week\b', text):
+            end   = now - datetime.timedelta(days=now.weekday() + 1)
+            start = end - datetime.timedelta(days=6)
+            out = {
+                "start_date": start.strftime("%Y-%m-%d"),
+                "end_date":   end.strftime("%Y-%m-%d"),
+            }
+            print("✅ Parsed 'last week':", out)
+            return out
+
+        # 5) “this month” / “last month”
+        if re.search(r'\bthis\s+month\b', text):
+            start = now.replace(day=1)
+            out = {
+                "start_date": start.strftime("%Y-%m-%d"),
+                "end_date":   now.strftime("%Y-%m-%d"),
+            }
+            print("✅ Parsed 'this month':", out)
+            return out
+
+        if re.search(r'\blast\s+month\b', text):
+            first_of_this = now.replace(day=1)
+            last_of_last  = first_of_this - datetime.timedelta(days=1)
+            start = last_of_last.replace(day=1)
+            out = {
+                "start_date": start.strftime("%Y-%m-%d"),
+                "end_date":   last_of_last.strftime("%Y-%m-%d"),
+            }
+            print("✅ Parsed 'last month':", out)
+            return out
+
+        # 6) “this year” / “last year”
+        if re.search(r'\bthis\s+year\b', text):
+            start = now.replace(month=1, day=1)
+            out = {
+                "start_date": start.strftime("%Y-%m-%d"),
+                "end_date":   now.strftime("%Y-%m-%d"),
+            }
+            print("✅ Parsed 'this year':", out)
+            return out
+
+        if re.search(r'\blast\s+year\b', text):
+            start = now.replace(year=now.year - 1, month=1, day=1)
+            end   = now.replace(year=now.year - 1, month=12, day=31)
+            out = {
+                "start_date": start.strftime("%Y-%m-%d"),
+                "end_date":   end.strftime("%Y-%m-%d"),
+            }
+            print("✅ Parsed 'last year':", out)
+            return out
+
+        # 7) “in YYYY” as full-year
+        m = re.search(r'\bin\s+(\d{4})\b', text)
+        if m:
+            y = int(m.group(1))
+            out = {
+                "start_date": f"{y}-01-01",
+                "end_date":   f"{y}-12-31",
+            }
+            print("✅ Parsed 'in YYYY':", out)
+            return out
+
+        # 8) Fallback: dateparser
+        settings_dp = {"RELATIVE_BASE": now}
+        found = dateparser.search.search_dates(text, settings=settings_dp) or []
+        dates = sorted([d for _, d in found])
+        if dates:
+            start, end = dates[0], dates[-1]
+            out = {
+                "start_date": start.strftime("%Y-%m-%d"),
+                "end_date":   end.strftime("%Y-%m-%d"),
+            }
+            print("✅ Parsed fallback dates via dateparser:", out)
+            return out
+
+        # 9) Nothing matched
+        msg = (
+            "Could not parse a date range from the prompt. "
+            "Please specify 'last 3 months', 'from YYYY-MM-DD to YYYY-MM-DD', "
+            "or 'this year'."
+        )
+        print("❌ DateRangeChain error:", msg)
+        raise ValueError(msg)
+
+
+# ──────────────────── 7. KQL-Generation Chain ────────────────────────
+class KQLGeneratorChain(Chain):
+    print("-----------------KQLGeneratorChain method called --------------------")
+    input_keys: ClassVar[List[str]]  = ["user_prompt", "start_date", "end_date"]
+    output_keys: ClassVar[List[str]] = ["raw_kql"]
+
+    def _call(self, inputs):
+        print("▶️ KQLGeneratorChain._call inputs:", inputs)
+        u = inputs["user_prompt"]
+        # inject explicit range for KQL
+        prompt_req = f"{u} from {inputs['start_date']} to {inputs['end_date']}"
+        kql = generate_kql(prompt_req)
+        # apply your existing quick fixes
+        kql = format_dates(kql)
+        
+        # remove any remaining nested datetime()
+        kql = re.sub(
+            r'datetime\s*\(\s*datetime\s*\(\s*([0-9]{4}-[0-9]{2}-[0-9]{2})\s*\)\s*\)',
+            r'datetime(\1)',
+            kql,
+            flags=re.IGNORECASE,
         )
 
-    # 4. Handle explicit month comparisons (e.g. "Compare January 2025 and February 2025")
-    month_years = extract_month_year_pairs(user_prompt)
-    if len(month_years) >= 2:
-        # Only filter for the earliest to latest month to keep the data
-        start, _ = month_years[0]
-        _, end = month_years[-1]
-        user_prompt += f" from {start} to {end}. Please group by month and show sum(Revenue) for each month."
+        # your existing quick‐fixes
+        kql = re.sub(r'ago\(3mo\)', 'ago(90d)', kql, flags=re.I)
+        kql = re.sub(r'startofquarter\((.*?)\)', r'startofmonth(\1)', kql, flags=re.I)
+        # map GSBER if territory mentioned
+        for terr, code in GSBER_MAPPING.items():
+            if terr.lower() in u.lower():
+                kql = re.sub(r"where Territory == .+?", f"where gsber == '{code}'", kql)
+                break
+        # adjust for trend
+        trend = detect_trend(u)
+        if trend == "increasing":
+            kql = kql.replace("RevenueChange < 0", "RevenueChange > 0")
+        elif trend == "declining":
+            kql = kql.replace("RevenueChange < 0", "RevenueChange < 0")
+        else:
+            kql = kql.replace("RevenueChange < 0", "RevenueChange == 0")
+        print("▶️ KQLGeneratorChain raw_kql:", kql)
+        return {"raw_kql": kql}
 
-    # 5. If no date range or "last n months" is not found, ask user
-    date_in_prompt = re.search(r'(\d{4}-\d{2}-\d{2})|(\d{4})|(from\s+\w+\s+\d{4})|(to\s+\w+\s+\d{4})|(\bago\b\s*\(\d+[a-zA-Z]*\))', user_prompt)
-    if not (last_n_months_match or date_in_prompt or month_years):
-        user_prompt += " Please specify a date range for the data (e.g., from 2025-01-01 to 2025-12-31)."
+# ──────────────────────── 8. ADX-Execution Chain ─────────────────────
+class ADXChain(Chain):
+    print("-----------------ADXChain method called --------------------")
+    input_keys: ClassVar[List[str]]  = ["raw_kql"]
+    output_keys: ClassVar[List[str]] = ["cols", "rows"]
 
-    # 6. Generate raw KQL from the user prompt using LLM
-    kql = generate_kql(user_prompt)
-    print(f"Generated KQL Query: {kql}")
+    def _call(self, inputs):
+        print("▶️ ADXChain._call inputs:", inputs)
+        kql = inputs["raw_kql"]
+        for attempt in (1, 2):
+            try:
+                cols, rows = adx().run(kql)
+                return {"cols": cols, "rows": rows}
+            except KustoApiError:
+                if attempt == 1:
+                    # regenerate in strict mode
+                    kql = generate_kql(inputs["raw_kql"], strict=True)
+                    continue
+                return {"cols": [], "rows": []}
 
-    # 7. Post-process KQL for formatting and fixes
-    kql = format_dates(kql)
-    kql = re.sub(r'ago\(3mo\)', 'ago(90d)', kql, flags=re.I)
-    kql = re.sub(r'startofquarter\((.*?)\)', r'startofmonth(\1)', kql, flags=re.I)
+# ──────────────────────── 9. Summarization Chain ─────────────────────
+summary_prompt = PromptTemplate(
+    input_variables=["user_prompt", "cols", "rows"],
+    template="""
+User asked: {user_prompt}
 
-    # 8. Map business area/territory name to gsber code
-    for territory, gsber_value in GSBER_MAPPING.items():
-        if territory.lower() in user_prompt.lower():
-            kql = re.sub(r"where Territory == .+?", f"where gsber == '{gsber_value}'", kql)
-            break
+Columns: {cols}
+Rows: {rows}
 
-    # 9. Trend direction (increase/decline)
-    trend = detect_trend(user_prompt)
-    if trend == "declining":
-        kql = kql.replace("RevenueChange < 0", "RevenueChange < 0")
-    elif trend == "increasing":
-        kql = kql.replace("RevenueChange < 0", "RevenueChange > 0")
-    else:
-        kql = kql.replace("RevenueChange < 0", "RevenueChange == 0")
+Format in bullets + provide concise business insight. Amounts in BDT.
+"""
+)
 
-    # 10. Execute the query and handle retries
-    for attempt in (1, 2):
-        try:
-            cols, rows = adx().run(kql)
-            break
-        except KustoApiError as err:
-            if attempt == 1:
-                kql = generate_kql(user_prompt, strict=True)
-                continue
-            print(f"Error: {err}")
-            return "Please refine your query for better results. I’m learning day by day and will help you improve your query."
+# instantiate your summarizer
+summary_runnable = RunnableSequence(first=summary_prompt, last=llm)
 
-    # 11. No data found case
-    if not rows:
-        return "No data found matching your criteria. Please refine your query for more specific results."
+# ─────────────────────── KQL‐RunnableChain Wrapper ──────────────────────
 
-    # 12. Prepare sample data for summary LLM
-    result_data = [dict(zip(cols, r)) for r in rows[:20]]
-    result_prompt = (
-        f"User asked: {user_prompt}\n\n"
-        f"Sample Data:\n{json.dumps(result_data, indent=2)}\n\n"
-        "Based on the query results, format the output in bulleted format. "
-        "If the result is numerical or comparative, bullet points for proper indication. If it's categorical or simple, use bullet points. "
-        "After formatting, provide a concise business insight related to the data, such as trends, patterns, or key takeaways. Amount is in BDT."
-        "If Needed,Based on the Sample  context data  give meaningful business-related suggestions such as increasing sales, revenue."
-    )
-    formatted_result = llm.invoke([{"role": "user", "content": result_prompt}]).content
-    return formatted_result
+class KQLRunnableChain(Chain):
+    input_keys:  ClassVar[List[str]] = ["user_prompt", "start_date", "end_date"]
+    output_keys: ClassVar[List[str]] = ["raw_kql"]
 
-# END OF FILE
+    def _call(self, inputs):
+        payload = {
+            "system_prompt": SYSTEM_PROMPT_KQL,
+            "user_prompt":   inputs["user_prompt"],
+            "start_date":    inputs["start_date"],
+            "end_date":      inputs["end_date"],
+        }
+        raw = kql_runnable.invoke(payload)
+        print("▶️ KQLRunnableChain →", raw)
+        return {"raw_kql": raw}
+
+# ──────────────────── Summary‐RunnableChain Wrapper ────────────────────
+
+class SummaryRunnableChain(Chain):
+    input_keys:  ClassVar[List[str]] = ["user_prompt", "cols", "rows"]
+    output_keys: ClassVar[List[str]] = ["summary"]
+
+    def _call(self, inputs):
+        payload = {
+            "user_prompt": inputs["user_prompt"],
+            "cols":        inputs["cols"],
+            "rows":        inputs["rows"],
+        }
+        summ = summary_runnable.invoke(payload)
+        print("▶️ SummaryRunnableChain →", summ)
+        return {"summary": summ}
+# ────────────────── 10. Combine into SequentialChain ────────────────
+agent_chain = SequentialChain(
+    chains=[
+        DateRangeChain(),      # your date parsing
+        KQLRunnableChain(),    # wraps PromptTemplate | llm for KQL
+        ADXChain(),            # executes the KQL
+        SummaryRunnableChain() # wraps PromptTemplate | llm for summary
+    ],
+    input_variables  = ["user_prompt"],
+    output_variables = ["summary"],
+    verbose=False
+)
+# ────────────────────────── 11. Entry Function ───────────────────────
+def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -> str:
+    try:
+
+        print("---------------user_prompt--------------",user_prompt)
+        # 1. Run your core chain via invoke(), not __call__
+        out = agent_chain.invoke({"user_prompt": user_prompt})
+
+        print("---------------out --------------",out)
+        cols, rows = out["cols"], out["rows"]
+
+        if not rows:
+            return "No data found matching your criteria. Please refine your query for more specific results."
+
+        # 2. Summarize via the summary_runnable as before
+        formatted = summary_runnable.invoke({
+            "user_prompt": user_prompt,
+            "cols": cols,
+            "rows": rows,
+        })
+
+        return formatted
+
+    except ValueError as e:
+        return str(e)
+
+    except Exception:
+        return (
+            "I’m sorry, something went wrong while processing your request. "
+            "Please try rephrasing or specifying a clearer date range."
+        )
+
+
+# Example:
+# resp = run_sap_sales_agent("Show average sales by month for last year for Dhaka Sales")
+# print(resp)
