@@ -9,15 +9,36 @@ from azure.kusto.data.exceptions import KustoApiError
 from langchain_openai import AzureChatOpenAI
 
 # ───────────────────────── 1.  ADX helper ──────────────────────────
+# class ADXTool:
+#     def __init__(self, cluster: str, database: str):
+#         kcsb = KustoConnectionStringBuilder.with_aad_device_authentication(cluster)
+#         self.client = KustoClient(kcsb)
+#         self.database = database
+#     def run(self, kql: str):
+#         tbl = self.client.execute(self.database, kql).primary_results[0]
+#         cols = [c.column_name for c in tbl.columns]
+#         rows = [list(r) for r in tbl]
+#         return cols, rows
+
+# @lru_cache(maxsize=1)
+# def adx() -> ADXTool:
+#     return ADXTool(
+#         getattr(settings, "ADX_CLUSTER",  os.getenv("ADX_CLUSTER")),
+#         getattr(settings, "ADX_DATABASE", os.getenv("ADX_DATABASE")),
+#     )
+
 class ADXTool:
     def __init__(self, cluster: str, database: str):
-        kcsb = KustoConnectionStringBuilder.with_aad_device_authentication(cluster)
+        # use the cached az CLI token instead of device code
+        kcsb = KustoConnectionStringBuilder.with_az_cli_authentication(cluster)
         self.client = KustoClient(kcsb)
         self.database = database
+
     def run(self, kql: str):
-        tbl = self.client.execute(self.database, kql).primary_results[0]
-        cols = [c.column_name for c in tbl.columns]
-        rows = [list(r) for r in tbl]
+        response = self.client.execute(self.database, kql)
+        table = response.primary_results[0]
+        cols = [c.column_name for c in table.columns]
+        rows = [list(r) for r in table]
         return cols, rows
 
 @lru_cache(maxsize=1)
@@ -26,7 +47,6 @@ def adx() -> ADXTool:
         getattr(settings, "ADX_CLUSTER",  os.getenv("ADX_CLUSTER")),
         getattr(settings, "ADX_DATABASE", os.getenv("ADX_DATABASE")),
     )
-
 # ───────────────────────── 2.  Prompt assets ───────────────────────
 TABLE_NAME = "SAPSalesInfos"
 
