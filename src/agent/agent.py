@@ -330,106 +330,200 @@ def detect_trend(user_prompt: str) -> str:
 # import re
 
 # Enhance handle_user_query to use dynamic date range detection
+
 def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -> str:
     """
     Dynamically handle SAP Sales prompts, ensuring correct KQL generation,
     and map business area/territory to the correct 'gsber' code.
     """
-    # Check for date-related filters in the user prompt using LLM
+    # -- [unchanged] detect or ask for dates
     start_date, end_date = detect_date_filter_using_llm(user_prompt)
-    print("start_date from handle",start_date)
     if start_date and end_date:
-        # Format the date range based on the detected filter
         start_date_str = start_date.strftime("%Y-%m-%d")
-        end_date_str = end_date.strftime("%Y-%m-%d")
-
-        # Add the date range to the prompt
-        user_prompt += f" from {start_date_str} to {end_date_str}"
-
-    # If no date range is detected, ask the user for one
+        end_date_str   = end_date.strftime("%Y-%m-%d")
+        user_prompt   += f" from {start_date_str} to {end_date_str}"
     else:
-        user_prompt += " Please specify a date range for the data (e.g., from 2025-01-01 to 2025-12-31)."
+        user_prompt   += " Please specify a date range for the data (e.g., from 2025-01-01 to 2025-12-31)."
 
-    # Generate raw KQL from the user prompt using LLM
+    # -- [unchanged] raw KQL generation + fixes
     kql = generate_kql(user_prompt)
-
-    # Print the generated query for debugging
-    print(f"Generated KQL Query: {kql}")
-
-    # Format the dates dynamically
     kql = format_dates(kql)
-
-    # Handle known issues like '3mo' to '90d' for date ranges
     kql = re.sub(r'ago\(3mo\)', 'ago(90d)', kql, flags=re.I)
-
-    # Fix unsupported functions like `startofquarter`, replacing with `startofmonth`
     kql = re.sub(r'startofquarter\((.*?)\)', r'startofmonth(\1)', kql, flags=re.I)
 
-    # Dynamically map the business area/territory name to the corresponding gsber code
+    # -- [unchanged] territory → gsber mapping
     for territory, gsber_value in GSBER_MAPPING.items():
-        if territory.lower() in user_prompt.lower():  # If user mentions a territory/business area
-            # Replace the filter on Territory with gsber for the matching business area
+        if territory.lower() in user_prompt.lower():
             kql = re.sub(r"where Territory == .+?", f"where gsber == '{gsber_value}'", kql)
-            break  # Once mapped, no need to continue
+            break
 
-    # Detect trend direction (increase or decline) dynamically from the user's prompt
+    # -- [unchanged] trend detection
     trend = detect_trend(user_prompt)
-
     if trend == "declining":
-        kql = kql.replace("RevenueChange < 0", "RevenueChange < 0")  # Declining trend
+        kql = kql.replace("RevenueChange < 0", "RevenueChange < 0")
     elif trend == "increasing":
-        kql = kql.replace("RevenueChange < 0", "RevenueChange > 0")  # Increasing trend
+        kql = kql.replace("RevenueChange < 0", "RevenueChange > 0")
     else:
-        # For stable or other trends, you can just leave it as it is or do any specific handling
-        kql = kql.replace("RevenueChange < 0", "RevenueChange == 0")  # Stable trend (no change)
-    
-    print("before attempt  : {kql}")
-    # Execute the query and handle retries
+        kql = kql.replace("RevenueChange < 0", "RevenueChange == 0")
+
+    # -- [unchanged] execute with retry
     for attempt in (1, 2):
         try:
             cols, rows = adx().run(kql)
             break
-        except KustoApiError as err:
+        except KustoApiError:
             if attempt == 1:
                 kql = generate_kql(user_prompt, strict=True)
-                print(f" attempt  kql : {kql}")
                 continue
-            # Log the error and return user-friendly feedback.
-            print(f"Error: {err}")
             return "Please refine your query for better results. I’m learning day by day and will help you improve your query."
-    print(f" final kql : {kql}")
-    # If no data found, provide feedback
+
     if not rows:
         return "No data found matching your criteria. Please refine your query for more specific results."
-    print ("final cols",cols)
-    print ("final rows",rows)
-    
-    # Format datetime columns to strings in result_data
-    result_data = []
-    for row in rows[:20]:  # Adjust as needed
-        row_dict = dict(zip(cols, row))
-        # Format datetime fields (e.g., TimePeriod) into string format
-        tp = row_dict.get('TimePeriod')
-        if isinstance(tp, datetime.datetime):
-            row_dict['TimePeriod'] = tp.strftime("%Y-%m-%d")
-        # else leave it alone (it’s already a string label)
-        result_data.append(row_dict)
-    
-    print("formatted result_data:", result_data)
 
-    print(f"json.dumps result_data {json.dumps(result_data, indent=2)}")
+    # —————————————————————————
+    # ↓ NEW: fully dynamic datetime formatting ↓
+    # —————————————————————————
+    import datetime, json
+
+    # 1) Limit to top N rows
+    rows_to_show = rows[:20]
+
+    # 2) Build result_data, converting any datetime to "YYYY-MM-DD"
+    result_data = []
+    for row in rows_to_show:
+        row_dict = dict(zip(cols, row))
+        for col_name, value in row_dict.items():
+            if isinstance(value, datetime.datetime):
+                row_dict[col_name] = value.strftime("%Y-%m-%d")
+        result_data.append(row_dict)
+
+    # 3) Optionally sort by detected date-like column
+    date_cols = [c for c in cols if c.lower() in ("timeperiod", "week", "month", "date")]
+    if date_cols:
+        key = date_cols[0]
+        result_data.sort(key=lambda x: x[key])
+
+    # 4) Safe JSON serialization
+    result_json = json.dumps(result_data, default=str, indent=2)
+    print("json.dumps result_data:", result_json)
+
+    # —————————————————————————
+    # Resume your original LLM-prompting logic
+    # —————————————————————————
     result_prompt = (
         f"User asked: {user_prompt}\n\n"
-        f"Context Data:\n{json.dumps(result_data, indent=2)}\n\n"
+        f"Context Data:\n{result_json}\n\n"
         "Based on the query results, format the output in bulleted format. "
         "If the result is numerical or comparative, bullet points for proper indication. If it's categorical or simple, use bullet points. "
         "After formatting, provide a concise business insight related to the data, such as trends, patterns, or key takeaways. Amount is in BDT."
         "If Needed, Based on the Context Data give meaningful business-related suggestions such as increasing sales, revenue."
     )
-
-    print("final result result_prompt ", result_prompt)
-
-    # Let LLM decide on how to format the result: tabular or bulleted
     formatted_result = llm.invoke([{"role": "user", "content": result_prompt}]).content
-    print("formatted_result   ", formatted_result)
     return formatted_result
+
+
+
+
+# def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -> str:
+#     """
+#     Dynamically handle SAP Sales prompts, ensuring correct KQL generation,
+#     and map business area/territory to the correct 'gsber' code.
+#     """
+#     # Check for date-related filters in the user prompt using LLM
+#     start_date, end_date = detect_date_filter_using_llm(user_prompt)
+#     print("start_date from handle",start_date)
+#     if start_date and end_date:
+#         # Format the date range based on the detected filter
+#         start_date_str = start_date.strftime("%Y-%m-%d")
+#         end_date_str = end_date.strftime("%Y-%m-%d")
+
+#         # Add the date range to the prompt
+#         user_prompt += f" from {start_date_str} to {end_date_str}"
+
+#     # If no date range is detected, ask the user for one
+#     else:
+#         user_prompt += " Please specify a date range for the data (e.g., from 2025-01-01 to 2025-12-31)."
+
+#     # Generate raw KQL from the user prompt using LLM
+#     kql = generate_kql(user_prompt)
+
+#     # Print the generated query for debugging
+#     print(f"Generated KQL Query: {kql}")
+
+#     # Format the dates dynamically
+#     kql = format_dates(kql)
+
+#     # Handle known issues like '3mo' to '90d' for date ranges
+#     kql = re.sub(r'ago\(3mo\)', 'ago(90d)', kql, flags=re.I)
+
+#     # Fix unsupported functions like `startofquarter`, replacing with `startofmonth`
+#     kql = re.sub(r'startofquarter\((.*?)\)', r'startofmonth(\1)', kql, flags=re.I)
+
+#     # Dynamically map the business area/territory name to the corresponding gsber code
+#     for territory, gsber_value in GSBER_MAPPING.items():
+#         if territory.lower() in user_prompt.lower():  # If user mentions a territory/business area
+#             # Replace the filter on Territory with gsber for the matching business area
+#             kql = re.sub(r"where Territory == .+?", f"where gsber == '{gsber_value}'", kql)
+#             break  # Once mapped, no need to continue
+
+#     # Detect trend direction (increase or decline) dynamically from the user's prompt
+#     trend = detect_trend(user_prompt)
+
+#     if trend == "declining":
+#         kql = kql.replace("RevenueChange < 0", "RevenueChange < 0")  # Declining trend
+#     elif trend == "increasing":
+#         kql = kql.replace("RevenueChange < 0", "RevenueChange > 0")  # Increasing trend
+#     else:
+#         # For stable or other trends, you can just leave it as it is or do any specific handling
+#         kql = kql.replace("RevenueChange < 0", "RevenueChange == 0")  # Stable trend (no change)
+    
+#     print("before attempt  : {kql}")
+#     # Execute the query and handle retries
+#     for attempt in (1, 2):
+#         try:
+#             cols, rows = adx().run(kql)
+#             break
+#         except KustoApiError as err:
+#             if attempt == 1:
+#                 kql = generate_kql(user_prompt, strict=True)
+#                 print(f" attempt  kql : {kql}")
+#                 continue
+#             # Log the error and return user-friendly feedback.
+#             print(f"Error: {err}")
+#             return "Please refine your query for better results. I’m learning day by day and will help you improve your query."
+#     print(f" final kql : {kql}")
+#     # If no data found, provide feedback
+#     if not rows:
+#         return "No data found matching your criteria. Please refine your query for more specific results."
+#     print ("final cols",cols)
+#     print ("final rows",rows)
+    
+#     # Format datetime columns to strings in result_data
+#     result_data = []
+#     for row in rows[:20]:  # Adjust as needed
+#         row_dict = dict(zip(cols, row))
+#         # Format datetime fields (e.g., TimePeriod) into string format
+#         tp = row_dict.get('TimePeriod')
+#         if isinstance(tp, datetime.datetime):
+#             row_dict['TimePeriod'] = tp.strftime("%Y-%m-%d")
+#         # else leave it alone (it’s already a string label)
+#         result_data.append(row_dict)
+    
+#     print("formatted result_data:", result_data)
+
+#     print(f"json.dumps result_data {json.dumps(result_data, indent=2)}")
+#     result_prompt = (
+#         f"User asked: {user_prompt}\n\n"
+#         f"Context Data:\n{json.dumps(result_data, indent=2)}\n\n"
+#         "Based on the query results, format the output in bulleted format. "
+#         "If the result is numerical or comparative, bullet points for proper indication. If it's categorical or simple, use bullet points. "
+#         "After formatting, provide a concise business insight related to the data, such as trends, patterns, or key takeaways. Amount is in BDT."
+#         "If Needed, Based on the Context Data give meaningful business-related suggestions such as increasing sales, revenue."
+#     )
+
+#     print("final result result_prompt ", result_prompt)
+
+#     # Let LLM decide on how to format the result: tabular or bulleted
+#     formatted_result = llm.invoke([{"role": "user", "content": result_prompt}]).content
+#     print("formatted_result   ", formatted_result)
+#     return formatted_result
