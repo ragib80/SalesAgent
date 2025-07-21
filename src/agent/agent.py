@@ -150,6 +150,9 @@ def _extract_kql(raw: str) -> str:
 
 #     return _extract_kql(response)
 
+# compile once
+MTD_RE = re.compile(r'\b(?:mtd|month[- ]to[- ]date)\b', re.IGNORECASE)
+YTD_RE = re.compile(r'\b(?:ytd|year[- ]to[- ]date)\b', re.IGNORECASE)
 def generate_kql(user_req: str, strict=False) -> str:
     # Start with the base prompt for LLM
     prompt = SYSTEM_PROMPT_KQL
@@ -157,7 +160,8 @@ def generate_kql(user_req: str, strict=False) -> str:
         prompt += "\n\nSTRICT MODE: previous query failed. Return corrected KQL only."
     
     # Detect if the user is asking for MTD sales or growth
-    if "MTD" in user_req or "Month-to-Date" in user_req:
+    # if "MTD" in user_req or "Month-to-Date" in user_req:
+    if MTD_RE.search(user_req):
         prompt += """
         Instruction:
         - The user is asking for MTD (Month-to-Date) growth. Please calculate the MTD growth using the following formula:
@@ -181,38 +185,8 @@ def generate_kql(user_req: str, strict=False) -> str:
         """
 
 
-    # Detect if the user is asking for YTD sales or growth
     # elif "YTD" in user_req or "Year-to-Date" in user_req:
-    #     prompt += """
-    #     Instruction:
-    #     - Fiscal year runs April 1 → March 31.
-    #     - Compute YTD through the **last day of the previous month**:
-    #         let FiscalYearStart = datetime(YYYY-04-01);
-    #         let AsOfDate        = startofmonth(now()) - 1d;
-    #     - Pull two scalars with `toscalar(...)`:
-    #         let CYRevenue = toscalar(
-    #         SAPSalesInfos
-    #         | where fkdat between (FiscalYearStart .. AsOfDate)
-    #         | summarize sum(Revenue)
-    #         );
-    #         let LYRevenue = toscalar(
-    #         SAPSalesInfos
-    #         | where fkdat between (datetime_add('year', -1, FiscalYearStart) .. datetime_add('year', -1, AsOfDate))
-    #         | summarize sum(Revenue)
-    #         );
-    #     - Emit three real‐typed scalars with `print`—using `real(null)` for any missing data:
-    #         print YTDGrowth = iff(isnull(CYRevenue) or isnull(LYRevenue), real(null), (CYRevenue - LYRevenue) / LYRevenue * 100),
-    #             CYRevenue   = iff(isnull(CYRevenue), real(null), CYRevenue),
-    #             LYRevenue   = iff(isnull(LYRevenue), real(null), LYRevenue)
-    #     - Then immediately `extend` two new string columns:
-    #         | extend 
-    #             ErrorMessage = iff(isnull(YTDGrowth), "Error: missing CY or LY revenue", ""),
-    #             GrowthType   = iff(isnull(YTDGrowth), "N/A", iff(YTDGrowth > 0, "positive growth", "negative growth"))
-    #     - Do **not** rely on default names like `print_1` or `print_2`.
-    #     """
-    #     prompt += f"\n\nUser request: {user_req}"
-
-    elif "YTD" in user_req or "Year-to-Date" in user_req:
+    elif YTD_RE.search(user_req):
         prompt += """
         Instruction:
         - Fiscal year runs April 1 → March 31.
