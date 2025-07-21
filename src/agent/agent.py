@@ -140,6 +140,68 @@ def _extract_kql(raw: str) -> str:
     raw = raw.strip("`").replace("\\n", "\n").replace("\\r", "").replace("\\t", "\t")
     return raw.replace("SAPSalesInfos", TABLE_NAME).strip()
 
+
+# def build_trend_kql(start: str, end: str, dim_col: str, top_n: int = 5) -> str:
+#     return f"""
+# // 1) input dates
+# let StartDate         = datetime({start});
+# let EndDate           = datetime({end});
+# // if only one month… previous month window
+# let PreviousStartDate = startofmonth(StartDate - 1d);
+# let PreviousEndDate   = endofmonth(PreviousStartDate);
+
+# // 2) roll up by month & dimension
+# let Monthly = {TABLE_NAME}
+# | where fkdat between (PreviousStartDate .. EndDate)
+# | summarize Revenue = sum(Revenue)
+#     by Period = startofmonth(fkdat), {dim_col};
+
+# // 3) compute growth
+# let Growth = Monthly
+# | summarize
+#     PrevRev = anyif(Revenue, Period == PreviousStartDate),
+#     CurrRev = anyif(Revenue, Period == StartDate)
+#   by {dim_col}
+# | extend GrowthPct = iff(PrevRev == 0, real(null), (CurrRev - PrevRev)*100.0/PrevRev)
+# | order by GrowthPct desc
+# | take {top_n};
+
+# // 4) output
+# Growth
+# """.strip()
+
+def build_trend_kql(start: str, end: str, dim_col: str, top_n: int = 5) -> str:
+    return f"""
+// 1) input dates
+let StartDate         = datetime({start});
+let EndDate           = datetime({end});
+// if only one month… previous month window
+let PreviousStartDate = startofmonth(StartDate - 1d);
+let PreviousEndDate   = endofmonth(PreviousStartDate);
+
+// 2) roll up by month & dimension
+let Monthly = {TABLE_NAME}
+| where fkdat between (PreviousStartDate .. EndDate)
+| summarize Revenue = sum(Revenue)
+    by Period = startofmonth(fkdat), {dim_col};
+
+// 3) compute growth and trend type
+let Growth = Monthly
+| summarize
+    PrevRev = anyif(Revenue, Period == PreviousStartDate),
+    CurrRev = anyif(Revenue, Period == StartDate)
+  by {dim_col}
+| extend 
+    GrowthPct = iff(PrevRev == 0, real(null), (CurrRev - PrevRev)*100.0/PrevRev),
+    TrendType = iff(CurrRev < PrevRev, "down trend", "up trend")
+| order by GrowthPct desc
+| take {top_n};
+
+// 4) output
+Growth
+""".strip()
+
+
 # def generate_kql(user_req: str, strict=False) -> str:
 #     prompt = SYSTEM_PROMPT_KQL
 #     if strict:
@@ -153,6 +215,14 @@ def _extract_kql(raw: str) -> str:
 # compile once
 MTD_RE = re.compile(r'\b(?:mtd|month[- ]to[- ]date)\b', re.IGNORECASE)
 YTD_RE = re.compile(r'\b(?:ytd|year[- ]to[- ]date)\b', re.IGNORECASE)
+
+
+# lower-case keys for matching
+FIELD_MAP_LOWER = {k.lower(): v for k, v in FIELD_MAPPINGS.items()}
+
+TREND_RE     = re.compile(r'\b(?:up[- ]?trending|trending)\b', re.IGNORECASE)
+EXCLUDE_KEYS = {"revenue", "quantity", "volume", "date", "fkdat"}
+
 def generate_kql(user_req: str, strict=False) -> str:
     # Start with the base prompt for LLM
     prompt = SYSTEM_PROMPT_KQL
@@ -221,6 +291,34 @@ def generate_kql(user_req: str, strict=False) -> str:
         - If either scalar is null, return an appropriate error via `ErrorMessage`.
         """
         prompt += f"\n\nUser request: {user_req}"
+
+     # ————— Up-Trending branch ——————————————————
+    elif TREND_RE.search(user_req):
+        # 1. Extract dates (you already append "from YYYY-MM-DD to YYYY-MM-DD")
+        m = re.search(r'from (\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})', user_req)
+        if m:
+            start_date, end_date = m.groups()
+        else:
+            # fallback: last full month YTD
+            now = datetime.datetime.now()
+            last_month_end = now.replace(day=1) - datetime.timedelta(days=1)
+            start_date = f"{last_month_end.year}-{last_month_end.month:02d}-01"
+            end_date   = f"{last_month_end.year}-{last_month_end.month:02d}-{last_month_end.day:02d}"
+
+        # 2. Pick the dimension column
+        lowered = user_req.lower()
+        dim_key = next(
+            (k for k in FIELD_MAP_LOWER if k in lowered and k not in EXCLUDE_KEYS),
+            "product"
+        )
+        dim_col = FIELD_MAP_LOWER[dim_key]
+
+        # 3. Build & return the deterministic KQL
+        return build_trend_kql(start_date, end_date, dim_col, top_n=20)
+
+
+
+
 
 
     
