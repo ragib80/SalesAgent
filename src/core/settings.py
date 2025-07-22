@@ -120,6 +120,18 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+    },
+    'data_import': {
+        'ENGINE': 'mssql',
+        'NAME': os.getenv('DB_NAME', 'default_db_name'),  # default fallback value
+        'HOST': os.getenv('DB_HOST', 'localhost'),  # default fallback value
+        'PORT': os.getenv('DB_PORT', ''),  # Use default port if not specified
+        'USER': os.getenv('DB_USER', ''),  # Optional, if your SQL Server uses authentication
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),  # Optional, if your SQL Server uses authentication
+        'OPTIONS': {
+            'driver': os.getenv('DB_DRIVER', 'ODBC Driver 17 for SQL Server'),  # Default driver if not specified
+            'extra_params': os.getenv('DB_EXTRA_PARAMS', 'Trusted_Connection=yes;TrustServerCertificate=yes'),
+        },
     }
 }
 
@@ -178,6 +190,19 @@ AZURE_OPENAI_DEPLOYMENT = os.getenv('AZURE_OPENAI_DEPLOYMENT')
 AZURE_OPENAI_EMBED_DEPLOYMENT = os.getenv('AZURE_OPENAI_EMBED_DEPLOYMENT')
 ADX_CLUSTER = os.getenv('ADX_CLUSTER')
 ADX_DATABASE = os.getenv('ADX_DATABASE')
+
+ADX_CLUSTER_DEV = os.getenv('ADX_CLUSTER_DEV')
+ADX_DATABASE_DEV = os.getenv('ADX_DATABASE_DEV')
+
+#ms sql
+DB_ENGINE       = os.getenv('DB_ENGINE', 'mssql')
+DB_NAME         = os.getenv('DB_NAME')
+DB_HOST         = os.getenv('DB_HOST')
+DB_PORT         = os.getenv('DB_PORT', '')             # '' will let driver pick default
+DB_USER         = os.getenv('DB_USER', '')
+DB_PASSWORD     = os.getenv('DB_PASSWORD', '')
+DB_DRIVER       = os.getenv('DB_DRIVER', 'ODBC Driver 17 for SQL Server')
+DB_EXTRA_PARAMS = os.getenv('DB_EXTRA_PARAMS', 'Trusted_Connection=yes;TrustServerCertificate=yes')
 
 
 JAZZMIN_SETTINGS = {
