@@ -1,0 +1,236 @@
+2025-07-22 18:13:28,868 - AzureCliCredential.get_token succeeded
+2025-07-22 18:15:27,867 - AzureCliCredential.get_token succeeded
+2025-07-22 18:15:28,271 - Data for watermark 2025-06-01 already exists in ADX. Skipping ingestion.
+2025-07-22 18:39:51,612 - Data for watermark 2025-06-01 00:00:00 already exists. Skipping ingestion.
+2025-07-22 18:46:05,382 - Data for watermark 2025-02-14 00:00:00 already exists. Skipping ingestion.
+2025-07-23 15:41:21,437 - Generated Blob SAS URL: https://bpblaistorageaccount.blob.core.windows.net/aicontainer/sales_data_2025-07-15 00:00:00.csv?se=2025-07-23T10%3A00%3A00Z&sp=rw&sv=2022-11-02&sr=b&sig=pTGnPScZbt0RCexEZoRxR9LwGLcxBgUfhojRvmj7bpA%3D
+2025-07-23 15:41:21,437 - Attempting to upload file to Blob: C:\Users\ragib\AppData\Local\Temp\2\tmpo6v0z7xe.csv
+2025-07-23 15:45:40,118 - Generated Blob SAS URL: https://bpblaistorageaccount.blob.core.windows.net/aicontainer/sales_data_2025-07-15 00:00:00.csv?se=2025-07-23T10%3A00%3A00Z&sp=rw&sv=2022-11-02&sr=b&sig=pTGnPScZbt0RCexEZoRxR9LwGLcxBgUfhojRvmj7bpA%3D
+2025-07-23 15:45:40,118 - Attempting to upload file to Blob: C:\Users\ragib\AppData\Local\Temp\2\tmp7f9oucx0.csv
+2025-07-23 15:45:40,154 - Request URL: 'https://bpblaistorageaccount.blob.core.windows.net/aicontainer/sales_data_2025-07-15%2000%3A00%3A00.csv'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '25574735'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.23.0 Python/3.12.10 (Windows-2019Server-10.0.17763-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'cb023b44-67a9-11f0-ac41-002248598cfa'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+2025-07-23 15:45:40,520 - Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Wed, 23 Jul 2025 09:45:40 GMT'
+    'ETag': '"0x8DDC9CDAF6CF13A"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': 'a00edca7-601e-0017-67b6-fb7808000000'
+    'x-ms-client-request-id': 'cb023b44-67a9-11f0-ac41-002248598cfa'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Wed, 23 Jul 2025 09:45:40 GMT'
+2025-07-23 15:45:40,520 - File uploaded successfully to Blob Storage.
+2025-07-23 15:45:49,223 - AzureCliCredential.get_token succeeded
+2025-07-23 15:45:59,309 - Request URL: 'https://gg4virtualdms.z6.blob.storage.azure.net/kvc3c80nj0an13uznjjr7-20250723-ingestdata-e5c334ee145d4b4-0/MyDatabase__YSales__8c9b6d76-2734-4bb3-99c1-025426c01e9f__tmp7f9oucx0.csv.gz?timeout=REDACTED&sv=REDACTED&st=REDACTED&se=REDACTED&sr=REDACTED&sp=REDACTED&sig=REDACTED'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '3257895'
+    'x-ms-blob-type': 'REDACTED'
+    'If-None-Match': '*'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.23.0 Python/3.12.10 (Windows-2019Server-10.0.17763-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'd66d148f-67a9-11f0-b5c9-002248598cfa'
+A body is sent with the request
+2025-07-23 15:46:00,851 - Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Wed, 23 Jul 2025 09:46:00 GMT'
+    'ETag': '"0x8DDC9CDBB855F37"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': 'cfd1a617-001e-0076-3bb6-fb35dd000000'
+    'x-ms-client-request-id': 'd66d148f-67a9-11f0-b5c9-002248598cfa'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Wed, 23 Jul 2025 09:46:00 GMT'
+2025-07-23 15:46:01,017 - Request URL: 'https://gg4virtualdms.z6.queue.storage.azure.net/kvc3c80nj0an13uznjjr7-aggregatorinput-secured/messages?timeout=REDACTED&sv=REDACTED&st=REDACTED&se=REDACTED&sp=REDACTED&sig=REDACTED'
+Request method: 'POST'
+Request headers:
+    'Content-Length': '4555'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/xml'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-queue/12.12.0 Python/3.12.10 (Windows-2019Server-10.0.17763-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'd771caf1-67a9-11f0-9aa6-002248598cfa'
+A body is sent with the request
+2025-07-23 15:46:01,403 - Response status: 201
+Response headers:
+    'Transfer-Encoding': 'chunked'
+    'Content-Type': 'application/xml'
+    'Server': 'Windows-Azure-Queue/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '29f6b9d1-0003-0082-62b6-fbfe2b000000'
+    'x-ms-client-request-id': 'd771caf1-67a9-11f0-9aa6-002248598cfa'
+    'x-ms-version': 'REDACTED'
+    'Date': 'Wed, 23 Jul 2025 09:46:00 GMT'
+2025-07-23 15:53:19,568 - Data for watermark 2025-02-14 00:00:00 already exists. Skipping ingestion.
+2025-07-23 15:53:47,481 - Generated Blob SAS URL: https://bpblaistorageaccount.blob.core.windows.net/aicontainer/sales_data_2025-02-14 00:00:00.csv?se=2025-07-23T10%3A00%3A00Z&sp=rw&sv=2022-11-02&sr=b&sig=pTGnPScZbt0RCexEZoRxR9LwGLcxBgUfhojRvmj7bpA%3D
+2025-07-23 15:53:47,481 - Attempting to upload file to Blob: C:\Users\ragib\AppData\Local\Temp\2\tmpve6kqffd.csv
+2025-07-23 15:53:47,520 - Request URL: 'https://bpblaistorageaccount.blob.core.windows.net/aicontainer/sales_data_2025-02-14%2000%3A00%3A00.csv'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '40520697'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.23.0 Python/3.12.10 (Windows-2019Server-10.0.17763-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'ed80735f-67aa-11f0-a2b8-002248598cfa'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+2025-07-23 15:53:47,910 - Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Wed, 23 Jul 2025 09:53:47 GMT'
+    'ETag': '"0x8DDC9CED1EEE088"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '827c22d6-301e-001a-18b7-fbb0dc000000'
+    'x-ms-client-request-id': 'ed80735f-67aa-11f0-a2b8-002248598cfa'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Wed, 23 Jul 2025 09:53:47 GMT'
+2025-07-23 15:53:47,910 - File uploaded successfully to Blob Storage.
+2025-07-23 15:53:49,860 - AzureCliCredential.get_token succeeded
+2025-07-23 15:53:51,724 - Request URL: 'https://gg4virtualdms.z6.blob.storage.azure.net/kvc3c80nj0an13uznjjr7-20250723-ingestdata-e5c334ee145d4b4-0/MyDatabase__YSales__06a31642-8cc3-4bec-a83e-fe4afbc272dc__tmpve6kqffd.csv.gz?timeout=REDACTED&sv=REDACTED&st=REDACTED&se=REDACTED&sr=REDACTED&sp=REDACTED&sig=REDACTED'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '3667879'
+    'x-ms-blob-type': 'REDACTED'
+    'If-None-Match': '*'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.23.0 Python/3.12.10 (Windows-2019Server-10.0.17763-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'f001eca2-67aa-11f0-959a-002248598cfa'
+A body is sent with the request
+2025-07-23 15:53:53,242 - Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Wed, 23 Jul 2025 09:53:53 GMT'
+    'ETag': '"0x8DDC9CED5182546"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '52074b23-601e-005f-7fb7-fb0ba9000000'
+    'x-ms-client-request-id': 'f001eca2-67aa-11f0-959a-002248598cfa'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Wed, 23 Jul 2025 09:53:52 GMT'
+2025-07-23 15:53:53,369 - Request URL: 'https://gg4virtualdms.z6.queue.storage.azure.net/kvc3c80nj0an13uznjjr7-aggregatorinput-secured/messages?timeout=REDACTED&sv=REDACTED&st=REDACTED&se=REDACTED&sp=REDACTED&sig=REDACTED'
+Request method: 'POST'
+Request headers:
+    'Content-Length': '4555'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/xml'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-queue/12.12.0 Python/3.12.10 (Windows-2019Server-10.0.17763-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'f0fcfbdc-67aa-11f0-80f8-002248598cfa'
+A body is sent with the request
+2025-07-23 15:53:53,790 - Response status: 201
+Response headers:
+    'Transfer-Encoding': 'chunked'
+    'Content-Type': 'application/xml'
+    'Server': 'Windows-Azure-Queue/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': 'c6003f61-c003-0069-20b7-fb86d9000000'
+    'x-ms-client-request-id': 'f0fcfbdc-67aa-11f0-80f8-002248598cfa'
+    'x-ms-version': 'REDACTED'
+    'Date': 'Wed, 23 Jul 2025 09:53:52 GMT'
+2025-07-23 16:01:08,624 - Generated Blob SAS URL: https://bpblaistorageaccount.blob.core.windows.net/aicontainer/sales_data_2025-02-28 00:00:00.csv?se=2025-07-23T10%3A00%3A00Z&sp=rw&sv=2022-11-02&sr=b&sig=pTGnPScZbt0RCexEZoRxR9LwGLcxBgUfhojRvmj7bpA%3D
+2025-07-23 16:01:08,624 - Attempting to upload file to Blob: C:\Users\ragib\AppData\Local\Temp\2\tmp2tdhx2bl.csv
+2025-07-23 16:01:08,700 - Request URL: 'https://bpblaistorageaccount.blob.core.windows.net/aicontainer/sales_data_2025-02-28%2000%3A00%3A00.csv'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '55248759'
+    'x-ms-blob-type': 'REDACTED'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.23.0 Python/3.12.10 (Windows-2019Server-10.0.17763-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'f4770278-67ab-11f0-abc2-002248598cfa'
+    'Authorization': 'REDACTED'
+A body is sent with the request
+2025-07-23 16:01:09,279 - Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Wed, 23 Jul 2025 10:01:09 GMT'
+    'ETag': '"0x8DDC9CFD901EF70"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '3ffa50df-901e-0061-26b8-fbf240000000'
+    'x-ms-client-request-id': 'f4770278-67ab-11f0-abc2-002248598cfa'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Wed, 23 Jul 2025 10:01:08 GMT'
+2025-07-23 16:01:09,285 - File uploaded successfully to Blob Storage.
+2025-07-23 16:01:11,308 - AzureCliCredential.get_token succeeded
+2025-07-23 16:01:13,832 - Request URL: 'https://gg4virtualdms.z6.blob.storage.azure.net/kvc3c80nj0an13uznjjr7-20250723-ingestdata-e5c334ee145d4b4-0/MyDatabase__YSales__32a5cb4b-40da-4141-b079-42ee093ae6a1__tmp2tdhx2bl.csv.gz?timeout=REDACTED&sv=REDACTED&st=REDACTED&se=REDACTED&sr=REDACTED&sp=REDACTED&sig=REDACTED'
+Request method: 'PUT'
+Request headers:
+    'Content-Length': '4922942'
+    'x-ms-blob-type': 'REDACTED'
+    'If-None-Match': '*'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/octet-stream'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-blob/12.23.0 Python/3.12.10 (Windows-2019Server-10.0.17763-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'f7863d7b-67ab-11f0-a2cd-002248598cfa'
+A body is sent with the request
+2025-07-23 16:01:15,610 - Response status: 201
+Response headers:
+    'Content-Length': '0'
+    'Content-MD5': 'REDACTED'
+    'Last-Modified': 'Wed, 23 Jul 2025 10:01:15 GMT'
+    'ETag': '"0x8DDC9CFDCC3954A"'
+    'Server': 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '520a8099-601e-005f-7eb8-fb0ba9000000'
+    'x-ms-client-request-id': 'f7863d7b-67ab-11f0-a2cd-002248598cfa'
+    'x-ms-version': 'REDACTED'
+    'x-ms-content-crc64': 'REDACTED'
+    'x-ms-request-server-encrypted': 'REDACTED'
+    'Date': 'Wed, 23 Jul 2025 10:01:15 GMT'
+2025-07-23 16:01:15,721 - Request URL: 'https://gg4virtualdms.z6.queue.storage.azure.net/kvc3c80nj0an13uznjjr7-aggregatorinput-secured/messages?timeout=REDACTED&sv=REDACTED&st=REDACTED&se=REDACTED&sp=REDACTED&sig=REDACTED'
+Request method: 'POST'
+Request headers:
+    'Content-Length': '4563'
+    'x-ms-version': 'REDACTED'
+    'Content-Type': 'application/xml'
+    'Accept': 'application/xml'
+    'User-Agent': 'azsdk-python-storage-queue/12.12.0 Python/3.12.10 (Windows-2019Server-10.0.17763-SP0)'
+    'x-ms-date': 'REDACTED'
+    'x-ms-client-request-id': 'f8a6749c-67ab-11f0-8be1-002248598cfa'
+A body is sent with the request
+2025-07-23 16:01:16,117 - Response status: 201
+Response headers:
+    'Transfer-Encoding': 'chunked'
+    'Content-Type': 'application/xml'
+    'Server': 'Windows-Azure-Queue/1.0 Microsoft-HTTPAPI/2.0'
+    'x-ms-request-id': '200ee93f-c003-001b-70b8-fb8196000000'
+    'x-ms-client-request-id': 'f8a6749c-67ab-11f0-8be1-002248598cfa'
+    'x-ms-version': 'REDACTED'
+    'Date': 'Wed, 23 Jul 2025 10:01:15 GMT'

@@ -1,5 +1,6 @@
 import os
 import requests
+import logging
 from dotenv import load_dotenv
 import pyodbc
 import tempfile
@@ -25,8 +26,15 @@ from azure.kusto.ingest import (
 
 from sales_analyzer.models import DataIngestionTracker  
 
+# Azure Blob Storage imports
+from azure.storage.blob import BlobServiceClient  # <-- This import is missing
+
 # Load environment variables from .env
 load_dotenv()
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, filename="ingestion_log.log", format="%(asctime)s - %(message)s")
+logger = logging.getLogger()
 
 class ADXTool:
     def __init__(self, cluster: str, database: str):
@@ -106,8 +114,8 @@ class Command(BaseCommand):
             parts.append(extra)
 
         # Final connection string
-        start_date = '2025-06-01'
-        end_date = '2025-06-15'
+        start_date = '2025-02-16'
+        end_date = '2025-02-28'
         conn_str = ";".join(parts)
         self.stdout.write(f"Connecting with: {conn_str}")
 
@@ -129,7 +137,33 @@ class Command(BaseCommand):
 
         # ─── UPDATE WATERMARK ───────────────────────────────────────────────────
         new_watermark = max(r.FKDAT_TEMP for r in rows)
-        DataIngestionTracker.objects.create(last_ingested_timestamp=new_watermark)
+
+        # Retrieve the last ingested timestamp from the tracker
+        try:
+            last_ingested_timestamp = DataIngestionTracker.objects.latest('created_at').last_ingested_timestamp
+        except DataIngestionTracker.DoesNotExist:
+            last_ingested_timestamp = None
+        
+        # Convert `new_watermark` to datetime if it's a string
+        if isinstance(new_watermark, str):
+            new_watermark = datetime.fromisoformat(new_watermark)
+
+        # Ensure `last_ingested_timestamp` is a datetime object
+        if isinstance(last_ingested_timestamp, str):
+            last_ingested_timestamp = datetime.fromisoformat(last_ingested_timestamp)
+
+        # Convert both to naive datetime (strip timezone if present)
+        if new_watermark.tzinfo is not None:
+            new_watermark = new_watermark.replace(tzinfo=None)
+
+        if last_ingested_timestamp.tzinfo is not None:
+            last_ingested_timestamp = last_ingested_timestamp.replace(tzinfo=None)
+
+        # Now safely compare both naive datetime objects
+        # if last_ingested_timestamp and new_watermark <= last_ingested_timestamp:
+        #     logger.warning(f"Data for watermark {new_watermark} already exists. Skipping ingestion.")
+        #     self.stdout.write(self.style.WARNING(f"Data for watermark {new_watermark} already exists."))
+        #     return
 
         # ─── DUMP TO CSV & STAGE IN BLOB ────────────────────────────────────────
         with tempfile.NamedTemporaryFile(delete=False, mode="w", newline="", suffix=".csv") as tmp:
@@ -151,28 +185,46 @@ class Command(BaseCommand):
         file_name = f"sales_data_{new_watermark}.csv"
         
         # Construct SAS URL with the dynamic filename
-        blob_sas_url = f"https://bpblaistorageaccount.blob.core.windows.net/aicontainer/{file_name}?se=2025-07-23T10%3A00%3A00Z&sp=r&sv=2022-11-02&sr=b&sig=pTGnPScZbt0RCexEZoRxR9LwGLcxBgUfhojRvmj7bpA%3D"
+        blob_sas_url = f"https://bpblaistorageaccount.blob.core.windows.net/aicontainer/{file_name}?se=2025-07-23T10%3A00%3A00Z&sp=rw&sv=2022-11-02&sr=b&sig=pTGnPScZbt0RCexEZoRxR9LwGLcxBgUfhojRvmj7bpA%3D"
         
-        # Download the file to a temporary local path
-        response = requests.get(blob_sas_url)
-        if response.status_code == 200:
-            with open(tmp_path, "wb") as f:
-                f.write(response.content)
-            self.stdout.write(self.style.SUCCESS(f"Downloaded file to {tmp_path}"))
+        # Log the SAS URL being generated
+        logger.info(f"Generated Blob SAS URL: {blob_sas_url}")
+
+        # Check if the file is saved correctly on disk
+        self.stdout.write(self.style.SUCCESS(f"File saved to: {tmp_path}"))
+        if os.path.exists(tmp_path):
+            self.stdout.write(self.style.SUCCESS(f"File exists at {tmp_path}"))
         else:
-            self.stdout.write(self.style.ERROR(f"Failed to download the file: {response.status_code}"))
+            self.stdout.write(self.style.ERROR(f"File does not exist at {tmp_path}"))
             return
 
-        # ─── INGEST THE FILE FROM LOCAL PATH INTO ADX ─────────────────────────
-        ingest_client = QueuedIngestClient(
-            KustoConnectionStringBuilder.with_az_cli_authentication(adx_cluster)
-        )
-        ingestion_props = IngestionProperties(
-            database=adx_db,
-            table="YSales",
-            data_format=DataFormat.CSV  # Using DataFormat from azure.kusto.data
-        )
-        file_desc = FileDescriptor(tmp_path, 0)
-        ingest_client.ingest_from_file(file_desc, ingestion_properties=ingestion_props)
+        # ─── LOGGING: DOWNLOAD THE FILE TO LOCAL PATH ────────────────────────
+        # Log when attempting to upload to Blob Storage
+        logger.info(f"Attempting to upload file to Blob: {tmp_path}")
 
-        self.stdout.write(self.style.SUCCESS("✓ Data successfully staged and ingested into ADX."))
+        # Upload the file to Blob Storage
+        with open(tmp_path, "rb") as data:
+            blob_cli = BlobServiceClient.from_connection_string(os.getenv("AZURE_STORAGE_CONNECTION_STRING")).get_container_client("aicontainer").get_blob_client(file_name)
+            blob_cli.upload_blob(data, overwrite=True)
+            logger.info(f"File uploaded successfully to Blob Storage.")
+        
+        # ─── INGEST THE FILE FROM LOCAL PATH INTO ADX ─────────────────────────
+        try:
+            ingest_client = QueuedIngestClient(
+                KustoConnectionStringBuilder.with_az_cli_authentication(adx_cluster)
+            )
+            ingestion_props = IngestionProperties(
+                database=adx_db,
+                table="YSales",
+                data_format=DataFormat.CSV  # Using DataFormat from azure.kusto.data
+            )
+            file_desc = FileDescriptor(tmp_path, 0)
+            ingest_client.ingest_from_file(file_desc, ingestion_properties=ingestion_props)
+
+            # Update the DataIngestionTracker with the new watermark
+            DataIngestionTracker.objects.create(last_ingested_timestamp=new_watermark)
+
+            self.stdout.write(self.style.SUCCESS("✓ Data successfully staged and ingested into ADX."))
+        except Exception as e:
+            logger.error(f"Failed to ingest data: {str(e)}")
+            self.stdout.write(self.style.ERROR(f"Failed to ingest data: {str(e)}"))
