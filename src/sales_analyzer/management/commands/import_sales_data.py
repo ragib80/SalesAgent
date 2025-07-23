@@ -27,7 +27,7 @@ from azure.kusto.ingest import (
 from sales_analyzer.models import DataIngestionTracker  
 
 # Azure Blob Storage imports
-from azure.storage.blob import BlobServiceClient  # <-- This import is missing
+from azure.storage.blob import BlobServiceClient  # <-- Import for Blob service
 
 # Load environment variables from .env
 load_dotenv()
@@ -114,8 +114,8 @@ class Command(BaseCommand):
             parts.append(extra)
 
         # Final connection string
-        start_date = '2025-02-16'
-        end_date = '2025-02-28'
+        start_date = '2025-03-01'
+        end_date = '2025-03-10'
         conn_str = ";".join(parts)
         self.stdout.write(f"Connecting with: {conn_str}")
 
@@ -160,10 +160,10 @@ class Command(BaseCommand):
             last_ingested_timestamp = last_ingested_timestamp.replace(tzinfo=None)
 
         # Now safely compare both naive datetime objects
-        # if last_ingested_timestamp and new_watermark <= last_ingested_timestamp:
-        #     logger.warning(f"Data for watermark {new_watermark} already exists. Skipping ingestion.")
-        #     self.stdout.write(self.style.WARNING(f"Data for watermark {new_watermark} already exists."))
-        #     return
+        if last_ingested_timestamp and new_watermark <= last_ingested_timestamp:
+            logger.warning(f"Data for watermark {new_watermark} already exists. Skipping ingestion.")
+            self.stdout.write(self.style.WARNING(f"Data for watermark {new_watermark} already exists."))
+            return
 
         # ─── DUMP TO CSV & STAGE IN BLOB ────────────────────────────────────────
         with tempfile.NamedTemporaryFile(delete=False, mode="w", newline="", suffix=".csv") as tmp:
@@ -180,35 +180,26 @@ class Command(BaseCommand):
             tmp_path = tmp.name
         conn.close()
 
-        # ─── DOWNLOAD FILE FROM BLOB STORAGE USING SAS URL ────────────────────
-        # Dynamically create the filename based on the current date or watermark
+        # ─── CHECK IF FILE ALREADY EXISTS IN BLOB STORAGE ────────────────────
         file_name = f"sales_data_{new_watermark}.csv"
-        
-        # Construct SAS URL with the dynamic filename
         blob_sas_url = f"https://bpblaistorageaccount.blob.core.windows.net/aicontainer/{file_name}?se=2025-07-23T10%3A00%3A00Z&sp=rw&sv=2022-11-02&sr=b&sig=pTGnPScZbt0RCexEZoRxR9LwGLcxBgUfhojRvmj7bpA%3D"
         
-        # Log the SAS URL being generated
-        logger.info(f"Generated Blob SAS URL: {blob_sas_url}")
-
-        # Check if the file is saved correctly on disk
-        self.stdout.write(self.style.SUCCESS(f"File saved to: {tmp_path}"))
-        if os.path.exists(tmp_path):
-            self.stdout.write(self.style.SUCCESS(f"File exists at {tmp_path}"))
-        else:
-            self.stdout.write(self.style.ERROR(f"File does not exist at {tmp_path}"))
+        # Check if the file already exists in Blob Storage
+        blob_svc = BlobServiceClient.from_connection_string(os.getenv("AZURE_STORAGE_CONNECTION_STRING"))
+        container_client = blob_svc.get_container_client("aicontainer")
+        blob_client = container_client.get_blob_client(file_name)
+        
+        if blob_client.exists():
+            logger.warning(f"File {file_name} already exists in Blob Storage. Skipping upload.")
+            self.stdout.write(self.style.WARNING(f"File {file_name} already exists in Blob Storage. Skipping upload."))
             return
 
-        # ─── LOGGING: DOWNLOAD THE FILE TO LOCAL PATH ────────────────────────
-        # Log when attempting to upload to Blob Storage
-        logger.info(f"Attempting to upload file to Blob: {tmp_path}")
-
-        # Upload the file to Blob Storage
+        # ─── UPLOAD FILE TO BLOB STORAGE ──────────────────────────────────────
         with open(tmp_path, "rb") as data:
-            blob_cli = BlobServiceClient.from_connection_string(os.getenv("AZURE_STORAGE_CONNECTION_STRING")).get_container_client("aicontainer").get_blob_client(file_name)
-            blob_cli.upload_blob(data, overwrite=True)
+            blob_client.upload_blob(data, overwrite=True)
             logger.info(f"File uploaded successfully to Blob Storage.")
         
-        # ─── INGEST THE FILE FROM LOCAL PATH INTO ADX ─────────────────────────
+        # ─── INGEST THE FILE INTO ADX ─────────────────────────────────────────
         try:
             ingest_client = QueuedIngestClient(
                 KustoConnectionStringBuilder.with_az_cli_authentication(adx_cluster)
