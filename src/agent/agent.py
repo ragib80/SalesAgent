@@ -170,7 +170,7 @@ def _extract_kql(raw: str) -> str:
 # Growth
 # """.strip()
 
-def build_trend_kql(start: str, end: str, dim_col: str, top_n: int = 5) -> str:
+def build_trend_kql(start: str, end: str, dim_col: str, top_n: int = 60) -> str:
     return f"""
 // 1) input dates
 let StartDate         = datetime({start});
@@ -202,6 +202,23 @@ Growth
 """.strip()
 
 
+def build_multi_month_revenue_kql(start: str, end: str, dim_col: str) -> str:
+    return f"""
+// 1) Input dates
+let StartDate = datetime({start});
+let EndDate   = datetime({end});
+
+// 2) Revenue by month & dimension
+{TABLE_NAME}
+| where fkdat between (StartDate .. EndDate)
+| extend Period = startofmonth(fkdat)
+| summarize Revenue = sum(Revenue) by Period, {dim_col}
+
+// 3) Order for easy trend inspection
+| order by Period asc, Revenue desc
+""".strip()
+
+
 # def generate_kql(user_req: str, strict=False) -> str:
 #     prompt = SYSTEM_PROMPT_KQL
 #     if strict:
@@ -216,6 +233,7 @@ Growth
 MTD_RE = re.compile(r'\b(?:mtd|month[- ]to[- ]date)\b', re.IGNORECASE)
 YTD_RE = re.compile(r'\b(?:ytd|year[- ]to[- ]date)\b', re.IGNORECASE)
 
+CONTRIBUTION_RE = re.compile(r'\b(contribution of|contribution from)\b', re.IGNORECASE)
 
 # lower-case keys for matching
 FIELD_MAP_LOWER = {k.lower(): v for k, v in FIELD_MAPPINGS.items()}
@@ -293,19 +311,42 @@ def generate_kql(user_req: str, strict=False) -> str:
         prompt += f"\n\nUser request: {user_req}"
 
      # ————— Up-Trending branch ——————————————————
+    # elif TREND_RE.search(user_req):
+    #     # 1. Extract dates (you already append "from YYYY-MM-DD to YYYY-MM-DD")
+    #     m = re.search(r'from (\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})', user_req)
+    #     if m:
+    #         start_date, end_date = m.groups()
+    #     else:
+    #         # fallback: last full month YTD
+    #         now = datetime.datetime.now()
+    #         last_month_end = now.replace(day=1) - datetime.timedelta(days=1)
+    #         start_date = f"{last_month_end.year}-{last_month_end.month:02d}-01"
+    #         end_date   = f"{last_month_end.year}-{last_month_end.month:02d}-{last_month_end.day:02d}"
+
+    #     # 2. Pick the dimension column
+    #     lowered = user_req.lower()
+    #     dim_key = next(
+    #         (k for k in FIELD_MAP_LOWER if k in lowered and k not in EXCLUDE_KEYS),
+    #         "product"
+    #     )
+    #     dim_col = FIELD_MAP_LOWER[dim_key]
+
+    #     # 3. Build & return the deterministic KQL
+    #     return build_trend_kql(start_date, end_date, dim_col, top_n=20)
+    
+
     elif TREND_RE.search(user_req):
-        # 1. Extract dates (you already append "from YYYY-MM-DD to YYYY-MM-DD")
+    # 1) Extract dates
         m = re.search(r'from (\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})', user_req)
         if m:
             start_date, end_date = m.groups()
         else:
-            # fallback: last full month YTD
             now = datetime.datetime.now()
             last_month_end = now.replace(day=1) - datetime.timedelta(days=1)
             start_date = f"{last_month_end.year}-{last_month_end.month:02d}-01"
             end_date   = f"{last_month_end.year}-{last_month_end.month:02d}-{last_month_end.day:02d}"
 
-        # 2. Pick the dimension column
+        # 2) Pick the dimension
         lowered = user_req.lower()
         dim_key = next(
             (k for k in FIELD_MAP_LOWER if k in lowered and k not in EXCLUDE_KEYS),
@@ -313,8 +354,88 @@ def generate_kql(user_req: str, strict=False) -> str:
         )
         dim_col = FIELD_MAP_LOWER[dim_key]
 
-        # 3. Build & return the deterministic KQL
-        return build_trend_kql(start_date, end_date, dim_col, top_n=20)
+        # 3) Count how many months in the window
+        sd = datetime.datetime.strptime(start_date, "%Y-%m-%d")
+        ed = datetime.datetime.strptime(end_date,   "%Y-%m-%d")
+        month_count = (ed.year - sd.year) * 12 + (ed.month - sd.month) + 1
+
+        # 4) If exactly two months, use your existing single-comparison KQL
+        if month_count == 2:
+            return build_trend_kql(start_date, end_date, dim_col, top_n=50)
+
+        # 5) Otherwise (3+ months) show each month’s revenue per dimension
+        return build_multi_month_revenue_kql(start_date, end_date, dim_col)
+
+
+
+    # ————— Contribution branch ——————————————————
+
+
+    elif CONTRIBUTION_RE.search(user_req):
+        #  Date range
+        m = re.search(r'from (\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})', user_req)
+        if m:
+            start_date, end_date = m.groups()
+        else:
+            now = datetime.datetime.now()
+            last_month_end = now.replace(day=1) - datetime.timedelta(days=1)
+            start_date = f"{last_month_end.year}-{last_month_end.month:02d}-01"
+            end_date   = f"{last_month_end.year}-{last_month_end.month:02d}-{last_month_end.day:02d}"
+
+        # 2 Which field? (brand, division, product, dealer…)
+        lowered = user_req.lower()
+        dim_key = next((k for k in FIELD_MAP_LOWER if k in lowered and k not in EXCLUDE_KEYS), None)
+        if not dim_key:
+            return "// ⚠️ Could not detect which dimension to use for contribution."
+        dim_col = FIELD_MAP_LOWER[dim_key]
+
+        # 3 Extract raw segment text after “contribution of … from”
+        seg_m = re.search(r'contribution (?:of|from)\s+(.*?)\s+from', user_req, re.IGNORECASE)
+        if not seg_m:
+            return "// ⚠️ Could not parse the segment name."
+        raw_segment = seg_m.group(1).strip()
+
+        # 4 Strip out the dimension word itself (“brand”, “division”, …)
+        strip_dim = re.compile(rf'\b{re.escape(dim_key)}\b', re.IGNORECASE)
+        segment = strip_dim.sub('', raw_segment).strip()
+
+        # 5 Build correct filter clause
+        if dim_col == "gsber":
+            # business area needs numeric code
+            code = GSBER_MAPPING.get(segment)
+            if not code:
+                return f"// ⚠️ Unknown business area '{segment}'."
+            filter_clause = f'{dim_col} == "{code}"'
+        else:
+            filter_clause = f'{dim_col} == "{segment}"'
+
+        # 6 Return raw KQL
+        return f"""
+    let StartDate = datetime({start_date});
+    let EndDate   = datetime({end_date});
+    let TotalRevenue = toscalar(
+        {TABLE_NAME}
+        | where fkdat between (StartDate .. EndDate)
+        | summarize sum(Revenue)
+    );
+    let SegmentRevenue = toscalar(
+        {TABLE_NAME}
+        | where fkdat between (StartDate .. EndDate) and {filter_clause}
+        | summarize sum(Revenue)
+    );
+    print
+        Dimension       = "{dim_col}",
+        Segment         = "{segment}",
+        TotalRevenue    = TotalRevenue,
+        SegmentRevenue  = SegmentRevenue,
+        ContributionPct = iff(isnull(TotalRevenue) or TotalRevenue == 0, real(null), SegmentRevenue * 100.0 / TotalRevenue)
+    | extend
+        Insight = strcat("The contribution of ", "{segment}", " under ", "{dim_col}", " is ", round(ContributionPct, 2), "%.")
+    """.strip()
+
+
+
+
 
 
 
@@ -478,7 +599,7 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
     import datetime, json
 
     # 1) Limit to top N rows
-    rows_to_show = rows[:20]
+    rows_to_show = rows[:30]
 
     # 2) Build result_data, converting any datetime to "YYYY-MM-DD"
     result_data = []
