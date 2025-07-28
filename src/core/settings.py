@@ -211,3 +211,4 @@ JAZZMIN_SETTINGS = {
     "site_title": "SAP Y-Sales Admin",
     # ...more config
 }
+

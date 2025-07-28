@@ -7,7 +7,17 @@ from azure.kusto.data import KustoClient, KustoConnectionStringBuilder
 from azure.kusto.data.exceptions import KustoApiError
 
 from langchain_openai import AzureChatOpenAI
+import logging
+import dateutil.parser
+import calendar
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Replace print with logging
+logger.debug("This is a debug message")
+logger.info("This is an info message")
 # ───────────────────────── 1.  ADX helper ──────────────────────────
 # class ADXTool:
 #     def __init__(self, cluster: str, database: str):
@@ -170,7 +180,8 @@ def _extract_kql(raw: str) -> str:
 # Growth
 # """.strip()
 
-def build_trend_kql(start: str, end: str, dim_col: str, top_n: int = 60) -> str:
+# KQL Query for calculating trend for exactly 2 months (current month vs. previous month)
+def build_trend_kql(start: str, end: str, dim_col: str, top_n: int = 5) -> str:
     return f"""
 // 1) input dates
 let StartDate         = datetime({start});
@@ -202,21 +213,40 @@ Growth
 """.strip()
 
 
-def build_multi_month_revenue_kql(start: str, end: str, dim_col: str) -> str:
-    return f"""
-// 1) Input dates
-let StartDate = datetime({start});
-let EndDate   = datetime({end});
+def build_multi_month_revenue_kql(start: str, end: str, dim_col: str, top_n: int = 10) -> str:
+    prompt += f"""
+    // 1) Input dates
+    let StartDate = datetime({start});
+    let EndDate   = datetime({end});
 
-// 2) Revenue by month & dimension
-{TABLE_NAME}
-| where fkdat between (StartDate .. EndDate)
-| extend Period = startofmonth(fkdat)
-| summarize Revenue = sum(Revenue) by Period, {dim_col}
+    // 2) Roll up by month & the selected dimension
+    let Monthly = {TABLE_NAME}
+    | where fkdat between (StartDate .. EndDate)
+    | extend Period = startofmonth(fkdat)
+    | summarize Revenue = sum(Revenue) by Period, {dim_col}
 
-// 3) Order for easy trend inspection
-| order by Period asc, Revenue desc
-""".strip()
+    // 3) Pick top N dimension-values by total revenue over the entire period
+    | summarize TotalRevenue = sum(Revenue) by {dim_col}
+    | top {top_n} by TotalRevenue desc
+
+    // 4) Get month-by-month breakdown for those top N
+    let RevenueByMonth = {TABLE_NAME}
+    | where fkdat between (StartDate .. EndDate)
+    | extend Period = startofmonth(fkdat)
+    | summarize Revenue = sum(Revenue) by Period, {dim_col}
+
+    // 5) Join to filter to only the top N
+    | join kind=inner (
+        RevenueByMonth
+    ) on {dim_col}
+    | project {dim_col}, Period, Revenue
+
+    // 6) Order results by dimension and month
+    | order by {dim_col}, Period asc
+    """.strip()
+    prompt += f"\n\nUser request: {user_req}"
+    return prompt
+
 
 
 # def generate_kql(user_req: str, strict=False) -> str:
@@ -239,6 +269,7 @@ CONTRIBUTION_RE = re.compile(r'\b(contribution of|contribution from)\b', re.IGNO
 FIELD_MAP_LOWER = {k.lower(): v for k, v in FIELD_MAPPINGS.items()}
 
 TREND_RE     = re.compile(r'\b(?:up[- ]?trending|trending)\b', re.IGNORECASE)
+DOWN_TREND_RE = re.compile(r'\b(?:down[- ]?trending|downtrend|negative trend|falling|declining|decreasing)\b', re.IGNORECASE) 
 EXCLUDE_KEYS = {"revenue", "quantity", "volume", "date", "fkdat"}
 
 def generate_kql(user_req: str, strict=False) -> str:
@@ -310,33 +341,11 @@ def generate_kql(user_req: str, strict=False) -> str:
         """
         prompt += f"\n\nUser request: {user_req}"
 
-     # ————— Up-Trending branch ——————————————————
-    # elif TREND_RE.search(user_req):
-    #     # 1. Extract dates (you already append "from YYYY-MM-DD to YYYY-MM-DD")
-    #     m = re.search(r'from (\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})', user_req)
-    #     if m:
-    #         start_date, end_date = m.groups()
-    #     else:
-    #         # fallback: last full month YTD
-    #         now = datetime.datetime.now()
-    #         last_month_end = now.replace(day=1) - datetime.timedelta(days=1)
-    #         start_date = f"{last_month_end.year}-{last_month_end.month:02d}-01"
-    #         end_date   = f"{last_month_end.year}-{last_month_end.month:02d}-{last_month_end.day:02d}"
-
-    #     # 2. Pick the dimension column
-    #     lowered = user_req.lower()
-    #     dim_key = next(
-    #         (k for k in FIELD_MAP_LOWER if k in lowered and k not in EXCLUDE_KEYS),
-    #         "product"
-    #     )
-    #     dim_col = FIELD_MAP_LOWER[dim_key]
-
-    #     # 3. Build & return the deterministic KQL
-    #     return build_trend_kql(start_date, end_date, dim_col, top_n=20)
     
 
+    # TREND detection logic based on user query working for up trend
     elif TREND_RE.search(user_req):
-    # 1) Extract dates
+        # 1) Extract explicit dates or default to last full month
         m = re.search(r'from (\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})', user_req)
         if m:
             start_date, end_date = m.groups()
@@ -346,7 +355,7 @@ def generate_kql(user_req: str, strict=False) -> str:
             start_date = f"{last_month_end.year}-{last_month_end.month:02d}-01"
             end_date   = f"{last_month_end.year}-{last_month_end.month:02d}-{last_month_end.day:02d}"
 
-        # 2) Pick the dimension
+        # 2) Pick the dimension dynamically
         lowered = user_req.lower()
         dim_key = next(
             (k for k in FIELD_MAP_LOWER if k in lowered and k not in EXCLUDE_KEYS),
@@ -354,25 +363,47 @@ def generate_kql(user_req: str, strict=False) -> str:
         )
         dim_col = FIELD_MAP_LOWER[dim_key]
 
-        # 3) Count how many months in the window
+        # 3) Count how many months are in the range
         sd = datetime.datetime.strptime(start_date, "%Y-%m-%d")
         ed = datetime.datetime.strptime(end_date,   "%Y-%m-%d")
         month_count = (ed.year - sd.year) * 12 + (ed.month - sd.month) + 1
 
-        # 4) If exactly two months, use your existing single-comparison KQL
         if month_count == 2:
-            return build_trend_kql(start_date, end_date, dim_col, top_n=50)
+            prompt += f"""
+            Instruction:
+            - The user requested a trend analysis for exactly two months: {start_date} to {end_date}.
+            - Identify the top 50 {dim_col} by percentage revenue growth between these two months.
+            - For each {dim_col}, calculate the revenue for each month (previous and current).
+            - Calculate GrowthPct = (CurrentMonthRevenue - PreviousMonthRevenue) / PreviousMonthRevenue * 100.
+            - Add a column TrendType: if CurrentMonthRevenue > PreviousMonthRevenue then "up trend", else "down trend".
+            - Output a table:
+                | {dim_col} | PreviousMonth | CurrentMonth | PrevRev | CurrRev | GrowthPct | TrendType |
+            - Use only `startofmonth(fkdat)` for extracting month, never `bin(fkdat, 1mo)`.
+            - Return only raw KQL, no markdown, no commentary.
+            """
+            prompt += f"\n\nUser request: {user_req}"
 
-        # 5) Otherwise (3+ months) show each month’s revenue per dimension
-        return build_multi_month_revenue_kql(start_date, end_date, dim_col)
+        else:
+            prompt += f"""
+            Instruction:
+            - The user requested a trend analysis for more than two months.
+            - Identify the top 10 {dim_col} values (e.g., product, brand, dealer, etc.) by total revenue in the period {start_date} to {end_date}.
+            - For each of these top 10, return the month-wise revenue for every month in the range, with columns: `{dim_col}`, Period (first of month), Revenue.
+            - Use: group by `startofmonth(fkdat)` for each `{dim_col}`.
+            - The result should be a table like:
+                | {dim_col} | Period      | Revenue   |
+                |-----------|-------------|-----------|
+                | Example1  | 2025-04-01  | 1200.50   |
+                | Example1  | 2025-05-01  | 1350.90   |
+                | Example2  | 2025-04-01  | 900.75    |
+                | ...       | ...         | ...       |
+            - Do not use `bin(fkdat, 1mo)`, only use `startofmonth(fkdat)`.
+            - Return only raw KQL, no markdown, no commentary.
+            """
+            prompt += f"\n\nUser request: {user_req}"
 
-
-
-    # ————— Contribution branch ——————————————————
-
-
-    elif CONTRIBUTION_RE.search(user_req):
-        #  Date range
+    elif DOWN_TREND_RE.search(user_req):
+        print("down trend")
         m = re.search(r'from (\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})', user_req)
         if m:
             start_date, end_date = m.groups()
@@ -382,56 +413,143 @@ def generate_kql(user_req: str, strict=False) -> str:
             start_date = f"{last_month_end.year}-{last_month_end.month:02d}-01"
             end_date   = f"{last_month_end.year}-{last_month_end.month:02d}-{last_month_end.day:02d}"
 
-        # 2 Which field? (brand, division, product, dealer…)
+        lowered = user_req.lower()
+        dim_key = next(
+            (k for k in FIELD_MAP_LOWER if k in lowered and k not in EXCLUDE_KEYS),
+            "product"
+        )
+        dim_col = FIELD_MAP_LOWER[dim_key]
+
+        sd = datetime.datetime.strptime(start_date, "%Y-%m-%d")
+        ed = datetime.datetime.strptime(end_date,   "%Y-%m-%d")
+        month_count = (ed.year - sd.year) * 12 + (ed.month - sd.month) + 1
+
+        if month_count == 2:
+            prompt += f"""
+            Instruction:
+            - The user requested a **downward trend** analysis for exactly two months: {start_date} to {end_date}.
+            - Identify the top 50 {dim_col} by **lowest** percentage revenue growth between these two months (negative growth or least positive).
+            - For each {dim_col}, calculate the revenue for each month (previous and current).
+            - Calculate GrowthPct = (CurrentMonthRevenue - PreviousMonthRevenue) / PreviousMonthRevenue * 100.
+            - Add a column TrendType: if CurrentMonthRevenue < PreviousMonthRevenue then "down trend", else "up trend".
+            - Output a table:
+                | {dim_col} | PreviousMonth | CurrentMonth | PrevRev | CurrRev | GrowthPct | TrendType |
+            - Use only `startofmonth(fkdat)` for extracting month, never `bin(fkdat, 1mo)`.
+            - Sort by GrowthPct **ascending** (lowest/most negative growth on top).
+            - Return only raw KQL, no markdown, no commentary.
+            """
+            prompt += f"\n\nUser request: {user_req}"
+
+        else:
+            prompt += f"""
+            Instruction:
+            - The user requested a **downward trend** analysis for more than two months.
+            - Identify the top 10 {dim_col} values (e.g., product, brand, dealer, etc.) by **lowest** total revenue growth trend over the period {start_date} to {end_date}.
+            - For each of these top 10, return the month-wise revenue for every month in the range, with columns: `{dim_col}`, Period (first of month), Revenue.
+            - Use: group by `startofmonth(fkdat)` for each `{dim_col}`.
+            - The result should be a table like:
+                | {dim_col} | Period      | Revenue   |
+                |-----------|-------------|-----------|
+                | Example1  | 2025-04-01  | 1200.50   |
+                | Example1  | 2025-05-01  | 1350.90   |
+                | Example2  | 2025-04-01  | 900.75    |
+                | ...       | ...         | ...       |
+            - Do not use `bin(fkdat, 1mo)`, only use `startofmonth(fkdat)`.
+            - Return only raw KQL, no markdown, no commentary.
+            """
+            prompt += f"\n\nUser request: {user_req}"
+
+
+
+    # ————— Contribution branch ——————————————————
+
+
+    elif CONTRIBUTION_RE.search(user_req):
+        # 1. Parse date range
+        m = re.search(r'from (\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})', user_req)
+        if m:
+            start_date, end_date = m.groups()
+        else:
+            # Try natural language: "from April 2025 to June 2025"
+            month_range = re.search(r'from ([a-zA-Z]+ \d{4}) to ([a-zA-Z]+ \d{4})', user_req, re.IGNORECASE)
+            if month_range:
+                try:
+                    start_dt = dateutil.parser.parse("1 " + month_range.group(1))
+                    end_month_dt = dateutil.parser.parse("1 " + month_range.group(2))
+                    last_day = calendar.monthrange(end_month_dt.year, end_month_dt.month)[1]
+                    end_dt = end_month_dt.replace(day=last_day)
+
+                    start_date = start_dt.strftime("%Y-%m-%d")
+                    end_date = end_dt.strftime("%Y-%m-%d")
+                except Exception:
+                    return "//  Could not parse month range. Use format like 'from April 2025 to June 2025'."
+            else:
+                # Default to last full month
+                now = datetime.datetime.now()
+                last_month_end = now.replace(day=1) - datetime.timedelta(days=1)
+                start_date = f"{last_month_end.year}-{last_month_end.month:02d}-01"
+                end_date = f"{last_month_end.year}-{last_month_end.month:02d}-{last_month_end.day:02d}"
+
+        # 2. Detect dimension keyword
         lowered = user_req.lower()
         dim_key = next((k for k in FIELD_MAP_LOWER if k in lowered and k not in EXCLUDE_KEYS), None)
         if not dim_key:
-            return "// ⚠️ Could not detect which dimension to use for contribution."
+            return "//  Could not detect which dimension to use for contribution."
         dim_col = FIELD_MAP_LOWER[dim_key]
 
-        # 3 Extract raw segment text after “contribution of … from”
+        # 3. Extract segment text
         seg_m = re.search(r'contribution (?:of|from)\s+(.*?)\s+from', user_req, re.IGNORECASE)
         if not seg_m:
-            return "// ⚠️ Could not parse the segment name."
+            return "//  Could not parse the segment name."
         raw_segment = seg_m.group(1).strip()
 
-        # 4 Strip out the dimension word itself (“brand”, “division”, …)
+        # 4. Remove dimension keyword from segment (e.g., "brand Berger" → "Berger")
         strip_dim = re.compile(rf'\b{re.escape(dim_key)}\b', re.IGNORECASE)
         segment = strip_dim.sub('', raw_segment).strip()
 
-        # 5 Build correct filter clause
+        # 5. Construct filter clause
         if dim_col == "gsber":
-            # business area needs numeric code
+            # Special case for business area / depo
             code = GSBER_MAPPING.get(segment)
             if not code:
-                return f"// ⚠️ Unknown business area '{segment}'."
+                return f"//  Unknown business area '{segment}'."
             filter_clause = f'{dim_col} == "{code}"'
         else:
-            filter_clause = f'{dim_col} == "{segment}"'
+            # Use contains_cs for partial matching (case-sensitive)
+            filter_clause = f'{dim_col} contains_cs "{segment}"'
 
-        # 6 Return raw KQL
+        # 6. Generate KQL
         return f"""
-    let StartDate = datetime({start_date});
-    let EndDate   = datetime({end_date});
-    let TotalRevenue = toscalar(
-        {TABLE_NAME}
-        | where fkdat between (StartDate .. EndDate)
-        | summarize sum(Revenue)
-    );
-    let SegmentRevenue = toscalar(
-        {TABLE_NAME}
-        | where fkdat between (StartDate .. EndDate) and {filter_clause}
-        | summarize sum(Revenue)
-    );
-    print
-        Dimension       = "{dim_col}",
-        Segment         = "{segment}",
-        TotalRevenue    = TotalRevenue,
-        SegmentRevenue  = SegmentRevenue,
-        ContributionPct = iff(isnull(TotalRevenue) or TotalRevenue == 0, real(null), SegmentRevenue * 100.0 / TotalRevenue)
-    | extend
-        Insight = strcat("The contribution of ", "{segment}", " under ", "{dim_col}", " is ", round(ContributionPct, 2), "%.")
-    """.strip()
+        let StartDate = datetime({start_date});
+        let EndDate   = datetime({end_date});
+
+        // 1) Calculate Total Revenue
+        let TotalRevenue = toscalar(
+            {TABLE_NAME}
+            | where fkdat between (StartDate .. EndDate)
+            | summarize sum(Revenue)
+        );
+
+        // 2) Calculate Segment Revenue
+        let SegmentRevenue = toscalar(
+            {TABLE_NAME}
+            | where fkdat between (StartDate .. EndDate) and {filter_clause}
+            | summarize sum(Revenue)
+        );
+
+        // 3) Calculate Contribution Percentage
+        print
+            Dimension       = "{dim_col}",
+            Segment         = "{segment}",
+            TotalRevenue    = TotalRevenue,
+            SegmentRevenue  = SegmentRevenue,
+            ContributionPct = iff(isnull(TotalRevenue) or TotalRevenue == 0, real(null), SegmentRevenue * 100.0 / TotalRevenue)
+        | extend
+            Insight = strcat("The contribution of ", "{segment}", " under ", "{dim_col}", " is ", round(ContributionPct, 2), "%.")
+        """.strip()
+
+
+
 
 
 
@@ -550,14 +668,18 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
     and map business area/territory to the correct 'gsber' code.
     """
     # -- [unchanged] detect or ask for dates
+    print("user_prompt:", user_prompt)
+    logger.debug("This is a debug message")
     start_date, end_date = detect_date_filter_using_llm(user_prompt)
     if start_date and end_date:
         start_date_str = start_date.strftime("%Y-%m-%d")
         end_date_str   = end_date.strftime("%Y-%m-%d")
         user_prompt   += f" from {start_date_str} to {end_date_str}"
+  
     else:
         user_prompt   += " Please specify a date range for the data (e.g., from 2025-01-01 to 2025-12-31)."
-
+    print("date range :", start_date)
+    print("date range :", end_date_str)
     # -- [unchanged] raw KQL generation + fixes
     kql = generate_kql(user_prompt)
     kql = format_dates(kql)
@@ -596,11 +718,10 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
     # —————————————————————————
     # ↓ NEW: fully dynamic datetime formatting ↓
     # —————————————————————————
-    import datetime, json
 
     # 1) Limit to top N rows
     rows_to_show = rows[:30]
-
+    print("rows_to_show = rows[:30]:", rows_to_show)
     # 2) Build result_data, converting any datetime to "YYYY-MM-DD"
     result_data = []
     for row in rows_to_show:
