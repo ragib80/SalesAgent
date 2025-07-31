@@ -15,9 +15,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Replace print with logging
-logger.debug("This is a debug message")
-logger.info("This is an info message")
+
 # ───────────────────────── 1.  ADX helper ──────────────────────────
 # class ADXTool:
 #     def __init__(self, cluster: str, database: str):
@@ -189,6 +187,41 @@ def _extract_kql(raw: str) -> str:
 #     response = llm.invoke([{"role":"user","content":prompt}]).content
 
 #     return _extract_kql(response)
+def find_gsber_code(user_input, mapping):
+    """
+    Robust, case-insensitive, favoring *exact* match (ignoring 'depo', 'sales', etc.)
+    """
+    cleaned = user_input.lower()
+    cleaned = re.sub(r'\b(depo|sales office|sales|office|area|unit)\b', '', cleaned, flags=re.IGNORECASE)
+    cleaned = cleaned.strip()
+    cleaned = re.sub(r'\s+', ' ', cleaned)
+
+    # Build mapping: key without ignored words -> code
+    normalized_map = {}
+    for k, v in mapping.items():
+        nk = k.lower()
+        nk = re.sub(r'\b(depo|sales office|sales|office|area|unit)\b', '', nk, flags=re.IGNORECASE)
+        nk = nk.strip()
+        nk = re.sub(r'\s+', ' ', nk)
+        normalized_map[nk] = (k, v)  # original_key, code
+
+    # 1. Exact match after normalization
+    if cleaned in normalized_map:
+        return normalized_map[cleaned]
+    # 2. Try startswith
+    for nk, (orig_k, code) in normalized_map.items():
+        if nk.startswith(cleaned):
+            return orig_k, code
+    # 3. Try contains as whole word
+    for nk, (orig_k, code) in normalized_map.items():
+        if f' {cleaned} ' in f' {nk} ':
+            return orig_k, code
+    # 4. Fallback: substring anywhere
+    for nk, (orig_k, code) in normalized_map.items():
+        if cleaned in nk:
+            return orig_k, code
+    return None, None
+
 
 # compile once
 MTD_RE = re.compile(r'\b(?:mtd|month[- ]to[- ]date)\b', re.IGNORECASE)
@@ -493,7 +526,6 @@ def generate_kql(user_req: str, strict=False) -> str:
                 except Exception:
                     return "// Could not parse month range. Use format like 'from April 2025 to June 2025'."
             else:
-                # Default to last full month
                 now = datetime.datetime.now()
                 last_month_end = now.replace(day=1) - datetime.timedelta(days=1)
                 start_date = f"{last_month_end.year}-{last_month_end.month:02d}-01"
@@ -520,33 +552,23 @@ def generate_kql(user_req: str, strict=False) -> str:
 
         # 4. Build filter clause (handles gsber/depo mapping if needed)
         segment_display = segment
+        gsber_key, code = None, None
         if dim_col == "gsber":
-            norm_segment = segment.lower()
-            norm_segment = re.sub(r'\b(sales\s*office|sales|office|area)\b', '', norm_segment, flags=re.IGNORECASE).strip()
-            # 4.1 Try mapping dictionary first (case-insensitive, loose match)
-            gsber_key = next((k for k in GSBER_MAPPING if k.lower() == norm_segment), None)
-            if not gsber_key:
-                # Try partial match as fallback
-                gsber_key = next((k for k in GSBER_MAPPING if norm_segment in k.lower()), None)
-            if gsber_key:
-                code = GSBER_MAPPING[gsber_key]
+            gsber_key, code = find_gsber_code(segment, GSBER_MAPPING)
+            print("gsber_key ",gsber_key)
+            print("code ",code)
+            if gsber_key and code:
                 filter_clause = f'{dim_col} == "{code}"'
                 segment_display = gsber_key
             else:
-                # 4.2 If mapping fails, allow direct match on gsber code or value in ADX
-                filter_clause = f'{dim_col} == "{segment}" or {dim_col} == toscalar(SAPSalesInfos | where {dim_col} == "{segment}" | summarize take_any({dim_col}))'
-                # Optionally add an LLM instruction for future: "If mapping is missing, try direct match with gsber field"
+                filter_clause = f'{dim_col} == "{segment}"'
+                segment_display = segment
         else:
             filter_clause = f'{dim_col} == "{segment}"'
             segment_display = segment
 
-        # 5. KQL Template + Optional LLM instruction (if mapping was not found)
-        extra_instruction = ""
-        if dim_col == "gsber" and not gsber_key:
-            extra_instruction = "// Could not map sales office/depo from predefined dictionary, attempting direct ADX field match.\n"
-
+        # 5. KQL Template
         return f"""
-        {extra_instruction}
         let StartDate = datetime({start_date});
         let EndDate   = datetime({end_date});
         let TotalRevenue = toscalar(
@@ -568,6 +590,9 @@ def generate_kql(user_req: str, strict=False) -> str:
         | extend
             Insight = strcat("The contribution of {segment_display} under {dim_col} is ", round(ContributionPct, 2), "%.")
         """.strip()
+
+
+
 
 
     
@@ -754,6 +779,7 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
         f"User asked: {user_prompt}\n\n"
         f"Context Data:\n{result_json}\n\n"
         "Based on the query results, format the output in bulleted format. "
+        "gsber human readable name is Depo/Sales Office.so if you find gsber use Depo/Sales Office"
         "If the result is numerical or comparative, bullet points for proper indication. If it's categorical or simple, use bullet points. "
         "After formatting, provide a concise business insight related to the data, such as trends, patterns, or key takeaways. Amount is in BDT."
         "If Needed, Based on the Context Data give meaningful business-related suggestions such as increasing sales, revenue."
