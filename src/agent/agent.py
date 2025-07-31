@@ -228,7 +228,10 @@ MTD_RE = re.compile(r'\b(?:mtd|month[- ]to[- ]date)\b', re.IGNORECASE)
 YTD_RE = re.compile(r'\b(?:ytd|year[- ]to[- ]date)\b', re.IGNORECASE)
 
 CONTRIBUTION_RE = re.compile(r'\b(contribution of|contribution from|contribution by)\b', re.IGNORECASE)
-
+AVG_SALES_RE = re.compile(
+    r'\b(?:average|avg|mean)[ -]?(?:sales|revenue|amount|quantity|volume)?\b',
+    re.IGNORECASE
+)
 
 # lower-case keys for matching
 FIELD_MAP_LOWER = {k.lower(): v for k, v in FIELD_MAPPINGS.items()}
@@ -236,6 +239,14 @@ FIELD_MAP_LOWER = {k.lower(): v for k, v in FIELD_MAPPINGS.items()}
 TREND_RE     = re.compile(r'\b(?:up[- ]?trending|trending)\b', re.IGNORECASE)
 DOWN_TREND_RE = re.compile(r'\b(?:down[- ]?trending|downtrend|negative trend|falling|declining|decreasing)\b', re.IGNORECASE) 
 EXCLUDE_KEYS = {"revenue", "quantity", "volume", "date", "fkdat"}
+
+# 3. Cleanup function for LLM-generated KQL
+def cleanup_kql(kql: str) -> str:
+    # Remove any 'extend' lines and any reference to 'TimePeriod'
+    kql = re.sub(r'\s*\|\s*extend[^\n]*\n', '\n', kql)
+    kql = re.sub(r'TimePeriod\s*=\s*startofmonth\(fkdat\)', '', kql)
+    kql = re.sub(r'TimePeriod', '', kql)
+    return kql
 
 def generate_kql(user_req: str, strict=False) -> str:
     # Start with the base prompt for LLM
@@ -425,88 +436,6 @@ def generate_kql(user_req: str, strict=False) -> str:
             prompt += f"\n\nUser request: {user_req}"
 
 
-
-    # ————— Contribution branch ——————————————————
-
-    # working
-    # elif CONTRIBUTION_RE.search(user_req):
-    #     # 1. Parse date range
-    #     m = re.search(r'from (\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})', user_req)
-    #     if m:
-    #         start_date, end_date = m.groups()
-    #     else:
-    #         # Natural language month: from April 2025 to June 2025
-    #         month_range = re.search(r'from ([a-zA-Z]+ \d{4}) to ([a-zA-Z]+ \d{4})', user_req, re.IGNORECASE)
-    #         if month_range:
-    #             try:
-    #                 start_dt = dateutil.parser.parse("1 " + month_range.group(1))
-    #                 end_month_dt = dateutil.parser.parse("1 " + month_range.group(2))
-    #                 last_day = calendar.monthrange(end_month_dt.year, end_month_dt.month)[1]
-    #                 end_dt = end_month_dt.replace(day=last_day)
-    #                 start_date = start_dt.strftime("%Y-%m-%d")
-    #                 end_date = end_dt.strftime("%Y-%m-%d")
-    #             except Exception:
-    #                 return "// Could not parse month range. Use format like 'from April 2025 to June 2025'."
-    #         else:
-    #             # Default to last full month
-    #             now = datetime.datetime.now()
-    #             last_month_end = now.replace(day=1) - datetime.timedelta(days=1)
-    #             start_date = f"{last_month_end.year}-{last_month_end.month:02d}-01"
-    #             end_date = f"{last_month_end.year}-{last_month_end.month:02d}-{last_month_end.day:02d}"
-
-    #     # 2. Detect dimension (brand, division, etc)
-    #     lowered = user_req.lower()
-    #     dim_key = next((k for k in FIELD_MAP_LOWER if k in lowered and k not in EXCLUDE_KEYS), None)
-    #     if not dim_key:
-    #         return "// Could not detect which dimension to use for contribution."
-    #     dim_col = FIELD_MAP_LOWER[dim_key]
-
-    #     # 3. Extract segment value robustly (remove dimension, remove date/month phrases)
-    #     seg_m = re.search(
-    #         r'contribution (?:of|from)\s+(.*?)(?:\s+in|\s+for|\s+from|\s+by|\s+on|$)', user_req, re.IGNORECASE)
-    #     if not seg_m:
-    #         return "// Could not parse the segment name."
-    #     raw_segment = seg_m.group(1).strip()
-    #     # Remove dimension keyword if present
-    #     strip_dim = re.compile(rf'\b{re.escape(dim_key)}\b', re.IGNORECASE)
-    #     segment = strip_dim.sub('', raw_segment).strip()
-    #     # Remove trailing month/year phrases
-    #     segment = re.sub(r'(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4}$', '', segment, flags=re.IGNORECASE).strip()
-
-    #     # 4. Build filter clause (handles gsber/depo mapping if needed)
-    #     if dim_col == "gsber":
-    #         code = GSBER_MAPPING.get(segment)
-    #         if not code:
-    #             return f"// Unknown business area '{segment}'."
-    #         filter_clause = f'{dim_col} == "{code}"'
-    #     else:
-    #         # Use exact match first, fallback to contains_cs if needed (case-sensitive)
-    #         filter_clause = f'{dim_col} == "{segment}"'
-
-    #     # 5. KQL Template
-    #     return f"""
-    #     let StartDate = datetime({start_date});
-    #     let EndDate   = datetime({end_date});
-    #     let TotalRevenue = toscalar(
-    #         {TABLE_NAME}
-    #         | where fkdat >= StartDate and fkdat <= EndDate
-    #         | summarize TotalRevenue = sum(Revenue)
-    #     );
-    #     let SegmentRevenue = toscalar(
-    #         {TABLE_NAME}
-    #         | where fkdat >= StartDate and fkdat <= EndDate and {filter_clause}
-    #         | summarize SegmentRevenue = sum(Revenue)
-    #     );
-    #     print
-    #         Dimension       = "{dim_col}",
-    #         Segment         = "{segment}",
-    #         TotalRevenue    = TotalRevenue,
-    #         SegmentRevenue  = SegmentRevenue,
-    #         ContributionPct = iff(isnull(TotalRevenue) or TotalRevenue == 0, real(null), SegmentRevenue * 100.0 / TotalRevenue)
-    #     | extend
-    #         Insight = strcat("The contribution of {segment} under {dim_col} is ", round(ContributionPct, 2), "%.")
-    #     """.strip()
-
     elif CONTRIBUTION_RE.search(user_req):
         # 1. Parse date range
         m = re.search(r'from (\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})', user_req)
@@ -566,9 +495,10 @@ def generate_kql(user_req: str, strict=False) -> str:
         else:
             filter_clause = f'{dim_col} == "{segment}"'
             segment_display = segment
-
+        
         # 5. KQL Template
         return f"""
+       
         let StartDate = datetime({start_date});
         let EndDate   = datetime({end_date});
         let TotalRevenue = toscalar(
@@ -590,6 +520,79 @@ def generate_kql(user_req: str, strict=False) -> str:
         | extend
             Insight = strcat("The contribution of {segment_display} under {dim_col} is ", round(ContributionPct, 2), "%.")
         """.strip()
+
+
+    elif AVG_SALES_RE.search(user_req):
+        print("-*-------------------------------avg sales--------------------")
+        # 1. Extract date range
+        m = re.search(r'from (\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})', user_req)
+        if m:
+            start_date, end_date = m.groups()
+        else:
+            now = datetime.datetime.now()
+            start_date = now.replace(day=1).strftime("%Y-%m-%d")
+            last_day = calendar.monthrange(now.year, now.month)[1]
+            end_date = now.replace(day=last_day).strftime("%Y-%m-%d")
+
+        # 2. Detect dimension (brand, dealer, etc.)
+        lowered = user_req.lower()
+        dim_key = next(
+            (k for k in FIELD_MAP_LOWER if k in lowered and k not in EXCLUDE_KEYS),
+            None
+        )
+        dim_col = FIELD_MAP_LOWER[dim_key] if dim_key else None
+
+        # 3. Detect granularity
+        period = "monthly"
+        if "weekly" in lowered: period = "weekly"
+        elif "yearly" in lowered or "annual" in lowered: period = "yearly"
+        elif "daily" in lowered: period = "daily"
+
+        period_func = {
+            "monthly": "Month = startofmonth(fkdat)",
+            "weekly": "Week = startofweek(fkdat)",
+            "yearly": "Year = startofyear(fkdat)",
+            "daily": "Day = startofday(fkdat)"
+        }[period]
+        avg_col = {
+            "monthly": "AvgMonthlySales",
+            "weekly": "AvgWeeklySales",
+            "yearly": "AvgYearlySales",
+            "daily": "AvgDailySales"
+        }[period]
+
+        # 4. Build prompt for LLM
+        prompt += f"""
+    Hard rule: Never use the `extend` operator anywhere in this query. Never use `extend` for period extraction. All period extractions (Month, Week, etc.) must be done only inside the `summarize by` clause. Do not use or create a `TimePeriod` field.
+
+    Instruction:
+    - The user requested an average {period} sales analysis{f' by {dim_col}' if dim_col else ''} for the period {start_date} to {end_date}.
+    - Filter data between {start_date} and {end_date}{f' and by {dim_col}' if dim_col else ''}.
+    - Step 1: Summarize total revenue per {period} using `{period_func}` inside the `summarize by` clause.{f' Also include {dim_col} in the by clause if specified.' if dim_col else ''}
+    - Step 2: Calculate the average of these totals using `summarize {avg_col} = avg(TotalRevenue)`{f' by {dim_col}' if dim_col else ''}.
+    - After the first summarize, you may only use columns you have grouped by or calculated.
+    - Output columns: |{f' {dim_col} |' if dim_col else ''}{avg_col} |
+    - Example KQL:
+
+    let StartDate = datetime({start_date});
+    let EndDate = datetime({end_date});
+    SAPSalesInfos
+    | where fkdat >= StartDate and fkdat <= EndDate{f' and {dim_col} == "<value>"' if dim_col else ''}
+    | summarize TotalRevenue = sum(Revenue) by{f' {dim_col},' if dim_col else ''} {period_func}
+    | summarize {avg_col} = avg(TotalRevenue){f' by {dim_col}' if dim_col else ''}
+    """
+
+        prompt += f"\n\nUser request: {user_req}"
+
+        # 5. Call the LLM to generate KQL
+        kql_generated = llm.invoke([{"role": "user", "content": prompt}]).content
+
+        # 6. Clean up any forbidden 'extend' or 'TimePeriod'
+        kql_generated = cleanup_kql(kql_generated)
+
+        print("response from generate kql ", kql_generated)
+        return _extract_kql(kql_generated)
+
 
 
 
@@ -779,7 +782,7 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
         f"User asked: {user_prompt}\n\n"
         f"Context Data:\n{result_json}\n\n"
         "Based on the query results, format the output in bulleted format. "
-        "gsber human readable name is Depo/Sales Office.so if you find gsber use Depo/Sales Office"
+         "if you found gsber, then it's human readable name is Depo/Sales Office.so if you find gsber use Depo/Sales Office"
         "If the result is numerical or comparative, bullet points for proper indication. If it's categorical or simple, use bullet points. "
         "After formatting, provide a concise business insight related to the data, such as trends, patterns, or key takeaways. Amount is in BDT."
         "If Needed, Based on the Context Data give meaningful business-related suggestions such as increasing sales, revenue."
