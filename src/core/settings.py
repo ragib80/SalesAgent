@@ -28,7 +28,8 @@ SECRET_KEY = 'django-insecure-z350z@5$p*7=3ll0iw8n!7et86d-mw1zga94*q45^_b(so_#j4
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['172.16.0.5',
+                 '127.0.0.1']
 
 
 # Application definition
@@ -66,7 +67,9 @@ MIDDLEWARE = [
 
 ]
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8000",  # Frontend URL
+    "http://localhost:8000",
+    "http://172.16.0.5:8000",
+    "http://127.0.0.1:8000" # Frontend URL
 ]
 
 REST_FRAMEWORK = {
@@ -97,7 +100,7 @@ ROOT_URLCONF = 'core.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / "templates"],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

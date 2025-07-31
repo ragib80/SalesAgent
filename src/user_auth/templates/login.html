@@ -7,27 +7,83 @@
     <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+     <style>
+        body {
+            background: linear-gradient(120deg, #f3f4f6 0%, #e9ecef 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', 'Inter', Arial, sans-serif;
+        }
+        .login-card {
+            border-radius: 2rem;
+            box-shadow: 0 8px 32px 0 rgba(32,33,35,0.09);
+            background: #fff;
+            padding: 2.5rem 2rem;
+        }
+        .login-title {
+            font-weight: 800;
+            font-size: 2.2rem;
+            letter-spacing: -0.5px;
+            color: #202123;
+            margin-bottom: 2rem;
+        }
+        .form-label {
+            color: #202123;
+            font-weight: 500;
+        }
+        .form-control {
+            border-radius: 1.1rem;
+            min-height: 48px;
+            font-size: 1.08rem;
+            border: 1px solid #e5e7eb;
+        }
+        .form-control:focus {
+            border-color: #202123;
+            box-shadow: 0 0 0 0.2rem rgba(32,33,35,0.08);
+        }
+        .btn-primary {
+            background: linear-gradient(90deg, #202123 60%, #343541 100%);
+            border: none;
+            border-radius: 1.5rem;
+            font-weight: 600;
+            font-size: 1.12rem;
+            transition: background 0.2s, box-shadow 0.2s;
+            padding: 0.8rem 0;
+            box-shadow: 0 2px 12px 0 rgba(32,33,35,0.07);
+        }
+        .btn-primary:hover, .btn-primary:focus {
+            background: linear-gradient(90deg, #343541 0%, #202123 100%);
+            box-shadow: 0 4px 24px 0 rgba(32,33,35,0.13);
+        }
+        #error-message {
+            font-size: 1rem;
+            text-align: center;
+        }
+        @media (max-width: 600px) {
+            .login-title { font-size: 1.5rem; }
+            .login-card { padding: 1.3rem 0.7rem; }
+        }
+    </style>
 </head>
 <body>
-    <div class="container mt-5">
-        <h2 class="text-center">Login</h2>
-        <div class="row justify-content-center">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-body">
-                        <form id="login-form">
-                            <div class="mb-3">
-                                <label for="username" class="form-label">Username</label>
-                                <input type="text" class="form-control" id="username" placeholder="Enter your username" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="password" class="form-label">Password</label>
-                                <input type="password" class="form-control" id="password" placeholder="Enter your password" required>
-                            </div>
-                            <button type="submit" class="btn btn-primary w-100">Login</button>
-                        </form>
-                        <div id="error-message" class="text-danger mt-2" style="display: none;">Invalid credentials, please try again.</div>
+    <div class="container d-flex flex-column justify-content-center align-items-center min-vh-100">
+        <div class="col-12 col-sm-10 col-md-7 col-lg-5">
+            <div class="login-card mt-3">
+                <div class="text-center">
+                    <span class="login-title">Login</span>
+                </div>
+                <form id="login-form" class="mt-3">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="username" placeholder="Enter your username" required>
                     </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" placeholder="Enter your password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Login</button>
+                </form>
+                <div id="error-message" class="text-danger mt-3" style="display: none;">
+                    Invalid credentials, please try again.
                 </div>
             </div>
         </div>

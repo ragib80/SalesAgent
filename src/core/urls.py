@@ -26,5 +26,6 @@ urlpatterns = [
     path('api/', include('conversation.urls')),
     path('api/user/', include('user_auth.urls')),
     path('login/', login_template_view, name='login-template'),
+    path('', TemplateView.as_view(template_name="home.html"), name='home'),
 
 ]
