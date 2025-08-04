@@ -423,7 +423,18 @@ body {
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-const apiBase = "http://127.0.0.1:8000/api"; // Change to your DRF prefix
+{% comment %} const apiBase = "http://127.0.0.1:8000/api"; // Change to your DRF prefix {% endcomment %}
+{% comment %} const apiBase = "http://172.16.0.5:9000//api"; // Change to your DRF prefix {% endcomment %}
+// simplest – use relative URLs so you never even need the host/port
+
+
+// if you really need the full origin + “/api”:
+const apiBase = `${window.location.origin}/api`;
+
+{% comment %} // or, if you need full fine-grained control:
+const { protocol, hostname, port } = window.location;
+const apiBase = `${protocol}//${hostname}${port ? `:${port}` : ''}/api`; {% endcomment %}
+
 let currentChatId = null;
 let isSubmitting = false;
 let $typingIndicatorElement = null; // To store the dynamically created typing indicator

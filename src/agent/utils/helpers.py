@@ -126,3 +126,42 @@ def fill_dates(plan):
     if not plan.get("end_date"):
         plan["end_date"] = f"{now.year}-12-31"
     return plan
+
+
+# newly added
+def load_chat_history(conversation_id: str, limit: int = 8) -> list[dict]:
+    """
+    Return the last `limit` messages as a list of {role:, content:} dicts
+    """
+    qs = (
+        Message.objects
+               .filter(conversation_id=conversation_id, is_deleted=False)
+               .order_by("created_at")
+               .values("sender", "text", "ai_model_response")
+    )
+    recent = list(qs)[-limit:]
+    out = []
+    for m in recent:
+        if m["sender"] == "user":
+            out.append({"role": "user", "content": m["text"]})
+        else:
+            content = m["ai_model_response"] or m["text"]
+            out.append({"role": "assistant", "content": content})
+    return out
+
+
+
+
+
+def fetch_message_history(conversation_id: str) -> str:
+    msgs = Message.objects.filter(
+        conversation_id=conversation_id, is_deleted=False
+    ).order_by('created_at')
+    lines = []
+    for m in msgs:
+        if m.sender == 'user':
+            lines.append(f"- **User**: {m.text}")
+        else:
+            content = m.ai_model_response or m.text
+            lines.append(f"- **Bot**: {content}")
+    return "Here’s our chat so far:\n" + "\n".join(lines)

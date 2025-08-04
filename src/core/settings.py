@@ -69,6 +69,7 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8000",
     "http://172.16.0.5:8000",
+    "http://172.16.0.5:9000",
     "http://127.0.0.1:8000" # Frontend URL
 ]
 

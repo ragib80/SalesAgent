@@ -5,7 +5,7 @@ import datetime
 from django.conf import settings
 from azure.kusto.data import KustoClient, KustoConnectionStringBuilder
 from azure.kusto.data.exceptions import KustoApiError
-
+from agent.utils.helpers import load_chat_history
 from langchain_openai import AzureChatOpenAI
 import logging
 import dateutil.parser
@@ -16,24 +16,13 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-# ───────────────────────── 1.  ADX helper ──────────────────────────
-# class ADXTool:
-#     def __init__(self, cluster: str, database: str):
-#         kcsb = KustoConnectionStringBuilder.with_aad_device_authentication(cluster)
-#         self.client = KustoClient(kcsb)
-#         self.database = database
-#     def run(self, kql: str):
-#         tbl = self.client.execute(self.database, kql).primary_results[0]
-#         cols = [c.column_name for c in tbl.columns]
-#         rows = [list(r) for r in tbl]
-#         return cols, rows
-
-# @lru_cache(maxsize=1)
-# def adx() -> ADXTool:
-#     return ADXTool(
-#         getattr(settings, "ADX_CLUSTER",  os.getenv("ADX_CLUSTER")),
-#         getattr(settings, "ADX_DATABASE", os.getenv("ADX_DATABASE")),
-#     )
+def chat_invoke(conversation_id: str, messages: list[dict]) -> str:
+    """
+    Prepend system prompt + history, then invoke LLM
+    """
+    history = load_chat_history(conversation_id)
+    full = [{"role": "system",      "content": SYSTEM_PROMPT_KQL}] + history + messages
+    return llm.invoke(full).content
 
 class ADXTool:
     def __init__(self, cluster: str, database: str):
@@ -149,44 +138,7 @@ def _extract_kql(raw: str) -> str:
     return raw.replace("SAPSalesInfos", TABLE_NAME).strip()
 
 
-# def build_trend_kql(start: str, end: str, dim_col: str, top_n: int = 5) -> str:
-#     return f"""
-# // 1) input dates
-# let StartDate         = datetime({start});
-# let EndDate           = datetime({end});
-# // if only one month… previous month window
-# let PreviousStartDate = startofmonth(StartDate - 1d);
-# let PreviousEndDate   = endofmonth(PreviousStartDate);
 
-# // 2) roll up by month & dimension
-# let Monthly = {TABLE_NAME}
-# | where fkdat between (PreviousStartDate .. EndDate)
-# | summarize Revenue = sum(Revenue)
-#     by Period = startofmonth(fkdat), {dim_col};
-
-# // 3) compute growth
-# let Growth = Monthly
-# | summarize
-#     PrevRev = anyif(Revenue, Period == PreviousStartDate),
-#     CurrRev = anyif(Revenue, Period == StartDate)
-#   by {dim_col}
-# | extend GrowthPct = iff(PrevRev == 0, real(null), (CurrRev - PrevRev)*100.0/PrevRev)
-# | order by GrowthPct desc
-# | take {top_n};
-
-# // 4) output
-# Growth
-# """.strip()
-
-# def generate_kql(user_req: str, strict=False) -> str:
-#     prompt = SYSTEM_PROMPT_KQL
-#     if strict:
-#         prompt += "\n\nSTRICT MODE: previous query failed. Return corrected KQL only."
-#     prompt += f"\n\nUser request: {user_req}"
-#     print("_extract_kql-------------",prompt)
-#     response = llm.invoke([{"role":"user","content":prompt}]).content
-
-#     return _extract_kql(response)
 def find_gsber_code(user_input, mapping):
     """
     Robust, case-insensitive, favoring *exact* match (ignoring 'depo', 'sales', etc.)
@@ -222,7 +174,9 @@ def find_gsber_code(user_input, mapping):
             return orig_k, code
     return None, None
 
-
+# ───────────────────────── 4. Intent Detection ─────────────────────────
+COMPARE_RE = re.compile(r'\b(compare|vs\.?|difference)\b', re.IGNORECASE)
+HISTORY_RE = re.compile(r'\b(history|previous queries|what did we)\b', re.IGNORECASE)
 # compile once
 MTD_RE = re.compile(r'\b(?:mtd|month[- ]to[- ]date)\b', re.IGNORECASE)
 YTD_RE = re.compile(r'\b(?:ytd|year[- ]to[- ]date)\b', re.IGNORECASE)
@@ -247,6 +201,18 @@ def cleanup_kql(kql: str) -> str:
     kql = re.sub(r'TimePeriod\s*=\s*startofmonth\(fkdat\)', '', kql)
     kql = re.sub(r'TimePeriod', '', kql)
     return kql
+
+
+def classify_intent(text: str, conversation_id: str) -> str:
+    from conversation.models import Message
+    if HISTORY_RE.search(text):
+        return 'history'
+    if COMPARE_RE.search(text):
+        return 'compare'
+    if any(w in text.lower() for w in ('again','also','then','next')) and \
+       Message.objects.filter(conversation_id=conversation_id, start_date__isnull=False).exists():
+        return 'kql_with_context'
+    return 'kql'
 
 def generate_kql(user_req: str, strict=False) -> str:
     # Start with the base prompt for LLM
