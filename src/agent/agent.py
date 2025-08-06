@@ -16,7 +16,7 @@ import logging
 from langchain.chains import ConversationChain
 # from langchain.chains.conversation.base import ConversationChain
 logger = logging.getLogger(__name__)
-
+from typing import Optional
 
 
 def load_history(conversation_uuid: str, limit: int = 10) -> list[dict]:
@@ -30,6 +30,127 @@ def load_history(conversation_uuid: str, limit: int = 10) -> list[dict]:
         {"role": "user" if m.sender == "user" else "assistant", "content": m.text}
         for m in reversed(qs)
     ]
+
+memory_store: dict[str, ConversationSummaryMemory] = {}
+# Map conversation_id -> last-used query parameters for defaults
+memory_params_store: dict[str, dict] = {}
+# ───────────────────── Parameter Detection ─────────────────────
+# def detect_params(user_prompt: str) -> dict:
+#     """
+#     Extract date range and dimension parameters from the user prompt.
+#     Returns dict with keys: start_date(str), end_date(str), dim_key(str), segment(str)
+#     Values may be None if not detected.
+#     """
+#     params = {"start_date": None, "end_date": None, "dim_key": None, "segment": None}
+#     # Date range: look for YYYY-MM-DD to YYYY-MM-DD
+#     m = re.search(r'from (\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})', user_prompt)
+#     if m:
+#         params["start_date"], params["end_date"] = m.groups()
+#     else:
+#         # single month like 'April 2025'
+#         m2 = re.search(r'in ([A-Za-z]+ \d{4})', user_prompt)
+#         if m2:
+#             try:
+#                 start = datetime.datetime.strptime('1 ' + m2.group(1), '%d %B %Y')
+#                 last = calendar.monthrange(start.year, start.month)[1]
+#                 params["start_date"] = start.strftime('%Y-%m-%d')
+#                 params["end_date"] = start.replace(day=last).strftime('%Y-%m-%d')
+#             except Exception:
+#                 pass
+#     # Dimension key detection
+#     lowered = user_prompt.lower()
+#     for k, v in FIELD_MAP_LOWER.items():
+#         if k in lowered and k not in {'date', 'fkdat'}:
+#             params["dim_key"] = v
+#             # extract segment value after dimension word
+#             seg_m = re.search(rf'{k}\s+(?:of|in)?\s*([A-Za-z0-9 ]+)', user_prompt, re.IGNORECASE)
+#             if seg_m:
+#                 params["segment"] = seg_m.group(1).strip()
+#             break
+#     print("-------------------previous perams -------",params)
+#     return params
+
+
+def detect_params(user_prompt: str) -> dict[str, Optional[str]]:
+    """
+    Look for:
+      - explicit date ranges ("from YYYY-MM-DD to YYYY-MM-DD" or "in <Month YYYY>")
+      - any FIELD_MAPPINGS key in the prompt => dim_key & segment
+    """
+    params = {"start_date": None, "end_date": None, "dim_key": None, "segment": None}
+    lower = user_prompt.lower()
+
+    # 1) Date range: YYYY-MM-DD → YYYY-MM-DD
+    m = re.search(r'from (\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})', user_prompt)
+    if m:
+        params["start_date"], params["end_date"] = m.groups()
+    else:
+        # single-month: "in April 2025"
+        m2 = re.search(r'in ([A-Za-z]+ \d{4})', user_prompt)
+        if m2:
+            try:
+                dt = datetime.datetime.strptime('1 ' + m2.group(1), '%d %B %Y')
+                last = calendar.monthrange(dt.year, dt.month)[1]
+                params["start_date"] = dt.strftime('%Y-%m-%d')
+                params["end_date"]   = dt.replace(day=last).strftime('%Y-%m-%d')
+            except ValueError:
+                pass
+
+    # 2) Dimension detection: loop through all keys, longest first to avoid
+    #    substring collisions (e.g. "product" vs "product name")
+    for key in sorted(FIELD_MAPPINGS, key=len, reverse=True):
+        if re.search(rf'\b{re.escape(key)}s?\b', lower):
+            params["dim_key"] = FIELD_MAPPINGS[key]
+            # grab the segment phrase immediately after the key
+            seg = re.search(
+                rf'{re.escape(key)}s?\s+(?:of|in)?\s*([A-Za-z0-9 ]+?)(?=(?:\s+and\b|\s+for\b|\Z))',
+                user_prompt, re.IGNORECASE
+            )
+            if seg:
+                cand = seg.group(1).strip()
+                # if the user said "same" or "previous", we'll leave that to merging
+                if not re.match(r'^(same|previous)\b', cand, re.IGNORECASE):
+                    params["segment"] = cand
+            break
+
+    print("☑ detected params:", params)
+    return params
+# ───────────────────── Conversation Chain Setup ─────────────────────
+
+def get_conversation_chain(conversation_id: str | None) -> ConversationChain:
+    """
+    Retrieve or create a ConversationChain with summary memory scoped to a conversation.
+    """
+    if conversation_id:
+        if conversation_id not in memory_store:
+            memory_store[conversation_id] = ConversationSummaryMemory(
+                llm=llm,
+                memory_key="history",
+                summary_key="chat_summary",
+                input_key="input",
+            )
+        memory = memory_store[conversation_id]
+    else:
+        memory = ConversationSummaryMemory(
+            llm=llm,
+            memory_key="history",
+            summary_key="chat_summary",
+            input_key="input",
+        )
+    # Seed memory
+    if conversation_id:
+        history = load_history(conversation_id, limit=10)  # fetch by UUID
+        for msg in history:
+            if msg["role"] == "user":
+                memory.save_context({"input": msg["content"]}, {"output": ""})
+            else:
+                memory.save_context({"input": ""}, {"output": msg["content"]})
+    return ConversationChain(
+        llm=llm,
+        memory=memory,
+        verbose=False,
+        input_key="input",
+    )
 
 
 class ADXTool:
@@ -688,52 +809,179 @@ def detect_trend(user_prompt: str) -> str:
 
 
 
+# def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -> str:
+#     """
+#     1) Fill in missing params from memory if needed
+#     2) Try to generate and run KQL
+#     3) If no data or conversion fails, fall back to LLM+memory
+#     4) Provide insights and update memory
+#     """
+#     chain = get_conversation_chain(conversation_id)
+#     print("\n ---------------------------Chain---------------------",chain)
+
+#     # 1) Extract current params and fill from memory if missing
+#     current = detect_params(user_prompt)
+#     if conversation_id:
+#         prev = memory_params_store.get(conversation_id, {})
+#         # fill missing
+#         for k in ['start_date', 'end_date', 'dim_key', 'segment']:
+#             if not current.get(k) and prev.get(k):
+#                 current[k] = prev[k]
+#         # annotate prompt if defaults applied
+#         if any(prev.get(k) and not re.search(str(prev[k]), user_prompt) for k in ['start_date', 'dim_key']):
+#             defaults = []
+#             if prev.get('start_date') and prev.get('end_date'):
+#                 defaults.append(f"date range {prev['start_date']} to {prev['end_date']}")
+#             if prev.get('dim_key') and prev.get('segment'):
+#                 defaults.append(f"{prev['segment']} as {prev['dim_key']}")
+#             if defaults:
+#                 user_prompt = f"Using previous {' and '.join(defaults)}.\n{user_prompt}"
+
+#     # 2) Attempt KQL path
+#     try:
+#         kql = generate_kql(user_prompt)
+#         print("\n ---------------------------generate_kql---------------------",generate_kql)
+#         cols, rows = adx().run(kql)
+#     except Exception as e:
+#         logger.warning("KQL generation/execution failed: %s", e)
+#         answer = chain.predict(input=user_prompt).strip()
+#         print("\n ---------------------------answer after failed ---------------------",answer)
+#         return answer or "I couldn’t understand that. Could you refine your query?"
+
+#     # 3) No rows -> fallback to memory
+#     if not rows:
+#         answer = chain.predict(input=user_prompt).strip()
+#         return answer or "No data matched. Please refine your query."
+
+#     # 4) Store current params for next time
+#     if conversation_id:
+#         memory_params_store[conversation_id] = current
+
+#     # 5) Convert rows → JSON → insights
+#     result_data = []
+#     for row in rows[:30]:
+#         d = dict(zip(cols, row))
+#         for k, v in d.items():
+#             if isinstance(v, datetime.datetime):
+#                 d[k] = v.strftime("%Y-%m-%d")
+#         result_data.append(d)
+#     result_json = json.dumps(result_data, default=str, indent=2)
+
+#     final_prompt = (
+#         f"User asked: {user_prompt}\n\n"
+#         f"Context Data:\n{result_json}\n\n"
+#         "• Format as bullets.\n"
+#         "• Use human-readable 'Depo/Sales Office' for gsber if present.\n"
+#         "• Provide business recommendations based on SAP Sales."
+#     )
+#     insight = chain.predict(input=final_prompt).strip()
+#     print("\n ---------------------------insight ---------------------",insight)
+#     return insight or "I couldn’t generate an insight. Please refine your prompt."
+
 def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -> str:
-    # ── A) Build & seed summary memory ───────────────────────────────────────────
-    memory = ConversationSummaryMemory(
-        llm=llm,
-        memory_key="history",
-        summary_key="chat_summary",
-        input_key="input",
-    )
-    # Always define history as a list, even if conversation_id is None:
-    history = load_history(conversation_id, limit=10) if conversation_id else []
-    # Seed memory (if any)
-    for msg in history:
-        if msg["role"] == "user":
-            memory.save_context({"input": msg["content"]}, {"output": ""})
+    """
+    1) Extract explicit params (date range, filter dim_key & segment) from prompt
+    2) Merge with any stored params from previous turn
+    3) Prepend “Using previous …” hint if we inherited params
+    4) Generate & run KQL; fallback to pure LLM+memory on errors / no data
+    5) Serialize rows → JSON → LLM insight
+    6) Update param‐memory for next turn
+    """
+    previous = memory_params_store.get(conversation_id or "", {})
+
+    def detect_params(up: str) -> dict[str, Optional[str]]:
+        params = {"start_date": None, "end_date": None, "dim_key": None, "segment": None}
+        lower = up.lower()
+
+        # 1) Date range: explicit YYYY-MM-DD to YYYY-MM-DD
+        m = re.search(r'from (\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})', up)
+        if m:
+            params["start_date"], params["end_date"] = m.groups()
         else:
-            memory.save_context({"input": ""},         {"output": msg["content"]})
-    chain = ConversationChain(
-        llm=llm,
-        memory=memory,
-        verbose=False,
-        input_key="input",
-    )
+            # single month: "in April 2025"
+            m2 = re.search(r'in ([A-Za-z]+ \d{4})', up)
+            if m2:
+                try:
+                    dt = datetime.datetime.strptime("1 " + m2.group(1), "%d %B %Y")
+                    last_day = calendar.monthrange(dt.year, dt.month)[1]
+                    params["start_date"] = dt.strftime("%Y-%m-%d")
+                    params["end_date"]   = dt.replace(day=last_day).strftime("%Y-%m-%d")
+                except ValueError:
+                    pass
 
-    # ── B) Try the KQL → ADX path ─────────────────────────────────────────────────
+        # 2) GSBER_MAPPING (depos/business areas) first
+        for area_name in GSBER_MAPPING:
+            if area_name.lower() in lower:
+                params["dim_key"] = "gsber"
+                params["segment"] = area_name
+                break
+
+        # 3) Other dimension filters
+        if not params["dim_key"]:
+            # sort keys by length to match longest first ("product name" before "product")
+            for biz_key in sorted(FIELD_MAPPINGS, key=len, reverse=True):
+                if biz_key in lower:
+                    params["dim_key"] = FIELD_MAPPINGS[biz_key]
+                    # capture the segment value after the key
+                    seg_pattern = rf'\b{re.escape(biz_key)}s?\b\s+(?:of|in)?\s*([A-Za-z0-9 ]+?)(?=(?:\s+and\b|\Z))'
+                    seg_m = re.search(seg_pattern, up, re.IGNORECASE)
+                    if seg_m:
+                        cand = seg_m.group(1).strip()
+                        # avoid overly long junk
+                        if len(cand.split()) <= 4 and not re.match(r'^(same|previous)\b', cand, re.IGNORECASE):
+                            params["segment"] = cand
+                    break
+
+        print("☑ detected params:", params)
+        return params
+
+    current = detect_params(user_prompt)
+
+    # ── Merge
+    merged = {
+        k: current.get(k) or previous.get(k)
+        for k in ("start_date", "end_date", "dim_key", "segment")
+    }
+    print("☑ merged params:", merged)
+
+    # ── Build hint if we inherited anything
+    inherited = {k for k in merged if previous.get(k) and not current.get(k)}
+    if inherited:
+        hints = []
+        if {"start_date","end_date"} <= inherited and merged["start_date"] and merged["end_date"]:
+            hints.append(f"date range {merged['start_date']} to {merged['end_date']}")
+        if "dim_key" in inherited and merged["dim_key"] and merged["segment"]:
+            # human‐friendly label
+            if merged["dim_key"] == "gsber":
+                label = "depo"
+            else:
+                # find original key text
+                label = next((k for k,v in FIELD_MAPPINGS.items() if v==merged["dim_key"]), merged["dim_key"])
+            hints.append(f"{label} '{merged['segment']}'")
+        hint_txt = " and ".join(hints)
+        kql_input = f"Using previous {hint_txt}. {user_prompt}"
+    else:
+        kql_input = user_prompt
+
+    # ── Generate & run KQL
     try:
-        kql = generate_kql(user_prompt)
-        # … your post-processing here …
-        cols, rows = adx().run(kql)
+        kql = generate_kql(kql_input)   # your existing generator
+        cols, rows = adx().run(kql)      # your ADX client
+        if not rows:
+            raise ValueError("No rows")
     except Exception:
-        # fallback to pure LLM+memory
-        answer = chain.predict(input=user_prompt).strip()
-        return answer or "Sorry, I couldn’t understand that. Could you rephrase?"
+        # fallback to pure LLM + memory
+        return ConversationChain(
+            llm=llm, memory=ConversationSummaryMemory(llm=llm), verbose=False
+        ).predict(input=user_prompt).strip()
 
-    if not rows:
-        # fallback to pure memory
-        answer = chain.predict(input=user_prompt).strip()
-        print("answer ---------------------",answer)
-        return answer or "No data matched. Please refine your query."
-
-    # ── C) Rows → JSON → LLM insight ───────────────────────────────────────────────
+    # ── Prepare JSON for insight
     result_data = []
     for row in rows[:30]:
         d = dict(zip(cols, row))
-        for k, v in d.items():
-            if isinstance(v, datetime.datetime):
-                d[k] = v.strftime("%Y-%m-%d")
+        for kk,vv in d.items():
+            if isinstance(vv, datetime.datetime):
+                d[kk] = vv.strftime("%Y-%m-%d")
         result_data.append(d)
     result_json = json.dumps(result_data, default=str, indent=2)
 
@@ -741,107 +989,14 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
         f"User asked: {user_prompt}\n\n"
         f"Context Data:\n{result_json}\n\n"
         "• Format as bullets\n"
-        " if you found gsber, then it's human readable name is Depo/Sales Office.so if you find gsber use Depo/Sales Office\n"
-        " If the result is numerical or comparative, bullet points for proper indication. If it's categorical or simple, use bullet points.\n"
-        "• If Needed, Based on the Context Data give meaningful business-related suggestions or recommendation related to SAP Sales"
+        "• If you find gsber, label it 'Depo/Sales Office'\n"
+        "• Provide business-related suggestions or recommendations based on SAP Sales"
     )
-    insight = chain.predict(input=final_prompt).strip()
+    insight = ConversationChain(
+        llm=llm, memory=ConversationSummaryMemory(llm=llm), verbose=False
+    ).predict(input=final_prompt).strip()
+
+    # ── Update memory
+    memory_params_store[conversation_id or ""] = merged
+
     return insight or "I couldn’t generate an insight. Please refine your prompt."
-
-
-# Enhance handle_user_query to use dynamic date range detection
-
-# def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -> str:
-#     """
-#     Dynamically handle SAP Sales prompts, ensuring correct KQL generation,
-#     and map business area/territory to the correct 'gsber' code.
-#     """
-#     # -- [unchanged] detect or ask for dates
-#     print("user_prompt:", user_prompt)
-#     logger.debug("This is a debug message")
-#     start_date, end_date = detect_date_filter_using_llm(user_prompt)
-#     if start_date and end_date:
-#         start_date_str = start_date.strftime("%Y-%m-%d")
-#         end_date_str   = end_date.strftime("%Y-%m-%d")
-#         user_prompt   += f" from {start_date_str} to {end_date_str}"
-  
-#     else:
-#         user_prompt   += " Please specify a date range for the data (e.g., from 2025-01-01 to 2025-12-31)."
-#     print("date range :", start_date)
-#     print("date range :", end_date_str)
-#     # -- [unchanged] raw KQL generation + fixes
-#     kql = generate_kql(user_prompt)
-#     kql = format_dates(kql)
-#     kql = re.sub(r'ago\(3mo\)', 'ago(90d)', kql, flags=re.I)
-#     kql = re.sub(r'startofquarter\((.*?)\)', r'startofmonth(\1)', kql, flags=re.I)
-
-#     # -- [unchanged] territory → gsber mapping
-#     for territory, gsber_value in GSBER_MAPPING.items():
-#         if territory.lower() in user_prompt.lower():
-#             kql = re.sub(r"where Territory == .+?", f"where gsber == '{gsber_value}'", kql)
-#             break
-
-#     # -- [unchanged] trend detection
-#     trend = detect_trend(user_prompt)
-#     if trend == "declining":
-#         kql = kql.replace("RevenueChange < 0", "RevenueChange < 0")
-#     elif trend == "increasing":
-#         kql = kql.replace("RevenueChange < 0", "RevenueChange > 0")
-#     else:
-#         kql = kql.replace("RevenueChange < 0", "RevenueChange == 0")
-
-#     # -- [unchanged] execute with retry
-#     for attempt in (1, 2):
-#         try:
-#             cols, rows = adx().run(kql)
-#             break
-#         except KustoApiError:
-#             if attempt == 1:
-#                 kql = generate_kql(user_prompt, strict=True)
-#                 continue
-#             return "Please refine your query for better results. I’m learning day by day and will help you improve your query."
-
-#     if not rows:
-#         return "No data found matching your criteria. Please refine your query for more specific results."
-
-#     # —————————————————————————
-#     # ↓ NEW: fully dynamic datetime formatting ↓
-#     # —————————————————————————
-
-#     # 1) Limit to top N rows
-#     rows_to_show = rows[:30]
-#     print("rows_to_show = rows[:30]:", rows_to_show)
-#     # 2) Build result_data, converting any datetime to "YYYY-MM-DD"
-#     result_data = []
-#     for row in rows_to_show:
-#         row_dict = dict(zip(cols, row))
-#         for col_name, value in row_dict.items():
-#             if isinstance(value, datetime.datetime):
-#                 row_dict[col_name] = value.strftime("%Y-%m-%d")
-#         result_data.append(row_dict)
-
-#     # 3) Optionally sort by detected date-like column
-#     date_cols = [c for c in cols if c.lower() in ("timeperiod", "week", "month", "date")]
-#     if date_cols:
-#         key = date_cols[0]
-#         result_data.sort(key=lambda x: x[key])
-
-#     # 4) Safe JSON serialization
-#     result_json = json.dumps(result_data, default=str, indent=2)
-#     print("json.dumps result_data:", result_json)
-
-#     # —————————————————————————
-#     # Resume your original LLM-prompting logic
-#     # —————————————————————————
-#     result_prompt = (
-#         f"User asked: {user_prompt}\n\n"
-#         f"Context Data:\n{result_json}\n\n"
-#         "Based on the query results, format the output in bulleted format. "
-#          "if you found gsber, then it's human readable name is Depo/Sales Office.so if you find gsber use Depo/Sales Office"
-#         "If the result is numerical or comparative, bullet points for proper indication. If it's categorical or simple, use bullet points. "
-#         "After formatting, provide a concise business insight related to the data, such as trends, patterns, or key takeaways. Amount is in BDT."
-#         "If Needed, Based on the Context Data give meaningful business-related suggestions such as increasing sales, revenue."
-#     )
-#     formatted_result = llm.invoke([{"role": "user", "content": result_prompt}]).content
-#     return formatted_result
-
