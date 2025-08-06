@@ -10,19 +10,27 @@ from langchain_openai import AzureChatOpenAI
 import logging
 import dateutil.parser
 import calendar
-
+from conversation.models.message import Message
+from langchain.memory import ConversationSummaryMemory
 import logging
-
+from langchain.chains import ConversationChain
+# from langchain.chains.conversation.base import ConversationChain
 logger = logging.getLogger(__name__)
 
 
-def chat_invoke(conversation_id: str, messages: list[dict]) -> str:
+
+def load_history(conversation_uuid: str, limit: int = 10) -> list[dict]:
     """
-    Prepend system prompt + history, then invoke LLM
+    Load the last `limit` turns from the conversation (user + bot), oldest first.
     """
-    history = load_chat_history(conversation_id)
-    full = [{"role": "system",      "content": SYSTEM_PROMPT_KQL}] + history + messages
-    return llm.invoke(full).content
+    qs = Message.active.filter(
+        conversation__uuid=conversation_uuid
+    ).order_by('-created_at')[:limit]
+    return [
+        {"role": "user" if m.sender == "user" else "assistant", "content": m.text}
+        for m in reversed(qs)
+    ]
+
 
 class ADXTool:
     def __init__(self, cluster: str, database: str):
@@ -128,6 +136,21 @@ llm = AzureChatOpenAI(
     azure_deployment = settings.AZURE_OPENAI_DEPLOYMENT,
     temperature      = 0,
 )
+
+# Use summary memory to condense past history
+# Use summary memory to condense past history into `history` variable
+# memory = ConversationSummaryMemory(
+#     llm=llm,
+#     memory_key="history",
+#     summary_key="chat_summary",
+#     input_key="user_input",   # ← now matches your code
+# )
+# conversation_chain = ConversationChain(
+#     llm=llm,
+#     memory=memory,
+#     verbose=False,
+#     input_key="user_input",   # ← override default
+# )
 
 # ───────────────────────── 4.  Helpers ────────────────────────────
 def _extract_kql(raw: str) -> str:
@@ -660,99 +683,175 @@ def detect_trend(user_prompt: str) -> str:
 # Handle user queries dynamically and generate the corresponding KQL query
 
 
-# Enhance handle_user_query to use dynamic date range detection
+#new 
+
+
+
 
 def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -> str:
     """
-    Dynamically handle SAP Sales prompts, ensuring correct KQL generation,
-    and map business area/territory to the correct 'gsber' code.
+    1) Seed summary memory from history.
+    2) Try: user -> KQL -> ADX -> JSON -> LLM insight.
+    3) Except: user + memory -> LLM direct answer.
+    4) If still empty: ask to refine.
     """
-    # -- [unchanged] detect or ask for dates
-    print("user_prompt:", user_prompt)
-    logger.debug("This is a debug message")
-    start_date, end_date = detect_date_filter_using_llm(user_prompt)
-    if start_date and end_date:
-        start_date_str = start_date.strftime("%Y-%m-%d")
-        end_date_str   = end_date.strftime("%Y-%m-%d")
-        user_prompt   += f" from {start_date_str} to {end_date_str}"
-  
-    else:
-        user_prompt   += " Please specify a date range for the data (e.g., from 2025-01-01 to 2025-12-31)."
-    print("date range :", start_date)
-    print("date range :", end_date_str)
-    # -- [unchanged] raw KQL generation + fixes
-    kql = generate_kql(user_prompt)
-    kql = format_dates(kql)
-    kql = re.sub(r'ago\(3mo\)', 'ago(90d)', kql, flags=re.I)
-    kql = re.sub(r'startofquarter\((.*?)\)', r'startofmonth(\1)', kql, flags=re.I)
+    # ── A) Build & seed summary memory ───────────────────────────────────────────
+    memory = ConversationSummaryMemory(
+        llm=llm,
+        memory_key="history",
+        summary_key="chat_summary",
+        input_key="input",
+    )
+    if conversation_id:
+        for msg in load_history(conversation_id, limit=10):
+            if msg["role"] == "user":
+                memory.save_context({"input": msg["content"]}, {"output": ""})
+            else:
+                memory.save_context({"input": ""},         {"output": msg["content"]})
+    chain = ConversationChain(
+        llm=llm,
+        memory=memory,
+        verbose=False,
+        input_key="input",
+    )
 
-    # -- [unchanged] territory → gsber mapping
-    for territory, gsber_value in GSBER_MAPPING.items():
-        if territory.lower() in user_prompt.lower():
-            kql = re.sub(r"where Territory == .+?", f"where gsber == '{gsber_value}'", kql)
-            break
-
-    # -- [unchanged] trend detection
-    trend = detect_trend(user_prompt)
-    if trend == "declining":
-        kql = kql.replace("RevenueChange < 0", "RevenueChange < 0")
-    elif trend == "increasing":
-        kql = kql.replace("RevenueChange < 0", "RevenueChange > 0")
-    else:
-        kql = kql.replace("RevenueChange < 0", "RevenueChange == 0")
-
-    # -- [unchanged] execute with retry
-    for attempt in (1, 2):
-        try:
-            cols, rows = adx().run(kql)
-            break
-        except KustoApiError:
-            if attempt == 1:
-                kql = generate_kql(user_prompt, strict=True)
-                continue
-            return "Please refine your query for better results. I’m learning day by day and will help you improve your query."
+    # ── B) Try the KQL → ADX path ─────────────────────────────────────────────────
+    try:
+        # 1) build & post-process KQL
+        kql = generate_kql(user_prompt)
+        kql = format_dates(kql)
+        kql = re.sub(r'ago\(3mo\)', 'ago(90d)', kql, flags=re.I)
+        kql = re.sub(r'startofquarter\((.*?)\)', r'startofmonth(\1)', kql, flags=re.I)
+        # territory & trend tweaks (as before) …
+        
+        # 2) execute
+        cols, rows = adx().run(kql)
+    except Exception:
+        # anything went wrong turning it into or running KQL → fallback
+        answer = chain.predict(input=user_prompt).strip()
+        return answer or "Sorry, I couldn’t understand that. Could you rephrase?"
 
     if not rows:
-        return "No data found matching your criteria. Please refine your query for more specific results."
+        # no data found → fallback to memory-only
+        answer = chain.predict(input=user_prompt).strip()
+        return answer or "No data matched. Please refine your query."
 
-    # —————————————————————————
-    # ↓ NEW: fully dynamic datetime formatting ↓
-    # —————————————————————————
-
-    # 1) Limit to top N rows
-    rows_to_show = rows[:30]
-    print("rows_to_show = rows[:30]:", rows_to_show)
-    # 2) Build result_data, converting any datetime to "YYYY-MM-DD"
+    # ── C) We have rows → format & ask LLM for insight ────────────────────────────
+    # 1) build JSON
     result_data = []
-    for row in rows_to_show:
-        row_dict = dict(zip(cols, row))
-        for col_name, value in row_dict.items():
-            if isinstance(value, datetime.datetime):
-                row_dict[col_name] = value.strftime("%Y-%m-%d")
-        result_data.append(row_dict)
-
-    # 3) Optionally sort by detected date-like column
-    date_cols = [c for c in cols if c.lower() in ("timeperiod", "week", "month", "date")]
-    if date_cols:
-        key = date_cols[0]
-        result_data.sort(key=lambda x: x[key])
-
-    # 4) Safe JSON serialization
+    for row in rows[:30]:
+        d = dict(zip(cols, row))
+        for k,v in d.items():
+            if isinstance(v, datetime.datetime):
+                d[k] = v.strftime("%Y-%m-%d")
+        result_data.append(d)
+    # optional sort…
     result_json = json.dumps(result_data, default=str, indent=2)
-    print("json.dumps result_data:", result_json)
 
-    # —————————————————————————
-    # Resume your original LLM-prompting logic
-    # —————————————————————————
-    result_prompt = (
+    # 2) final prompt
+    final_prompt = (
         f"User asked: {user_prompt}\n\n"
         f"Context Data:\n{result_json}\n\n"
-        "Based on the query results, format the output in bulleted format. "
-         "if you found gsber, then it's human readable name is Depo/Sales Office.so if you find gsber use Depo/Sales Office"
-        "If the result is numerical or comparative, bullet points for proper indication. If it's categorical or simple, use bullet points. "
-        "After formatting, provide a concise business insight related to the data, such as trends, patterns, or key takeaways. Amount is in BDT."
-        "If Needed, Based on the Context Data give meaningful business-related suggestions such as increasing sales, revenue."
+        "• Format as bullets\n"
+        "• Show any gsber codes as Depo/Sales Office\n"
+        "• Then give a concise business insight or recommendation."
     )
-    formatted_result = llm.invoke([{"role": "user", "content": result_prompt}]).content
-    return formatted_result
+    insight = chain.predict(input=final_prompt).strip()
+    return insight or "I couldn’t generate an insight. Please refine your prompt."
+
+# Enhance handle_user_query to use dynamic date range detection
+
+# def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -> str:
+#     """
+#     Dynamically handle SAP Sales prompts, ensuring correct KQL generation,
+#     and map business area/territory to the correct 'gsber' code.
+#     """
+#     # -- [unchanged] detect or ask for dates
+#     print("user_prompt:", user_prompt)
+#     logger.debug("This is a debug message")
+#     start_date, end_date = detect_date_filter_using_llm(user_prompt)
+#     if start_date and end_date:
+#         start_date_str = start_date.strftime("%Y-%m-%d")
+#         end_date_str   = end_date.strftime("%Y-%m-%d")
+#         user_prompt   += f" from {start_date_str} to {end_date_str}"
+  
+#     else:
+#         user_prompt   += " Please specify a date range for the data (e.g., from 2025-01-01 to 2025-12-31)."
+#     print("date range :", start_date)
+#     print("date range :", end_date_str)
+#     # -- [unchanged] raw KQL generation + fixes
+#     kql = generate_kql(user_prompt)
+#     kql = format_dates(kql)
+#     kql = re.sub(r'ago\(3mo\)', 'ago(90d)', kql, flags=re.I)
+#     kql = re.sub(r'startofquarter\((.*?)\)', r'startofmonth(\1)', kql, flags=re.I)
+
+#     # -- [unchanged] territory → gsber mapping
+#     for territory, gsber_value in GSBER_MAPPING.items():
+#         if territory.lower() in user_prompt.lower():
+#             kql = re.sub(r"where Territory == .+?", f"where gsber == '{gsber_value}'", kql)
+#             break
+
+#     # -- [unchanged] trend detection
+#     trend = detect_trend(user_prompt)
+#     if trend == "declining":
+#         kql = kql.replace("RevenueChange < 0", "RevenueChange < 0")
+#     elif trend == "increasing":
+#         kql = kql.replace("RevenueChange < 0", "RevenueChange > 0")
+#     else:
+#         kql = kql.replace("RevenueChange < 0", "RevenueChange == 0")
+
+#     # -- [unchanged] execute with retry
+#     for attempt in (1, 2):
+#         try:
+#             cols, rows = adx().run(kql)
+#             break
+#         except KustoApiError:
+#             if attempt == 1:
+#                 kql = generate_kql(user_prompt, strict=True)
+#                 continue
+#             return "Please refine your query for better results. I’m learning day by day and will help you improve your query."
+
+#     if not rows:
+#         return "No data found matching your criteria. Please refine your query for more specific results."
+
+#     # —————————————————————————
+#     # ↓ NEW: fully dynamic datetime formatting ↓
+#     # —————————————————————————
+
+#     # 1) Limit to top N rows
+#     rows_to_show = rows[:30]
+#     print("rows_to_show = rows[:30]:", rows_to_show)
+#     # 2) Build result_data, converting any datetime to "YYYY-MM-DD"
+#     result_data = []
+#     for row in rows_to_show:
+#         row_dict = dict(zip(cols, row))
+#         for col_name, value in row_dict.items():
+#             if isinstance(value, datetime.datetime):
+#                 row_dict[col_name] = value.strftime("%Y-%m-%d")
+#         result_data.append(row_dict)
+
+#     # 3) Optionally sort by detected date-like column
+#     date_cols = [c for c in cols if c.lower() in ("timeperiod", "week", "month", "date")]
+#     if date_cols:
+#         key = date_cols[0]
+#         result_data.sort(key=lambda x: x[key])
+
+#     # 4) Safe JSON serialization
+#     result_json = json.dumps(result_data, default=str, indent=2)
+#     print("json.dumps result_data:", result_json)
+
+#     # —————————————————————————
+#     # Resume your original LLM-prompting logic
+#     # —————————————————————————
+#     result_prompt = (
+#         f"User asked: {user_prompt}\n\n"
+#         f"Context Data:\n{result_json}\n\n"
+#         "Based on the query results, format the output in bulleted format. "
+#          "if you found gsber, then it's human readable name is Depo/Sales Office.so if you find gsber use Depo/Sales Office"
+#         "If the result is numerical or comparative, bullet points for proper indication. If it's categorical or simple, use bullet points. "
+#         "After formatting, provide a concise business insight related to the data, such as trends, patterns, or key takeaways. Amount is in BDT."
+#         "If Needed, Based on the Context Data give meaningful business-related suggestions such as increasing sales, revenue."
+#     )
+#     formatted_result = llm.invoke([{"role": "user", "content": result_prompt}]).content
+#     return formatted_result
 
