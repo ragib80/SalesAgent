@@ -689,12 +689,6 @@ def detect_trend(user_prompt: str) -> str:
 
 
 def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -> str:
-    """
-    1) Seed summary memory from history.
-    2) Try: user -> KQL -> ADX -> JSON -> LLM insight.
-    3) Except: user + memory -> LLM direct answer.
-    4) If still empty: ask to refine.
-    """
     # ── A) Build & seed summary memory ───────────────────────────────────────────
     memory = ConversationSummaryMemory(
         llm=llm,
@@ -702,12 +696,14 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
         summary_key="chat_summary",
         input_key="input",
     )
-    if conversation_id:
-        for msg in load_history(conversation_id, limit=10):
-            if msg["role"] == "user":
-                memory.save_context({"input": msg["content"]}, {"output": ""})
-            else:
-                memory.save_context({"input": ""},         {"output": msg["content"]})
+    # Always define history as a list, even if conversation_id is None:
+    history = load_history(conversation_id, limit=10) if conversation_id else []
+    # Seed memory (if any)
+    for msg in history:
+        if msg["role"] == "user":
+            memory.save_context({"input": msg["content"]}, {"output": ""})
+        else:
+            memory.save_context({"input": ""},         {"output": msg["content"]})
     chain = ConversationChain(
         llm=llm,
         memory=memory,
@@ -717,47 +713,41 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
 
     # ── B) Try the KQL → ADX path ─────────────────────────────────────────────────
     try:
-        # 1) build & post-process KQL
         kql = generate_kql(user_prompt)
-        kql = format_dates(kql)
-        kql = re.sub(r'ago\(3mo\)', 'ago(90d)', kql, flags=re.I)
-        kql = re.sub(r'startofquarter\((.*?)\)', r'startofmonth(\1)', kql, flags=re.I)
-        # territory & trend tweaks (as before) …
-        
-        # 2) execute
+        # … your post-processing here …
         cols, rows = adx().run(kql)
     except Exception:
-        # anything went wrong turning it into or running KQL → fallback
+        # fallback to pure LLM+memory
         answer = chain.predict(input=user_prompt).strip()
         return answer or "Sorry, I couldn’t understand that. Could you rephrase?"
 
     if not rows:
-        # no data found → fallback to memory-only
+        # fallback to pure memory
         answer = chain.predict(input=user_prompt).strip()
+        print("answer ---------------------",answer)
         return answer or "No data matched. Please refine your query."
 
-    # ── C) We have rows → format & ask LLM for insight ────────────────────────────
-    # 1) build JSON
+    # ── C) Rows → JSON → LLM insight ───────────────────────────────────────────────
     result_data = []
     for row in rows[:30]:
         d = dict(zip(cols, row))
-        for k,v in d.items():
+        for k, v in d.items():
             if isinstance(v, datetime.datetime):
                 d[k] = v.strftime("%Y-%m-%d")
         result_data.append(d)
-    # optional sort…
     result_json = json.dumps(result_data, default=str, indent=2)
 
-    # 2) final prompt
     final_prompt = (
         f"User asked: {user_prompt}\n\n"
         f"Context Data:\n{result_json}\n\n"
         "• Format as bullets\n"
-        "• Show any gsber codes as Depo/Sales Office\n"
-        "• Then give a concise business insight or recommendation."
+        " if you found gsber, then it's human readable name is Depo/Sales Office.so if you find gsber use Depo/Sales Office\n"
+        " If the result is numerical or comparative, bullet points for proper indication. If it's categorical or simple, use bullet points.\n"
+        "• If Needed, Based on the Context Data give meaningful business-related suggestions or recommendation related to SAP Sales"
     )
     insight = chain.predict(input=final_prompt).strip()
     return insight or "I couldn’t generate an insight. Please refine your prompt."
+
 
 # Enhance handle_user_query to use dynamic date range detection
 
