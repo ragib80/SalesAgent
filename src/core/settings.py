@@ -11,13 +11,18 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 from datetime import timedelta
 import os
+# import environ
 from pathlib import Path
 from dotenv import load_dotenv
+# add these two imports:
 
 load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
+# env = environ.Env(
+#     # set default values and casting
+#     DEBUG=(bool, False)
+# )
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
@@ -51,6 +56,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',  # For token-based authentication
     'user_auth',
     'rest_framework_simplejwt.token_blacklist',
+    'django_python3_ldap',
 ]
 
 MIDDLEWARE = [
@@ -215,3 +221,25 @@ JAZZMIN_SETTINGS = {
     # ...more config
 }
 
+# 3. LDAP / AD settings
+AUTH_LDAP_SERVER_URI      = os.getenv('AUTH_LDAP_SERVER_URI')
+AUTH_LDAP_BIND_DN         = os.getenv('AUTH_LDAP_BIND_DN')
+AUTH_LDAP_BIND_PASSWORD   = os.getenv('AUTH_LDAP_BIND_PASSWORD')
+AUTH_LDAP_USER_SEARCH_BASE       = os.getenv('AUTH_LDAP_USER_SEARCH_BASE')
+LDAP_AUTH_SEARCH_FILTER      = os.getenv('LDAP_AUTH_SEARCH_FILTER ')
+
+# map LDAP attrs to Django User fields
+LDAP_AUTH_USER_FIELDS = {
+    "username": "sAMAccountName",
+    "first_name": "givenName",
+    "last_name": "sn",
+    "email": "mail",
+}
+# add this line:
+AUTH_LDAP_DOMAIN        =  os.getenv("AUTH_LDAP_DOMAIN")
+
+# format username for AD
+LDAP_AUTH_FORMAT_USERNAME = (
+    "django_python3_ldap.utils.format_username_active_directory"
+)
+# 4. Group-based flags
