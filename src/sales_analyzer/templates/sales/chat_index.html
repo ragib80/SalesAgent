@@ -2,511 +2,1293 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>SAP Sales Agent</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Bootstrap 5 -->
-     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- ChatGPT Font - Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <!-- FontAwesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-<style>
-    :root {
-  --sidebar-width: 270px;
-  --sidebar-width-collapsed: 60px;
-}
+    <title>ChatGPT</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f7f7f8;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .main-container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        /* Sidebar Styles */
+        .sidebar {
+            width: 260px;
+            background-color: #f7f7f8;
+            color: #374151;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #e5e7eb;
+        }
+        
+        .sidebar-header {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .sidebar-menu {
+            padding: 8px;
+        }
+        
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            margin: 2px 0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            color: #374151;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .menu-item:hover {
+            background-color: #f3f4f6;
+            color: #374151;
+        }
+        
+        .menu-item.active {
+            background-color: #f3f4f6;
+        }
+        
+        .menu-icon {
+            width: 16px;
+            height: 16px;
+            margin-right: 12px;
+            fill: currentColor;
+        }
+        
+        .chats-section {
+            flex: 1;
+            padding: 8px;
+            overflow-y: auto;
+        }
+        
+        .chats-section::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .chats-section::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+        
+        .chats-section::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        
+        .chats-section::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        
+        .chats-header {
+            color: #6b7280;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            padding: 0 12px;
+        }
+        
+        .chat-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            margin: 2px 0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            color: #374151;
+            font-size: 14px;
+            position: relative;
+        }
+        
+        .chat-item:hover {
+            background-color: #f3f4f6;
+        }
+        
+        .chat-item:hover .chat-menu-btn {
+            opacity: 1;
+        }
+        
+        .chat-item.active {
+            background-color: #e5e7eb;
+        }
+        
+        .chat-title {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .chat-menu-btn {
+            opacity: 0;
+            padding: 4px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+            color: #6b7280;
+        }
+        
+        .chat-menu-btn:hover {
+            background-color: #e5e7eb;
+            color: #374151;
+        }
+        
+        .chat-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 8px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            z-index: 1000;
+            min-width: 160px;
+            display: none;
+        }
+        
+        .chat-dropdown.show {
+            display: block;
+        }
+        
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-size: 14px;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+        }
+        
+        .dropdown-item:hover {
+            background-color: #f3f4f6;
+        }
+        
+        .dropdown-item:first-child {
+            border-radius: 8px 8px 0 0;
+        }
+        
+        .dropdown-item:last-child {
+            border-radius: 0 0 8px 8px;
+        }
+        
+        .dropdown-item.delete {
+            color: #dc2626;
+        }
+        
+        .dropdown-item.delete:hover {
+            background-color: #fef2f2;
+        }
+        
+        .dropdown-icon {
+            width: 16px;
+            height: 16px;
+            margin-right: 8px;
+        }
+        
+        .user-section {
+            padding: 12px;
+            border-top: 1px solid #e5e7eb;
+            position: relative;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .user-info:hover {
+            background-color: #f3f4f6;
+        }
+        
+        .user-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: #19c37d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 8px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .user-name {
+            color: #374151;
+            font-size: 14px;
+        }
+        
+        .user-plan {
+            color: #6b7280;
+            font-size: 12px;
+        }
+        
+        .user-dropdown {
+            position: absolute;
+            bottom: 100%;
+            left: 12px;
+            right: 12px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            z-index: 1000;
+            display: none;
+            margin-bottom: 8px;
+        }
+        
+        .user-dropdown.show {
+            display: block;
+        }
+        
+        /* Main Content Styles */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: #fff;
+        }
+        
+        .chat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            border-bottom: 1px solid #e5e5e5;
+            background-color: #fff;
+        }
+        
+        .chat-title {
+            display: flex;
+            align-items: center;
+            font-size: 16px;
+            font-weight: 600;
+            color: #2d333a;
+        }
+        
+        .chat-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .action-btn {
+            padding: 6px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background-color: #fff;
+            color: #374151;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .action-btn:hover {
+            background-color: #f9fafb;
+        }
+        
+        .chat-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        
+        .message-group {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .message {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .message.user {
+            justify-content: flex-end;
+        }
+        
+        .message.user .message-content {
+            background-color: #f4f4f4;
+            color: #1f2937;
+            border-radius: 18px;
+            padding: 12px 16px;
+            max-width: 70%;
+            margin-right: 12px;
+        }
+        
+        .message.assistant .message-content {
+            background-color: transparent;
+            color: #374151;
+            padding: 0;
+            max-width: none;
+            flex: 1;
+        }
+        
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        
+        .message-avatar.user {
+            background-color: #19c37d;
+            color: #fff;
+            order: 2;
+        }
+        
+        .message-avatar.assistant {
+            background-color: #74aa9c;
+            color: #fff;
+        }
+        
+        .message-content ul {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+        
+        .message-content li {
+            margin: 4px 0;
+        }
+        
+        .code-block {
+            background-color: #f6f8fa;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 16px;
+            margin: 12px 0;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+        }
+        
+        .code-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 12px;
+            color: #586069;
+        }
+        
+        .copy-btn, .edit-btn {
+            background: none;
+            border: none;
+            color: #586069;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        
+        .copy-btn:hover, .edit-btn:hover {
+            background-color: #e1e4e8;
+        }
+        
+        /* Input Area Styles */
+        .input-area {
+            padding: 24px;
+            border-top: 1px solid #e5e5e5;
+            background-color: #fff;
+        }
+        
+        .input-container {
+            position: relative;
+            max-width: 768px;
+            margin: 0 auto;
+        }
+        
+        .input-wrapper {
+            display: flex;
+            align-items: flex-end;
+            background-color: #fff;
+            border: 1px solid #d1d5db;
+            border-radius: 24px;
+            padding: 12px 16px;
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
+            transition: all 0.2s;
+        }
+        
+        .input-wrapper:focus-within {
+            border-color: #10a37f;
+            box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.1);
+        }
+        
+        .message-input {
+            flex: 1;
+            border: none;
+            outline: none;
+            resize: none;
+            font-size: 16px;
+            line-height: 1.5;
+            color: #374151;
+            background: transparent;
+            min-height: 24px;
+            max-height: 200px;
+            overflow-y: hidden;  /* so it won’t show a scrollbar */
+        }
+        
+        .message-input::placeholder {
+            color: #9ca3af;
+        }
+        
+        .input-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 8px;
+        }
+        
+        .input-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 6px;
+            background-color: transparent;
+            color: #6b7280;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .input-btn:hover {
+            background-color: #f3f4f6;
+        }
+        
+        .send-btn {
+            background-color: #10a37f;
+            color: #fff;
+        }
+        
+        .send-btn:hover {
+            background-color: #0d8f6b;
+        }
+        
+        .send-btn:disabled {
+            background-color: #d1d5db;
+            cursor: not-allowed;
+        }
+        
+        .disclaimer {
+            text-align: center;
+            color: #6b7280;
+            font-size: 12px;
+            margin-top: 12px;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 0;
+                overflow: hidden;
+                transition: width 0.3s;
+            }
+            
+            .sidebar.open {
+                width: 260px;
+            }
+            
+            .main-content {
+                width: 100%;
+            }
+        }
 
-body {
-  font-family: 'Inter', sans-serif;
-  background: #f6f8fa;
-  margin: 0;
-  padding: 0;
-  height: 100vh;
-  overflow: hidden;
-}
+        /* typing-indicator dots */
+        .typing-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        }
 
-.chat-container {
-  display: flex;
-  height: 100vh;
-  width: 100vw;     /* Fills full window */
-  min-width: 0;
-}
+        .typing-indicator .dot {
+        width: 8px; height: 8px;
+        background: #ccc;
+        border-radius: 50%;
+        animation: blink 1.4s infinite both;
+        }
 
-.sidebar {
-  width: var(--sidebar-width);
-  background: #fff;
-  border-right: 1px solid #eee;
-  height: 100vh;
-  position: fixed;
-  left: 0;
-  top: 0;
-  z-index: 1050;
-  transition: width 0.3s;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  padding: 10px;
-}
-.sidebar.closed {
-  width: var(--sidebar-width-collapsed);
-  overflow-x: hidden;
-}
-.sidebar-header {
-  font-size: 22px;
-  font-weight: 600;
-  padding: 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.burger {
-  font-size: 1.6rem;
-  background: none;
-  border: none;
-  color: #333;
-  cursor: pointer;
-}
-.new-chat-btn {
-  margin: 10px 0;
-  background-color: #10a37f;
-  border: none;
-  color: #fff;
-  padding: 10px 15px;
-  font-size: 14px;
-  cursor: pointer;
-  border-radius: 6px;
-  width: 100%;
-}
-.new-chat-btn.active {
-  background-color: #10a37f;
-  color: white;
-}
-.logout-btn {
-  margin-top: auto;
-  margin-bottom: 10px;
-  background-color: #dc3545;
-  border: none;
-  color: #fff;
-  padding: 10px 15px;
-  font-size: 14px;
-  cursor: pointer;
-  border-radius: 6px;
-  width: 100%;
-}
-.sidebar .list-group-item {
-  background-color: #f8f9fa;
-  color: #333;
-  border: 1px solid #e1e1e1;
-  margin-bottom: 5px;
-  border-radius: 8px;
-  text-align: left;
-}
-.sidebar .list-group-item:hover {
-  background-color: #e1f7e2;
-}
-.sidebar .list-group-item.active {
-  background-color: #10a37f;
-  color: white;
-  border-color: #10a37f;
-}
-.logout-section {
-  margin-top: auto;
-  padding-top: 20px;
-}
-.logout-btn {
-  width: 100%;
-  padding: 10px 15px;
-  font-size: 16px;
-  background-color: transparent;
-  border: 1px solid #ccc;
-  color: #333;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  border-radius: 4px;
-  transition: all 0.3s ease;
-}
-.avatar-initials {
-  width: 2.1rem;
-  height: 2.1rem;
-  background: #eee;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1rem;
-  color: #555;
-  font-weight: 500;
-}
+        .typing-indicator .dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator .dot:nth-child(3) { animation-delay: 0.4s; }
 
-/* MAIN CHAT AREA */
-.main-chat {
-   flex: 1 1 0%;
-  min-width: 0;
-  margin-left: var(--sidebar-width); /* <-- This pushes main-chat to the right after sidebar */
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  background: #f6f8fa;
-  transition: margin-left 0.3s;
-  padding: 0;
-}
-.main-chat.sidebar-collapsed {
-  margin-left: var(--sidebar-width-collapsed);
-}
-
-/* Header bar inside main-chat */
-.main-chat .navbar {
-  border-bottom: 1px solid #eee;
-  background: #fff;
-  margin-bottom: 0;
-  border-radius: 0;
-  min-height: 56px;
-  z-index: 10;
-  padding-left: 0;
-  padding-right: 0;
-}
-
-/* Chat UI */
-.messages {
-  flex: 1 1 auto;
-  min-height: 0;       /* This is critical for flexbox scrolling! */
-  overflow-y: auto;
-  padding: 24px;
-  background: #fff;
-  border-radius: 0;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.07);
-  margin-bottom: 0;
-  margin-top: 0;
-}
-
-/* Chat bubbles and layout */
-.message {
-  margin-bottom: 16px;
-  animation: fadeIn 0.3s ease;
-}
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.message.user .bubble {
-  background: #10a37f;
-  color: #fff;
-  align-self: flex-end;
-}
-.message.assistant .bubble {
-  background: #f3f3f3;
-  color: #333;
-  align-self: flex-start;
-}
-.bubble {
-  border-radius: 16px;
-  padding: 12px 18px;
-  max-width: 65%;
-  font-size: 1rem;
-  word-wrap: break-word;
-}
-
-/* Input bar always at bottom */
-.input-area {
-  background: #fff;
-  border-top: 1px solid #eee;
-  border-radius: 0;
-  margin: 0;
-  box-shadow: 0 0 10px rgba(0,0,0,0.07);
-  position: relative;
-  z-index: 2;
-  display: flex;
-  gap: 8px;
-  padding: 16px;
-}
-.input-area textarea {
-  resize: none;
-  width: 100%;
-  font-size: 1rem;
-  border: 1px solid #ced4da;
-  border-radius: 0.375rem;
-  padding: 0.375rem 0.75rem;
-}
-.input-area textarea:focus {
-  outline: none;
-  border-color: #10a37f;
-  box-shadow: 0 0 0 0.25rem rgba(16, 163, 127, 0.25);
-}
-.send-btn {
-  background: #10a37f;
-  border-radius: 50%;
-  color: white;
-  border: none;
-  padding: 12px 16px;
-  font-size: 1.3rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  flex-shrink: 0;
-}
-.no-conversations {
-  padding: 20px;
-  text-align: center;
-  color: #888;
-}
-.typing-indicator {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-.typing-indicator .dot {
-  height: 8px;
-  width: 8px;
-  background-color: #ccc;
-  border-radius: 50%;
-  animation: blink 1.4s infinite both;
-}
-.typing-indicator .dot:nth-child(2) { animation-delay: 0.2s; }
-.typing-indicator .dot:nth-child(3) { animation-delay: 0.4s; }
-@keyframes blink {
-  0%, 80%, 100% { opacity: 0; }
-  40% { opacity: 1; }
-}
-
-@media (max-width: 900px) {
-  :root {
-    --sidebar-width: 60px;
-  }
-  .sidebar { width: 60px !important; }
-  .main-chat { margin-left: 60px !important; }
-  .main-chat .navbar .mx-auto, .main-chat .navbar .d-flex.mx-auto {
-    flex-direction: column !important;
-    gap: 4px !important;
-    width: 100% !important;
-    min-width: 0 !important;
-    align-items: flex-start !important;
-    justify-content: flex-start !important;
-  }
-  .main-chat .navbar .form-select-sm {
-    min-width: 70px !important;
-    width: 100% !important;
-    font-size: 0.95rem !important;
-  }
-  .main-chat .navbar-text {
-    font-size: 0.95rem !important;
-  }
-  .main-chat {
-    padding: 0 !important;
-  }
-}
-.sidebar.closed .sidebar-header,
-.sidebar.closed .list-group.chat-list,
-.sidebar.closed .logout-section {
-    display: none !important;
-}
-.sidebar.closed .new-chat-btn,
-.sidebar.closed #burger-btn {
-    display: block !important;
-}
-
-.sidebar.closed {
-    width: var(--sidebar-width-collapsed);
-    align-items: center;
-    padding: 12px 0 0 0;
-}
-
-.sidebar .new-chat-btn {
-    margin: 0 0 12px 0;
-    width: 50%%;
-    height: 10%%;
-    {% comment %} border-radius: 2%; {% endcomment %}
-    padding: 0;
-    font-size: 120%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.sidebar.closed .new-chat-btn i {
-    margin: 0;
-}
-
-.sidebar .burger {
-    display: block;
-    width: 44px;
-    height: 44px;
-    margin-bottom: 16px;
-    font-size: 26px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.sidebar.closed .burger {
-    margin-bottom: 24px;
-}
-
-.sidebar .burger i {
-    margin: 0 auto;
-}
-
-</style>
+        @keyframes blink {
+        0%, 80%, 100% { opacity: 0; }
+        40% { opacity: 1; }
+        }
+    </style>
 </head>
 <body>
-<!-- Header Bar START -->
-<!-- ChatGPT-like Header Bar -->
-<!-- ChatGPT-like Fixed Full-Width Header -->
-
-
-
-<!-- Header Bar END -->
-<div class="chat-container">
-    <!-- Sidebar -->
-    <div class="sidebar">
-        <div class="sidebar-header open">
-            Chats
-            <button class="burger" id="burger-btn">
-                <i class="fa fa-bars"></i>
-            </button>
-        </div>
-        <button class="new-chat-btn"><i class="fa fa-plus"></i> New Chat</button>
-        <div class="list-group chat-list">
-            <!-- List of Chats, will populate dynamically -->
-            <div class="no-conversations">No previous conversations</div>
-        </div>
-        <div class="logout-section">
-            <button class="logout-btn">
-                <i class="fa fa-sign-out-alt"></i> Logout
-            </button>
-        </div>
-    </div>
-
-    <!-- Main Chat Area -->
-    <div class="main-chat">
-           <!-- Header bar INSIDE main-chat -->
-        <nav class="navbar navbar-expand-lg bg-white px-3 py-1">
-            <div class="container-fluid p-0 d-flex flex-row align-items-center">
-                <div class="d-flex flex-row align-items-center gap-2 mx-auto" style="min-width:200px;">
-                    {% comment %} <select class="form-select form-select-sm" id="modelSelect" style="width:120px;">
-                        <option selected>GPT-4.1</option>
-                        <option>GPT-3.5</option>
-                        <option>GPT-4.0</option>
-                    </select> {% endcomment %}
-                    <select class="form-select form-select-sm" id="dataSourceSelect" style="width:120px;">
-                        <option selected>YSales</option>
-                        <option>Coming Soon</option>
-                        {% comment %} <option>SharePoint</option> {% endcomment %}
-                    </select>
-                </div>
-                <div class="d-flex align-items-center ms-auto" style="gap:8px;">
-                    <span class="navbar-text fw-semibold" id="userName" style="font-size:15px;">Hello, Anik Saha</span>
-                    <span class="avatar-initials">SU</span>
+    <div class="main-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="menu-item">
+                    <svg class="menu-icon" viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
                 </div>
             </div>
-        </nav>
-        <div class="messages">
-            <!-- Messages will be appended here dynamically -->
+            
+            <div class="sidebar-menu">
+                <div class="menu-item">
+                    <svg class="menu-icon" viewBox="0 0 24 24">
+                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                    </svg>
+                    New chat
+                </div>
+                
+                <div class="menu-item">
+                    <svg class="menu-icon" viewBox="0 0 24 24">
+                        <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                    </svg>
+                    Search chats
+                </div>
+                
+                {% comment %} <div class="menu-item">
+                    <svg class="menu-icon" viewBox="0 0 24 24">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                    Library
+                </div> {% endcomment %}
+                
+                {% comment %} <div class="menu-item">
+                    <svg class="menu-icon" viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                    Sora
+                </div>
+                
+                <div class="menu-item">
+                    <svg class="menu-icon" viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                    GPTs
+                </div> {% endcomment %}
+            </div>
+            
+            <div class="chats-section">
+                <div class="chats-header">Chats</div>
+                <div class="chat-item active" data-chat-id="1">
+                    <div class="chat-title">Create worker service</div>
+                    <button class="chat-menu-btn" onclick="toggleChatDropdown(event, 1)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                        </svg>
+                    </button>
+                    <div class="chat-dropdown" id="dropdown-1">
+                        <button class="dropdown-item" onclick="shareChat(1)">
+                            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.50-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/>
+                            </svg>
+                            Share
+                        </button>
+                        <button class="dropdown-item" onclick="renameChat(1)">
+                            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                            </svg>
+                            Rename
+                        </button>
+                        <button class="dropdown-item" onclick="archiveChat(1)">
+                            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12l.94 1H5.12z"/>
+                            </svg>
+                            Archive
+                        </button>
+                        <button class="dropdown-item delete" onclick="deleteChat(1)">
+                            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                            </svg>
+                            Delete
+                        </button>
+                    </div>
+                </div>
+                <div class="chat-item" data-chat-id="2">
+                    <div class="chat-title">Mail for project tracker discussion</div>
+                    <button class="chat-menu-btn" onclick="toggleChatDropdown(event, 2)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                        </svg>
+                    </button>
+                    <div class="chat-dropdown" id="dropdown-2">
+                        <button class="dropdown-item" onclick="shareChat(2)">
+                            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.50-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/>
+                            </svg>
+                            Share
+                        </button>
+                        <button class="dropdown-item" onclick="renameChat(2)">
+                            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                            </svg>
+                            Rename
+                        </button>
+                        <button class="dropdown-item" onclick="archiveChat(2)">
+                            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12l.94 1H5.12z"/>
+                            </svg>
+                            Archive
+                        </button>
+                        <button class="dropdown-item delete" onclick="deleteChat(2)">
+                            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                            </svg>
+                            Delete
+                        </button>
+                    </div>
+                </div>
+                <div class="chat-item" data-chat-id="3">
+                    <div class="chat-title">Formalizing message tone</div>
+                    <button class="chat-menu-btn" onclick="toggleChatDropdown(event, 3)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                        </svg>
+                    </button>
+                    <div class="chat-dropdown" id="dropdown-3">
+                        <button class="dropdown-item" onclick="shareChat(3)">
+                            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.50-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/>
+                            </svg>
+                            Share
+                        </button>
+                        <button class="dropdown-item" onclick="renameChat(3)">
+                            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                            </svg>
+                            Rename
+                        </button>
+                        <button class="dropdown-item" onclick="archiveChat(3)">
+                            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12l.94 1H5.12z"/>
+                            </svg>
+                            Archive
+                        </button>
+                        <button class="dropdown-item delete" onclick="deleteChat(3)">
+                            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                            </svg>
+                            Delete
+                        </button>
+                    </div>
+                </div>
+                <div class="chat-item" data-chat-id="4">
+                    <div class="chat-title">Write email to IT</div>
+                    <button class="chat-menu-btn" onclick="toggleChatDropdown(event, 4)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                        </svg>
+                    </button>
+                    <div class="chat-dropdown" id="dropdown-4">
+                        <button class="dropdown-item" onclick="shareChat(4)">
+                            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.50-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/>
+                            </svg>
+                            Share
+                        </button>
+                        <button class="dropdown-item" onclick="renameChat(4)">
+                            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                            </svg>
+                            Rename
+                        </button>
+                        <button class="dropdown-item" onclick="archiveChat(4)">
+                            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12l.94 1H5.12z"/>
+                            </svg>
+                            Archive
+                        </button>
+                        <button class="dropdown-item delete" onclick="deleteChat(4)">
+                            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                            </svg>
+                            Delete
+                        </button>
+                    </div>
+                </div>
+                <div class="chat-item" data-chat-id="5">
+                    <div class="chat-title">Request for payment update</div>
+                    <button class="chat-menu-btn" onclick="toggleChatDropdown(event, 5)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                        </svg>
+                    </button>
+                    <div class="chat-dropdown" id="dropdown-5">
+                        <button class="dropdown-item" onclick="shareChat(5)">
+                            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.50-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/>
+                            </svg>
+                            Share
+                        </button>
+                        <button class="dropdown-item" onclick="renameChat(5)">
+                            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                            </svg>
+                            Rename
+                        </button>
+                        <button class="dropdown-item" onclick="archiveChat(5)">
+                            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12l.94 1H5.12z"/>
+                            </svg>
+                            Archive
+                        </button>
+                        <button class="dropdown-item delete" onclick="deleteChat(5)">
+                            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                            </svg>
+                            Delete
+                        </button>
+                    </div>
+                </div>
+                <div class="chat-item" data-chat-id="6">
+                    <div class="chat-title">Contextual memory implementat...</div>
+                    <button class="chat-menu-btn" onclick="toggleChatDropdown(event, 6)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                        </svg>
+                    </button>
+                    <div class="chat-dropdown" id="dropdown-6">
+                        <button class="dropdown-item" onclick="shareChat(6)">
+                            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.50-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/>
+                            </svg>
+                            Share
+                        </button>
+                        <button class="dropdown-item" onclick="renameChat(6)">
+                            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                            </svg>
+                            Rename
+                        </button>
+                        <button class="dropdown-item" onclick="archiveChat(6)">
+                            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12l.94 1H5.12z"/>
+                            </svg>
+                            Archive
+                        </button>
+                        <button class="dropdown-item delete" onclick="deleteChat(6)">
+                            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                            </svg>
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="user-section">
+                <div class="user-dropdown" id="user-dropdown">
+                    <button class="dropdown-item" onclick="logOut()">
+                        <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.59L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
+                        </svg>
+                        Logout
+                    </button>
+                    <button class="dropdown-item" onclick="openSettings()">
+                        <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.82,11.69,4.82,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
+                        </svg>
+                        Settings
+                    </button>
+                </div>
+                <div class="user-info" onclick="toggleUserDropdown()">
+                    <div class="user-avatar">RS</div>
+                    <div>
+                        <div class="user-name">Ragib Shahriar</div>
+                        <div class="user-plan">Free</div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <form class="input-area d-flex gap-2">
-            <textarea class="form-control flex-grow-1" rows="1" placeholder="Type a message..." style="resize: none;"></textarea>
-            <button class="send-btn" type="submit"><i class="fa fa-paper-plane"></i></button>
-        </form>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+  <!-- Chat Header (unchanged) -->
+    <div class="chat-header">
+        <div class="chat-title">
+        <div class="dropdown">
+            <button class="btn btn-link dropdown-toggle p-0 text-decoration-none"
+                    type="button"
+                    id="modelDropdown"
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false"
+                    style="color: #2d333a; font-size: 16px; font-weight: 600;">
+            <span id="current-model">ChatGPT</span>
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="modelDropdown">
+            <li><a class="dropdown-item" href="#" onclick="selectModel('ChatGPT')">ChatGPT</a></li>
+            <li><a class="dropdown-item" href="#" onclick="selectModel('GPT-4')">GPT-4</a></li>
+            <li><a class="dropdown-item" href="#" onclick="selectModel('GPT-3.5')">GPT-3.5</a></li>
+            <li><a class="dropdown-item" href="#" onclick="selectModel('Claude')">Claude</a></li>
+            </ul>
+        </div>
+        </div>
+        <div class="chat-actions">
+        <button class="action-btn" onclick="shareCurrentChat()">
+            <svg style="width: 16px; height: 16px; margin-right: 4px;" viewBox="0 0 24 24">
+            <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7
+                    l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3
+                    c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3
+                    c.79 0 1.50-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92
+                    1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/>
+            </svg>
+            Share
+        </button>
+        </div>
     </div>
+
+  <!-- Chat Content (messages go here) -->
+  <div class="chat-content" id="chat-content">
+    <!-- on new chat start, this is replaced by JS -->
+    <div class="text-center text-muted">Start a new conversation!</div>
+  </div>
+
+  <!-- Input Area -->
+  <div class="input-area">
+    <div class="input-container">
+      <div class="input-wrapper">
+        <textarea class="message-input"
+                  id="message-input"
+                  placeholder="Type a message..."
+                  rows="1"></textarea>
+        <div class="input-actions">
+          <button class="input-btn" id="voice-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6
+                       c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5
+                       c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
+            </svg>
+          </button>
+          <button class="input-btn send-btn"
+                  id="send-btn"
+                  disabled>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="disclaimer">
+        ChatGPT can make mistakes. Check important info.
+      </div>
+    </div>
+  </div>
 </div>
 
-<!-- jQuery -->
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<!-- Bootstrap JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<!-- marked.js for Markdown Parsing -->
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<!-- SweetAlert2 for alerts -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    </div>
 
-<script>
-const apiBase = "http://127.0.0.1:8000/api"; // Change to your DRF prefix
-let currentChatId = null;
-let isSubmitting = false;
-let $typingIndicatorElement = null; // To store the dynamically created typing indicator
+    <!-- Settings Modal -->
+    <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="settingsModalLabel">Settings</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="nav flex-column nav-pills" id="v-pills-tab" role="tablist" aria-orientation="vertical">
+                                <button class="nav-link active" id="v-pills-general-tab" data-bs-toggle="pill" data-bs-target="#v-pills-general" type="button" role="tab" aria-controls="v-pills-general" aria-selected="true">General</button>
+                                <button class="nav-link" id="v-pills-personalization-tab" data-bs-toggle="pill" data-bs-target="#v-pills-personalization" type="button" role="tab" aria-controls="v-pills-personalization" aria-selected="false">Personalization</button>
+                                <button class="nav-link" id="v-pills-data-tab" data-bs-toggle="pill" data-bs-target="#v-pills-data" type="button" role="tab" aria-controls="v-pills-data" aria-selected="false">Data controls</button>
+                            </div>
+                        </div>
+                        <div class="col-md-9">
+                            <div class="tab-content" id="v-pills-tabContent">
+                                <div class="tab-pane fade show active" id="v-pills-general" role="tabpanel" aria-labelledby="v-pills-general-tab">
+                                    <h6>Theme</h6>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="theme" id="themeAuto" value="auto" checked>
+                                        <label class="form-check-label" for="themeAuto">Auto</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="theme" id="themeLight" value="light">
+                                        <label class="form-check-label" for="themeLight">Light</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="theme" id="themeDark" value="dark">
+                                        <label class="form-check-label" for="themeDark">Dark</label>
+                                    </div>
+                                    <hr>
+                                    <h6>Language</h6>
+                                    <select class="form-select" aria-label="Language selection">
+                                        <option selected>English</option>
+                                        <option value="es">Spanish</option>
+                                        <option value="fr">French</option>
+                                        <option value="de">German</option>
+                                    </select>
+                                </div>
+                                <div class="tab-pane fade" id="v-pills-personalization" role="tabpanel" aria-labelledby="v-pills-personalization-tab">
+                                    <h6>Custom instructions</h6>
+                                    <p class="text-muted">Customize how ChatGPT responds to you</p>
+                                    <div class="mb-3">
+                                        <label for="customInstructions" class="form-label">What would you like ChatGPT to know about you?</label>
+                                        <textarea class="form-control" id="customInstructions" rows="3" placeholder="Tell ChatGPT about yourself..."></textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="responseStyle" class="form-label">How would you like ChatGPT to respond?</label>
+                                        <textarea class="form-control" id="responseStyle" rows="3" placeholder="Tell ChatGPT how to respond..."></textarea>
+                                    </div>
+                                </div>
+                                <div class="tab-pane fade" id="v-pills-data" role="tabpanel" aria-labelledby="v-pills-data-tab">
+                                    <h6>Chat history & training</h6>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="chatHistory" checked>
+                                        <label class="form-check-label" for="chatHistory">
+                                            Save chat history
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="improveModel" checked>
+                                        <label class="form-check-label" for="improveModel">
+                                            Improve the model for everyone
+                                        </label>
+                                    </div>
+                                    <hr>
+                                    <h6>Export data</h6>
+                                    <button class="btn btn-outline-primary">Export conversations</button>
+                                    <hr>
+                                    <h6>Delete account</h6>
+                                    <button class="btn btn-outline-danger">Delete account</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="saveSettings()">Save changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-// Function to get the stored token from localStorage
-function getAuthToken( ) {
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <!-- marked.js for Markdown Parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- SweetAlert2 for alerts -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+   <script>
+    const apiBase = `${window.location.origin}/api`;
+$(function() {
+  let currentChatId   = null;
+  let isSubmitting    = false;
+  let typingIndicator = null;
+
+  function getAuthToken() {
     return localStorage.getItem('auth_token');
-}
+  }
 
-// Helper function for authenticated AJAX requests
-function sendAuthenticatedRequest(url, method, data = null, successCallback, errorCallback) {
-    const token = localStorage.getItem('auth_token');
+  function refreshToken() {
+    $.ajax({
+      url: apiBase + '/user/token/refresh/',
+      method: 'POST',
+      data: JSON.stringify({ refresh: localStorage.getItem('refresh_token') }),
+      contentType: 'application/json',
+      success(resp) {
+        localStorage.setItem('auth_token', resp.access);
+        localStorage.setItem('refresh_token', resp.refresh);
+        fetchChats();
+      },
+      error() {
+        localStorage.clear();
+        window.location.href = '/login';
+      }
+    });
+  }
 
-    if (!token) {
-        console.log("No auth token found. Redirecting to login.");
-        window.location.href = '/login'; // Redirect to your login page
-        return;
+  function sendAuthenticatedRequest(url, method, data, onSuccess, onError) {
+    const token = getAuthToken();
+    if (!token) { window.location.href = '/login'; return; }
+    $.ajax({
+      url: apiBase + url,
+      method,
+      headers: { 'Authorization': 'Bearer ' + token },
+      data,
+      contentType: 'application/json',
+      success: onSuccess,
+      error(xhr, status, err) {
+        if (xhr.status === 401) refreshToken();
+        else if (onError) onError(xhr, status, err);
+      }
+    });
+  }
+
+  // ─── Helpers ────────────────────────────────────────────────────────────────────
+
+  function scrollToBottom() {
+    const $c = $('#chat-content');
+    $c.scrollTop($c.prop('scrollHeight'));
+  }
+
+  function addMessage(text, sender) {
+    const avatar = sender === 'user' ? 'U' : 'AI';
+    const cls    = sender === 'user' ? 'user' : 'assistant';
+    const html   = marked.parse(text);
+
+    const msgHtml = `
+      <div class="message ${cls}">
+        <div class="message-avatar ${cls}">${avatar}</div>
+        <div class="message-content">${html}</div>
+      </div>`;
+    $('#chat-content').append(msgHtml);
+    scrollToBottom();
+  }
+
+  // ─── Fetching / Rendering ────────────────────────────────────────────────────────
+
+  function fetchChats(cb) {
+    sendAuthenticatedRequest('/conversations/', 'GET', null, chats => {
+      const $sec = $('.chats-section').empty();
+      if (!chats.length) {
+        $sec.append('<div class="no-conversations">No previous conversations</div>');
+      } else {
+        chats.forEach(c => {
+          const active = c.uuid === currentChatId ? 'active' : '';
+          $sec.append(`
+            <div class="chat-item ${active}" data-chat-id="${c.uuid}">
+              <div class="chat-title">${c.title||'Untitled Chat'}</div>
+              <button class="chat-menu-btn" onclick="toggleChatDropdown(event,'${c.uuid}')">…</button>
+              <div class="chat-dropdown" id="dropdown-${c.uuid}">
+                <button class="dropdown-item" onclick="shareChat('${c.uuid}')">Share</button>
+                <button class="dropdown-item" onclick="renameChat('${c.uuid}')">Rename</button>
+                <button class="dropdown-item" onclick="archiveChat('${c.uuid}')">Archive</button>
+                <button class="dropdown-item delete" onclick="deleteChat('${c.uuid}')">Delete</button>
+              </div>
+            </div>`);
+        });
+      }
+      if (cb) cb();
+    });
+  }
+
+  function fetchMessages(chatId) {
+    $('#chat-content').html('<div class="text-center text-muted">Loading messages...</div>');
+    sendAuthenticatedRequest(`/conversations/${chatId}/messages/`, 'GET', null, msgs => {
+      $('#chat-content').empty();
+      if (!msgs.length) {
+        $('#chat-content').append('<div class="text-center text-muted">Start a new conversation!</div>');
+      } else {
+        msgs.forEach(m => addMessage(m.text, m.sender==='user' ? 'user' : 'assistant'));
+      }
+      scrollToBottom();
+    });
+  }
+
+  function startNewChat() {
+    currentChatId = null;
+    $('.chat-item').removeClass('active');
+    $('#chat-content')
+      .empty()
+      .append('<div class="text-center text-muted"><b>Start a new conversation!</b></div>');
+  }
+
+  function selectChat(chatId) {
+    currentChatId = chatId;
+    $('.chat-item').removeClass('active');
+    $(`.chat-item[data-chat-id="${chatId}"]`).addClass('active');
+    fetchMessages(chatId);
+  }
+
+  // ─── Sending with “…” typing indicator ───────────────────────────────────────────
+
+function sendMessage() {
+  const $input  = $('#message-input');
+  const $send   = $('#send-btn');
+  const $chat   = $('#chat-content');
+  const text    = $input.val().trim();
+
+  if (!text || isSubmitting) return;
+
+  // disable input + button
+  isSubmitting = true;
+  $input.prop('disabled', true);
+  $send.prop('disabled', true);
+
+  // append user bubble
+  $chat.append(`
+    <div class="message user">
+      <div class="message-avatar user">U</div>
+      <div class="message-content">${marked.parse(text)}</div>
+    </div>`);
+  scrollToBottom();
+
+  // show three-dot typing indicator
+  typingIndicator = $(`
+    <div class="message assistant">
+      <div class="message-avatar assistant">AI</div>
+      <div class="message-content typing-indicator">
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+      </div>
+    </div>`);
+  $chat.append(typingIndicator);
+  scrollToBottom();
+
+  // fire off API
+  const url     = currentChatId
+                ? `/sales/query/existing/${currentChatId}/`
+                : '/sales/query/';
+  const payload = JSON.stringify({ prompt: text });
+
+  sendAuthenticatedRequest(url, 'POST', payload, resp => {
+    // remove indicator, re-enable UI
+    isSubmitting = false;
+    typingIndicator.remove();
+    $send.prop('disabled', false);
+
+    // clear input _now_
+   // $input.val('').css('height','auto').prop('disabled', false).focus();
+    $('#message-input').val('')
+    .css('height','auto')   // reset height so it can shrink
+    .prop('disabled', false)
+    .focus();
+
+
+    // handle new-chat & sidebar
+    if (!currentChatId && resp.uuid) {
+      currentChatId = resp.uuid;
+      fetchChats(() => selectChat(currentChatId));
     }
 
-    $.ajax({
-        url: apiBase + url,
-        method: method,
-        headers: {
-            'Authorization': 'Bearer ' + token,
-        },
-        data: data,
-        contentType: "application/json", // Ensure content type is set for POST/PUT requests
-        success: successCallback,
-        error: errorCallback
-    });
+    // append assistant reply
+    if (resp.assistant_message?.text) {
+      $chat.append(`
+        <div class="message assistant">
+          <div class="message-avatar assistant">AI</div>
+          <div class="message-content">${marked.parse(resp.assistant_message.text)}</div>
+        </div>`);
+      scrollToBottom();
+    } else if (currentChatId) {
+      fetchMessages(currentChatId);
+    }
+  }, () => {
+    // on error: cleanup + alert
+    isSubmitting = false;
+    typingIndicator.remove();
+    $send.prop('disabled', false);
+    $input.prop('disabled', false).focus();
+    Swal.fire({ icon:'error', title:'Error', text:'Failed to send message.' });
+  });
 }
 
-// Function to refresh the token using the refresh token
-function refreshToken() {
-    $.ajax({
-        url: apiBase + '/user/token/refresh/', // Adjust if your refresh endpoint is different
-        method: 'POST',
-        data: {
-            refresh: localStorage.getItem('refresh_token')
-        },
-        success: function(response) {
-            localStorage.setItem('auth_token', response.access);
-            localStorage.setItem('refresh_token', response.refresh);
-            console.log('Token refreshed successfully!');
-            fetchChats(); // Re-fetch chats after token refresh
-        },
-        error: function() {
-            console.log('Failed to refresh token');
-            localStorage.clear(); // Clear all tokens
-            window.location.href = '/login'; // Redirect to login on failure
+
+  // ─── Bind events & init ─────────────────────────────────────────────────────────
+
+  $('#send-btn').on('click', sendMessage);
+
+  $('#message-input').on('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+// Auto-resize textarea (grow and shrink)
+$('#message-input').on('input', function() {
+  this.style.height = 'auto';
+  this.style.height = this.scrollHeight + 'px';
+});
+
+
+  $('.chats-section').on('click', '.chat-item', function() {
+    selectChat($(this).data('chat-id'));
+  });
+  $('.sidebar-menu .menu-item:contains("New chat")').on('click', startNewChat);
+
+  fetchChats();
+  startNewChat();
+});
+
+// ─── Dropdown & Misc Handlers (unchanged) ────────────────────────────────────────
+
+ function toggleChatDropdown(event, chatId) {
+            event.stopPropagation();
+            
+            // Close all other dropdowns
+            $('.chat-dropdown').not(`#dropdown-${chatId}`).removeClass('show');
+            $('.user-dropdown').removeClass('show');
+            
+            // Toggle current dropdown
+            $(`#dropdown-${chatId}`).toggleClass('show');
         }
-    });
+
+function shareChat(chatId) {
+  alert(`Share link for chat ${chatId}`);
+  $('.chat-dropdown').removeClass('show');
 }
 
-// Fetch the last 10 conversations for the user
-// Added a callback parameter to ensure actions happen AFTER chats are fetched and rendered
-function fetchChats(callback = null) {
-    sendAuthenticatedRequest('/conversations/', 'GET', null, function(response) {
-        console.log("Fetched chats:", response);
-        const $list = $('.chat-list').empty();
-        if (response.length === 0) {
-            $list.append('<div class="no-conversations">No previous conversations</div>');
-        } else {
-            response.forEach(chat => {
-                let title = chat.title || 'Untitled Chat';
-                $list.append(
-                    `<button class="list-group-item list-group-item-action ${chat.uuid === currentChatId ? 'active' : ''}" data-id="${chat.uuid}">${title}</button>`
-                );
-            });
-        }
-        if (callback && typeof callback === 'function') {
-            callback(); // Execute callback after chats are fetched and DOM is updated
-        }
-    }, function(xhr, status, error) {
-        console.error('Error fetching chats:', error);
-        console.log('Response:', xhr.responseText);
-        if (xhr.status === 401) {
-            refreshToken(); // Attempt to refresh token on unauthorized error
-        }
-    });
+function renameChat(chatId) {
+  const el = $(`.chat-item[data-chat-id="${chatId}"] .chat-title`);
+  const newTitle = prompt('Enter new chat title:', el.text());
+  if (newTitle) el.text(newTitle);
+  $('.chat-dropdown').removeClass('show');
 }
 
-// Logout function
+function archiveChat(chatId) {
+  if (confirm('Archive this chat?')) {
+    $(`.chat-item[data-chat-id="${chatId}"]`).fadeOut(300, function(){ $(this).remove(); });
+  }
+  $('.chat-dropdown').removeClass('show');
+}
+
+function deleteChat(chatId) {
+  if (confirm('Delete this chat?')) {
+    $(`.chat-item[data-chat-id="${chatId}"]`).fadeOut(300, function(){ $(this).remove(); });
+  }
+  $('.chat-dropdown').removeClass('show');
+}
+function toggleUserDropdown() {
+  // Close any open chat‐item dropdowns
+  $('.chat-dropdown').removeClass('show');
+  // Toggle the user dropdown
+  $('#user-dropdown').toggleClass('show');
+}
+
 function logOut(){
     const token = localStorage.getItem('auth_token');
     const refreshToken = localStorage.getItem('refresh_token');
@@ -549,243 +1331,21 @@ function logOut(){
 
     });
 }
-
-// Fetch messages for a specific conversation by UUID
-function fetchMessages(chatId) {
-    $('.messages').html('<div class="text-center text-muted">Loading messages...</div>');
-
-    sendAuthenticatedRequest(`/conversations/${chatId}/messages/`, 'GET', null, function(data) {
-        console.log("Fetched messages for chat", chatId, ":", data);
-        const $messages = $('.messages').empty();
-        if (data.length === 0) {
-            $messages.append('<div class="text-center text-muted">Start a conversation!</div>');
-        } else {
-            data.forEach(msg => {
-                const isUser = msg.sender === "user";
-                const bubbleClass = isUser ? 'user' : 'assistant';
-                let html = marked.parse(msg.text);
-                $messages.append(`
-                    <div class="message ${bubbleClass} d-flex ${isUser ? 'justify-content-end' : 'justify-content-start'}">
-                        <div class="bubble">${html}</div>
-                    </div>
-                `);
-            });
-        }
-        $('.messages').animate({ scrollTop: $('.messages')[0].scrollHeight }, 300);
-
-    }, function(xhr, status, error) {
-        console.error("Error fetching messages:", error);
-        $('.messages').html('<div class="text-center text-muted">Failed to load messages</div>');
-    });
+function openSettings() {
+  $('.chat-dropdown, .user-dropdown').removeClass('show');
+  const modalEl = document.getElementById('settingsModal');
+  const bsModal = new bootstrap.Modal(modalEl);
+  bsModal.show();
 }
+function saveSettings() { /* … */ }
 
-// Function to send a message
-function sendMessage(content) {
-    if (!content.trim() || isSubmitting) return;
-
-    const $input = $('.input-area textarea');
-    const $messagesContainer = $('.messages');
-
-    // Disable input and send button
-    $input.prop('disabled', true);
-    $('.send-btn').prop('disabled', true);
-
-    // Append the user's message immediately
-    $messagesContainer.append(`
-        <div class="message user d-flex justify-content-end">
-            <div class="bubble">${marked.parse(content)}</div>
-        </div>
-    `);
-    $messagesContainer.animate({ scrollTop: $messagesContainer[0].scrollHeight }, 300);
-
-    isSubmitting = true;
-
-    // Typing indicator
-    $typingIndicatorElement = $(`
-        <div class="message assistant d-flex justify-content-start" id="assistant-typing-indicator">
-            <div class="bubble typing-indicator">
-                <span class="dot"></span>
-                <span class="dot"></span>
-                <span class="dot"></span>
-            </div>
-        </div>
-    `);
-    $messagesContainer.append($typingIndicatorElement);
-    $messagesContainer.animate({ scrollTop: $messagesContainer[0].scrollHeight }, 300);
-
-    // Figure out if this is a new chat BEFORE the request!
-    let isCreatingNewChat = !currentChatId;
-
-    let apiUrl;
-    let requestData = { prompt: content };
-     $input.val('').prop('disabled', false).focus();
-    if (currentChatId) {
-        apiUrl = `/sales/query/existing/${currentChatId}/`;
-    } else {
-        apiUrl = "/sales/query/";
-    }
-
-    sendAuthenticatedRequest(apiUrl, 'POST', JSON.stringify(requestData),
-        function(response) {
-            isSubmitting = false;
-            if ($typingIndicatorElement) {
-                $typingIndicatorElement.remove();
-                $typingIndicatorElement = null;
-            }
-
-            // Debugging info:
-            console.log("sendMessage response:", response, "isCreatingNewChat:", isCreatingNewChat);
-
-            if (isCreatingNewChat && response && response.uuid) {
-                const newChatUuid = response.uuid;
-                currentChatId = newChatUuid;
-             
-                // Append assistant reply immediately if present (snappy UX)
-
-                if (response.assistant_message && response.assistant_message.text) {
-                    $messagesContainer.append(`
-                        <div class="message assistant d-flex justify-content-start">
-                            <div class="bubble">${marked.parse(response.assistant_message.text)}</div>
-                        </div>
-                    `);
-                    $messagesContainer.animate({ scrollTop: $messagesContainer[0].scrollHeight }, 300);
-                }
-
-                // Now update the sidebar and select the chat (with safe timing)
-                fetchChats(() => {
-                    setTimeout(() => {
-                        // This triggers the sidebar highlight and fetchMessages
-                        $(`.chat-list .list-group-item[data-id="${newChatUuid}"]`).trigger('click');
-                    }, 0);
-                });
-
-                // Re-enable input and send button for next message
-                $input.val('').prop('disabled', false).focus();
-                $('.send-btn').prop('disabled', false);
-
-            } else {
-                // Existing chat: append the assistant's reply as usual
-                          console.log("ee ",response.assistant_messag)
-                if (response && response.assistant_message && response.assistant_message.text) {
-                    $messagesContainer.append(`
-                        <div class="message assistant d-flex justify-content-start">
-                            <div class="bubble">${marked.parse(response.assistant_message.text)}</div>
-                        </div>
-                    `);
-                    $messagesContainer.animate({ scrollTop: $messagesContainer[0].scrollHeight }, 300);
-                } else if (currentChatId) {
-                    // Defensive: fallback to fetching all messages
-                    fetchMessages(currentChatId);
-                }
-                // Re-enable input and send button
-                $input.val('').prop('disabled', false).focus();
-                $('.send-btn').prop('disabled', false);
-            }
-        },
-        function(xhr, status, error) {
-            
-            console.log('sendMessage AJAX error', xhr, status, error); // <-- Add this
-            isSubmitting = false;
-            if ($typingIndicatorElement) {
-                $typingIndicatorElement.remove();
-                $typingIndicatorElement = null;
-            }
-            Swal.fire({
-                icon: 'error',
-                title: 'Oops...',
-                text: 'Failed to send message. Please try again later.',
-            });
-            $input.prop('disabled', false);
-            $('.send-btn').prop('disabled', false);
-        }
-    );
+function selectModel(modelName) {
+  console.log(`Selected model: ${modelName}`);
+  $('#current-model').text(modelName);
+  const msg = `Switched to ${modelName} model`;
+  addMessage(msg, 'assistant');
 }
-
-// Handling Enter key to send a message
-$('.input-area textarea').on('keydown', function(e) {
-    if (e.key === 'Enter' && !e.shiftKey) { // If Enter key is pressed (not Shift+Enter)
-        e.preventDefault(); // Prevent the default action of adding a new line
-        const content = $(this).val();
-        sendMessage(content); // Call sendMessage when Enter is pressed
-    }
-});
-
-// Send message on click of the send button
-$('.input-area').on('submit', function(e) {
-    e.preventDefault();
-    const content = $(this).find('textarea').val();
-    sendMessage(content);
-});
-
-// Start a new chat
-function startNewChat() {
-    currentChatId = null; // Clear current chat ID
-    $('.chat-list .list-group-item').removeClass('active'); // Deactivate all sidebar items
-    $('.messages').empty().append('<div class="text-center text-muted"><b> Start a new conversation!</b></div>'); // Clear messages and show prompt
-    $('.input-area textarea').val('').focus(); // Clear input and focus
-    $('.new-chat-btn').addClass('active'); // Ensure new chat button is active
-}
-
-// Select an existing chat
-function selectChat(chatId) {
-    currentChatId = chatId;
-    $('.chat-list .list-group-item').removeClass('active'); // Deactivate all sidebar items
-    $(`.chat-list .list-group-item[data-id="${chatId}"]`).addClass('active'); // Activate selected item
-    $('.new-chat-btn').removeClass('active'); // Deactivate new chat button
-    fetchMessages(chatId); // Fetch messages for the selected chat
-}
-
-// Sidebar burger toggle
-function openSidebar() {
-    $('.sidebar').addClass('open').removeClass('closed');
-    $('.main-chat').addClass('sidebar-closed');
-}
-
-function closeSidebar() {
-    $('.sidebar').removeClass('open').addClass('closed');
-    $('.main-chat').removeClass('sidebar-closed');
-}
-
-// Document ready function
-$(function() {
-     var username = localStorage.getItem('username');
-  
-    if (username) {
-        $('#userName').text('Hello, ' + username);
-    }
-    fetchChats(); // Initial fetch of chats on page load
-
-    // Logout button click handler
-    $('.logout-btn').on('click', function () {
-        logOut();
-    });
-
-    // Burger menu click handler
-   $('#burger-btn').on('click', function() {
-    $('.sidebar').toggleClass('closed');
-    $('.main-chat').toggleClass('sidebar-collapsed');
-});
-
-    // New chat button click handler
-    $('.sidebar').on('click', '.new-chat-btn', function() {
-        startNewChat();
-    });
-
-    // Select chat from list click handler
-    $('.chat-list').on('click', '.list-group-item', function() {
-        const chatId = $(this).data('id');
-        selectChat(chatId);
-    });
-
-    // Auto grow textarea
-    $('.input-area textarea').on('input', function() {
-        this.style.height = 'auto';
-        this.style.height = (this.scrollHeight) + 'px';
-    });
-
-    // Initialize with a new chat view
-    startNewChat();
-});
 </script>
+
 </body>
 </html>
