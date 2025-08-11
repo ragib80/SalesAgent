@@ -1,30 +1,20 @@
-# core/services/ad_service.py
-
-import ssl
-from dataclasses import dataclass
+import re
 from urllib.parse import urlparse
-
-from django.conf import settings
+from dataclasses import dataclass
 from ldap3 import (
     Server,
     Connection,
     ALL,
     NTLM,
+    Tls,
     SUBTREE,
     ALL_ATTRIBUTES,
     MODIFY_ADD,
     MODIFY_DELETE,
-    Tls,
 )
-from ldap3.core.exceptions import (
-    LDAPSocketOpenError,
-    LDAPSSLConfigurationError,
-    LDAPStartTLSError,
-)
-from ldap3.utils.conv import escape_filter_chars
-
-import logging
-logger = logging.getLogger(__name__)
+from django.conf import settings
+from ldap3.core.exceptions import LDAPSocketOpenError, LDAPSSLConfigurationError, LDAPStartTLSError
+import ssl
 
 @dataclass
 class ADModel:
@@ -52,19 +42,7 @@ class ADModel:
     manager_name: str = ""
     manager_id: str = ""
 
-
 class ActiveDirectoryService:
-    """
-    Required settings in settings.py / .env:
-      AUTH_LDAP_SERVER_URI         (e.g. ldap://AD1.bergerbd.com:389 or ldaps://AD1.bergerbd.com:636)
-      AUTH_LDAP_BIND_DN            (e.g. CN=msfaapp,OU=ServiceAccounts,DC=bergerbd,DC=com)
-      AUTH_LDAP_BIND_PASSWORD
-      AUTH_LDAP_USER_SEARCH_BASE   (e.g. DC=bergerbd,DC=com)
-      AUTH_LDAP_DOMAIN             (optional NetBIOS, e.g. BERGERBD)
-      AUTH_LDAP_TLS_STRICT         (True/False)
-      AUTH_LDAP_CA_CERT_FILE       (required when TLS_STRICT=True; Base-64 .cer/.pem path)
-    """
-
     def __init__(self):
         raw = settings.AUTH_LDAP_SERVER_URI.strip()  # e.g. ldap://AD1.bergerbd.com:389
 
@@ -114,62 +92,58 @@ class ActiveDirectoryService:
 
         # Finally bind
         self.conn.bind()
-        self.strict_tls = STRICT_TLS
-        self.use_ssl = use_ssl
-        self.port = port
 
-    # ---------- Auth & lookup helpers ----------
 
     def authenticate_user(self, username: str, password: str) -> bool:
-        """
-        Verify a user's credentials. Uses NTLM if AUTH_LDAP_DOMAIN is set,
-        otherwise tries SIMPLE with UPN.
-        """
+        """Try an NTLM bind using the supplied credentials."""
+        user = f"{self.domain}\\{username}"
         try:
-            if self.domain:
-                user = f"{self.domain}\\{username}"
-                auth = NTLM
-            else:
-                user = f"{username}@{self._guess_upn_suffix()}"
-                auth = "SIMPLE"
-
-            test_conn = Connection(
-                self.server, user=user, password=password, authentication=auth, auto_bind=True
+            user_conn = Connection(
+                self.server,
+                user=user,
+                password=password,
+                authentication=NTLM,
+                auto_bind=True,
             )
-            test_conn.unbind()
+            user_conn.unbind()
             return True
         except Exception:
             return False
 
-    def find_user(self, query: str) -> ADModel | None:
-        """
-        Flexible lookup by sAMAccountName, UPN, mail, cn, or displayName.
-        Returns ADModel or None.
-        """
-        q = escape_filter_chars(query)
-        flt = (
-            f"(|"
-            f"(sAMAccountName={q})"
-            f"(userPrincipalName={q})"
-            f"(mail={q})"
-            f"(cn={q})"
-            f"(displayName={q})"
-            f")"
-        )
-        self.conn.search(self.search_base, flt, SUBTREE, attributes=ALL_ATTRIBUTES, size_limit=1)
-        return self._map(self.conn.entries[0]) if self.conn.entries else None
-
     def get_user_by_username(self, username: str) -> ADModel | None:
-        # Keep for compatibility; now uses the flexible finder
-        return self.find_user(username)
+        """Search for a single user by sAMAccountName."""
+        flt = f"(&(objectClass=user)(sAMAccountName={username}))"
+        self.conn.search(self.search_base, flt, SUBTREE, attributes=ALL_ATTRIBUTES)
+        if not self.conn.entries:
+            return None
+        return self._map(self.conn.entries[0])
 
     def get_user_by_login_name(self, username: str) -> ADModel | None:
-        return self.find_user(username)
+        """Alias of get_user_by_username."""
+        return self.get_user_by_username(username)
 
-    # ---------- Group ops & utilities (unchanged) ----------
+    def get_user_details_by_full_name(
+        self, first_name: str, middle_name: str, last_name: str
+    ) -> ADModel | None:
+        """Search by givenName, initials, and/or sn."""
+        parts = []
+        if first_name:
+            parts.append(f"(givenName={first_name})")
+        if middle_name:
+            parts.append(f"(initials={middle_name})")
+        if last_name:
+            parts.append(f"(sn={last_name})")
+        if not parts:
+            return None
+        flt = f"(&(objectClass=user){''.join(parts)})"
+        self.conn.search(self.search_base, flt, SUBTREE, attributes=ALL_ATTRIBUTES)
+        if not self.conn.entries:
+            return None
+        return self._map(self.conn.entries[0])
 
     def get_users_from_group(self, group_name: str) -> list[ADModel]:
-        flt = f"(&(objectClass=group)(sAMAccountName={escape_filter_chars(group_name)}))"
+        """Return all members of a given group."""
+        flt = f"(&(objectClass=group)(sAMAccountName={group_name}))"
         self.conn.search(self.search_base, flt, SUBTREE, attributes=["member"])
         if not self.conn.entries:
             return []
@@ -181,77 +155,76 @@ class ActiveDirectoryService:
                 users.append(self._map(self.conn.entries[0]))
         return users
 
+    def get_users_by_first_name(self, first_name: str) -> list[ADModel]:
+        """Find users whose givenName starts with the supplied string."""
+        flt = f"(&(objectClass=user)(givenName={first_name}*))"
+        self.conn.search(self.search_base, flt, SUBTREE, attributes=ALL_ATTRIBUTES)
+        return [self._map(e) for e in self.conn.entries]
+
     def add_user_to_group(self, username: str, group_name: str) -> bool:
+        """Add a user to an AD group."""
         group_dn = self._get_group_dn(group_name)
         user_dn = self._get_user_dn(username)
         if not group_dn or not user_dn:
             return False
         self.conn.modify(group_dn, {"member": [(MODIFY_ADD, [user_dn])]})
-        return self.conn.result.get("description") == "success"
+        return self.conn.result["description"] == "success"
 
     def remove_user_from_group(self, username: str, group_name: str) -> bool:
+        """Remove a user from an AD group."""
         group_dn = self._get_group_dn(group_name)
         user_dn = self._get_user_dn(username)
         if not group_dn or not user_dn:
             return False
         self.conn.modify(group_dn, {"member": [(MODIFY_DELETE, [user_dn])]})
-        return self.conn.result.get("description") == "success"
+        return self.conn.result["description"] == "success"
 
     def _get_user_dn(self, username: str) -> str | None:
-        q = escape_filter_chars(username)
         self.conn.search(
             self.search_base,
-            f"(&(objectClass=user)(|(sAMAccountName={q})(userPrincipalName={q})(mail={q})))",
+            f"(&(objectClass=user)(sAMAccountName={username}))",
             SUBTREE,
             attributes=["distinguishedName"],
-            size_limit=1,
         )
         return self.conn.entries[0]["distinguishedName"].value if self.conn.entries else None
 
     def _get_group_dn(self, group_name: str) -> str | None:
-        q = escape_filter_chars(group_name)
         self.conn.search(
             self.search_base,
-            f"(&(objectClass=group)(sAMAccountName={q}))",
+            f"(&(objectClass=group)(sAMAccountName={group_name}))",
             SUBTREE,
             attributes=["distinguishedName"],
-            size_limit=1,
         )
         return self.conn.entries[0]["distinguishedName"].value if self.conn.entries else None
 
-    def _guess_upn_suffix(self) -> str:
-        # Best-effort, adjust if your UPN suffix differs from DNS domain
-        # e.g., "bergerbd.com"
-        base_parts = [p.split("=")[1] for p in self.search_base.split(",") if p.strip().upper().startswith("DC=")]
-        return ".".join(base_parts) if base_parts else "local"
-
     def _map(self, entry) -> ADModel:
-        attrs = entry.entry_attributes_as_dict
+        """Map an ldap3 Entry into our ADModel dataclass."""
         m = ADModel()
-        m.first_name = (attrs.get("givenName") or [""])[0]
-        m.middle_name = (attrs.get("initials") or [""])[0]
-        m.last_name = (attrs.get("sn") or [""])[0]
-        m.display_name = (attrs.get("displayName") or [""])[0]
-        m.login_name = (attrs.get("sAMAccountName") or [""])[0]
-        upn = (attrs.get("userPrincipalName") or [""])[0]
+        attrs = entry.entry_attributes_as_dict
+        m.first_name = attrs.get("givenName", [""])[0]
+        m.middle_name = attrs.get("initials", [""])[0]
+        m.last_name = attrs.get("sn", [""])[0]
+        m.display_name = attrs.get("displayName", [""])[0]
+        m.login_name = attrs.get("sAMAccountName", [""])[0]
+        upn = attrs.get("userPrincipalName", [""])[0]
         if upn and "@" in upn:
             d = upn.split("@")[1].split(".")[0]
             m.login_name_with_domain = f"{d}\\{m.login_name}"
-        m.street_address = (attrs.get("streetAddress") or [""])[0]
-        m.city = (attrs.get("l") or [""])[0]
-        m.state = (attrs.get("st") or [""])[0]
-        m.postal_code = (attrs.get("postalCode") or [""])[0]
-        m.country = (attrs.get("co") or [""])[0]
-        m.company = (attrs.get("company") or [""])[0]
-        m.department = (attrs.get("department") or [""])[0]
-        m.home_phone = (attrs.get("homePhone") or [""])[0]
-        m.extension = (attrs.get("telephoneNumber") or [""])[0]
-        m.mobile = (attrs.get("mobile") or [""])[0]
-        m.fax = (attrs.get("facsimileTelephoneNumber") or [""])[0]
-        m.email_address = (attrs.get("mail") or [""])[0]
-        m.title = (attrs.get("title") or [""])[0]
-        m.manager = (attrs.get("manager") or [""])[0]
-        m.employee_id = (attrs.get("employeeID") or [""])[0]
+        m.street_address = attrs.get("streetAddress", [""])[0]
+        m.city = attrs.get("l", [""])[0]
+        m.state = attrs.get("st", [""])[0]
+        m.postal_code = attrs.get("postalCode", [""])[0]
+        m.country = attrs.get("co", [""])[0]
+        m.company = attrs.get("company", [""])[0]
+        m.department = attrs.get("department", [""])[0]
+        m.home_phone = attrs.get("homePhone", [""])[0]
+        m.extension = attrs.get("telephoneNumber", [""])[0]
+        m.mobile = attrs.get("mobile", [""])[0]
+        m.fax = attrs.get("facsimileTelephoneNumber", [""])[0]
+        m.email_address = attrs.get("mail", [""])[0]
+        m.title = attrs.get("title", [""])[0]
+        m.manager = attrs.get("manager", [""])[0]
+        m.employee_id = attrs.get("employeeID", [""])[0]
 
         if m.manager:
             cn = m.manager.split(",")[0].replace("CN=", "")

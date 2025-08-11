@@ -31,7 +31,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-z350z@5$p*7=3ll0iw8n!7et86d-mw1zga94*q45^_b(so_#j4'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['172.16.0.5',
                  '127.0.0.1']
@@ -72,6 +72,17 @@ MIDDLEWARE = [
      
 
 ]
+
+AUTHENTICATION_BACKENDS = [
+    "core.auth_backends.ad_db_backend.ADDBBackend",   # AD check for existing users
+    "django.contrib.auth.backends.ModelBackend",      # keep for local superuser fallback
+]
+
+AUTH_DEV_BYPASS_AD = True
+
+# Prod behavior: if you want to allow local-password fallback for some users
+AUTH_ALLOW_LOCAL_PASSWORD_FALLBACK = True  # set False to force AD for everyone (except ModelBackend superusers)
+
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8000",
     "http://172.16.0.5:8000",
@@ -223,10 +234,14 @@ JAZZMIN_SETTINGS = {
 
 # 3. LDAP / AD settings
 AUTH_LDAP_SERVER_URI      = os.getenv('AUTH_LDAP_SERVER_URI')
+AUTH_LDAP_SERVER_URI        = os.getenv("AUTH_LDAP_SERVER_URI")
+AUTH_LDAP_TLS_STRICT        = os.getenv("AUTH_LDAP_TLS_STRICT", default=True)
+AUTH_LDAP_CA_CERT_FILE      = os.getenv("AUTH_LDAP_CA_CERT_FILE")
 AUTH_LDAP_BIND_DN         = os.getenv('AUTH_LDAP_BIND_DN')
 AUTH_LDAP_BIND_PASSWORD   = os.getenv('AUTH_LDAP_BIND_PASSWORD')
 AUTH_LDAP_USER_SEARCH_BASE       = os.getenv('AUTH_LDAP_USER_SEARCH_BASE')
 LDAP_AUTH_SEARCH_FILTER      = os.getenv('LDAP_AUTH_SEARCH_FILTER ')
+
 
 # map LDAP attrs to Django User fields
 LDAP_AUTH_USER_FIELDS = {
