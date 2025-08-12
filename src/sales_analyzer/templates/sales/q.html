@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ChatGPT</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #f7f7f8;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .main-container { display: flex; height: 100vh; }
+
+    /* ---------- Sidebar (fixed-width flex item) ---------- */
+    .sidebar{
+      flex: 0 0 260px;           /* fixed 260px column */
+      width: 260px;              /* redundancy-safe */
+      background-color: #f7f7f8;
+      color: #374151;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #e5e7eb;
+    }
+
+    .sidebar-header { padding: 12px; border-bottom: 1px solid #e5e7eb; }
+    .sidebar-menu { padding: 8px; }
+
+    .menu-item {
+      display: flex; align-items: center;
+      padding: 8px 12px; margin: 2px 0; border-radius: 6px;
+      cursor: pointer; transition: background-color 0.2s;
+      color: #374151; text-decoration: none; font-size: 14px;
+    }
+    .menu-item:hover { background-color: #f3f4f6; color: #374151; }
+    .menu-item.active { background-color: #f3f4f6; }
+    .menu-icon { width: 16px; height: 16px; margin-right: 12px; fill: currentColor; }
+
+    .chats-section { flex: 1; padding: 8px; overflow-y: auto; }
+    .chats-section::-webkit-scrollbar { width: 6px; }
+    .chats-section::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
+    .chats-section::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    .chats-section::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    .chats-header {
+      color: #6b7280; font-size: 12px; font-weight: 600;
+      text-transform: uppercase; margin-bottom: 8px; padding: 0 12px;
+    }
+
+    .chat-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 12px; margin: 2px 0; border-radius: 6px;
+      cursor: pointer; transition: background-color 0.2s; color: #374151;
+      font-size: 14px; position: relative;
+    }
+    .chat-item:hover { background-color: #f3f4f6; }
+    .chat-item:hover .chat-menu-btn { opacity: 1; }
+    .chat-item.active { background-color: #e5e7eb; }
+
+    .chat-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .chat-menu-btn {
+      opacity: 0; padding: 4px; border: none; background: none; cursor: pointer;
+      border-radius: 4px; transition: all 0.2s; color: #6b7280;
+    }
+    .chat-menu-btn:hover { background-color: #e5e7eb; color: #374151; }
+
+    .chat-dropdown {
+      position: absolute; top: 100%; right: 8px; background: white;
+      border: 1px solid #e5e7eb; border-radius: 8px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -1px rgba(0,0,0,.06);
+      z-index: 1000; min-width: 160px; display: none;
+    }
+    .chat-dropdown.show { display: block; }
+
+    .dropdown-item {
+      display: flex; align-items: center; padding: 8px 12px; cursor: pointer;
+      transition: background-color 0.2s; font-size: 14px; border: none;
+      background: none; width: 100%; text-align: left;
+    }
+    .dropdown-item:hover { background-color: #f3f4f6; }
+    .dropdown-item:first-child { border-radius: 8px 8px 0 0; }
+    .dropdown-item:last-child { border-radius: 0 0 8px 8px; }
+    .dropdown-item.delete { color: #dc2626; }
+    .dropdown-item.delete:hover { background-color: #fef2f2; }
+    .dropdown-icon { width: 16px; height: 16px; margin-right: 8px; }
+
+    .user-section { padding: 12px; border-top: 1px solid #e5e7eb; position: relative; }
+    .user-info {
+      display: flex; align-items: center; padding: 8px 12px; border-radius: 6px;
+      cursor: pointer; transition: background-color 0.2s;
+    }
+    .user-info:hover { background-color: #f3f4f6; }
+    .user-avatar {
+      width: 30px; height: 30px; border-radius: 50%;
+      background-color: #19c37d; display: flex; align-items: center; justify-content: center;
+      margin-right: 8px; font-size: 12px; font-weight: bold; color: white;
+    }
+    .user-name { color: #374151; font-size: 15px; }
+    .user-plan { color: #6b7280; font-size: 13px; }
+
+    .user-dropdown {
+      position: absolute; bottom: 100%; left: 12px; right: 12px; background: white;
+      border: 1px solid #e5e7eb; border-radius: 8px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -1px rgba(0,0,0,.06);
+      z-index: 1000; display: none; margin-bottom: 8px;
+    }
+    .user-dropdown.show { display: block; }
+
+    /* ---------- Main content ---------- */
+    .main-content { flex: 1; display: flex; flex-direction: column; background-color: #fff; }
+
+    .chat-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 24px; border-bottom: 1px solid #e5e5e5; background-color: #fff;
+    }
+    .chat-title { display: flex; align-items: center; font-size: 16px; font-weight: 600; color: #2d333a; }
+    .chat-actions { display: flex; align-items: center; gap: 8px; }
+
+    .action-btn {
+      padding: 6px 12px; border: 1px solid #d1d5db; border-radius: 6px;
+      background-color: #fff; color: #374151; font-size: 14px; cursor: pointer; transition: all 0.2s;
+    }
+    .action-btn:hover { background-color: #f9fafb; }
+
+    .chat-content {
+      flex: 1; overflow-y: auto; padding: 24px 80px;
+      display: flex; flex-direction: column; gap: 24px;
+    }
+
+    .message-group { display: flex; flex-direction: column; gap: 16px; }
+    .message { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 24px; }
+    .message.user { justify-content: flex-end; }
+
+    .message.user .message-content {
+      background-color: #f4f4f4; color: #1f2937; border-radius: 18px;
+      padding: 12px 16px; max-width: 70%; margin-right: 12px;
+    }
+    .message.assistant .message-content {
+      background-color: transparent; color: #374151; padding: 0; max-width: none; flex: 1;
+    }
+
+    .message-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; flex-shrink: 0; }
+    .message-avatar.assistant { background-color: #74aa9c; color: #fff; }
+
+    .message-content ul { margin: 8px 0; padding-left: 20px; }
+    .message-content li { margin: 4px 0; }
+
+    .code-block {
+      background-color: #f6f8fa; border: 1px solid #e1e4e8; border-radius: 6px;
+      padding: 16px; margin: 12px 0; font-family: 'Monaco','Menlo','Ubuntu Mono', monospace; font-size: 14px; overflow-x: auto;
+    }
+    .code-header { display: flex; justify-content: between; align-items: center; margin-bottom: 8px; font-size: 12px; color: #586069; }
+    .copy-btn, .edit-btn {
+      background: none; border: none; color: #586069; cursor: pointer; font-size: 12px; padding: 4px 8px;
+      border-radius: 4px; transition: background-color 0.2s;
+    }
+    .copy-btn:hover, .edit-btn:hover { background-color: #e1e4e8; }
+
+    .input-area { padding: 24px; border-top: 1px solid #e5e5e5; background-color: #fff; }
+    .input-container { position: relative; max-width: 768px; margin: 0 auto; }
+
+    .input-wrapper {
+      display: flex; align-items: flex-end; background-color: #fff; border: 1px solid #d1d5db; border-radius: 24px;
+      padding: 12px 16px; box-shadow: 0 0 0 1px rgba(0,0,0,0.05); transition: all 0.2s;
+    }
+    .input-wrapper:focus-within { border-color: #10a37f; box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.1); }
+
+    .message-input {
+      flex: 1; border: none; outline: none; resize: none; font-size: 16px; line-height: 1.5; color: #374151; background: transparent;
+      min-height: 24px; max-height: 200px; overflow-y: hidden;
+    }
+    .message-input::placeholder { color: #9ca3af; }
+
+    .input-actions { display: flex; align-items: center; gap: 8px; margin-left: 8px; }
+    .input-btn {
+      width: 32px; height: 32px; border: none; border-radius: 6px; background-color: transparent; color: #6b7280; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+    }
+    .input-btn:hover { background-color: #f3f4f6; }
+    .send-btn { background-color: #10a37f; color: #fff; }
+    .send-btn:hover { background-color: #0d8f6b; }
+    .send-btn:disabled { background-color: #d1d5db; cursor: not-allowed; }
+    .disclaimer { text-align: center; color: #6b7280; font-size: 12px; margin-top: 12px; }
+
+    /* typing indicator */
+    .typing-indicator { display: inline-flex; align-items: center; gap: 4px; }
+    .typing-indicator .dot { width: 8px; height: 8px; background: #ccc; border-radius: 50%; animation: blink 1.4s infinite both; }
+    .typing-indicator .dot:nth-child(2) { animation-delay: .2s; }
+    .typing-indicator .dot:nth-child(3) { animation-delay: .4s; }
+    @keyframes blink { 0%,80%,100%{opacity:0;} 40%{opacity:1;} }
+
+    /* ---------- Burger button ---------- */
+    .burger-btn{
+      display:inline-flex; align-items:center; justify-content:center;
+      width:36px; height:36px; margin-right:12px;
+      border:1px solid #d1d5db; border-radius:6px; background:#fff; color:#374151;
+      cursor:pointer; transition:background-color .2s, border-color .2s;
+    }
+    .burger-btn:hover{ background:#f9fafb; border-color:#cbd5e1; }
+
+    /* ---------- Desktop collapse ---------- */
+    @media (min-width: 769px){
+      .main-container.sidebar-collapsed .sidebar{
+        flex: 0 0 0 !important;   /* collapse column */
+        width: 0 !important;
+        min-width: 0;             /* allow below content size */
+        border-right-width: 0;
+        overflow: hidden;
+      }
+    }
+
+    /* ---------- Mobile off-canvas ---------- */
+    @media (max-width: 768px){
+      .sidebar{
+        position: fixed; top:0; bottom:0; left:0;
+        width: 80vw; max-width: 320px; transform: translateX(-100%);
+        transition: transform .3s ease; will-change: transform;
+        box-shadow: 0 10px 30px rgba(0,0,0,.12); z-index: 1045;
+      }
+      .sidebar.open{ transform: translateX(0); }
+
+      .sidebar-backdrop{
+        position: fixed; inset: 0; background: rgba(0,0,0,.35);
+        display: none; z-index: 1040;
+      }
+      .sidebar-backdrop.show{ display:block; }
+
+      .main-content{ width: 100%; }
+      .chat-content{ padding: 16px 16px; } /* tighter padding on phones */
+    }
+  </style>
+</head>
+<body>
+  <div class="main-container">
+    <!-- Sidebar -->
+    <div class="sidebar" id="app-sidebar">
+      <div class="sidebar-header">
+        <div class="menu-item" style="padding:0;margin:1px 0;text-align:justify;">
+          <b><h5> Chats </h5></b>
+        </div>
+      </div>
+
+      <div class="sidebar-menu">
+        <div class="menu-item">
+          <svg class="menu-icon" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+          New chat
+        </div>
+        <div class="menu-item">
+          <svg class="menu-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+          Search chats
+        </div>
+      </div>
+
+      <div class="chats-section">
+        <div class="chats-header">Chats</div>
+      </div>
+
+      <div class="user-section">
+        <div class="user-dropdown" id="user-dropdown">
+          <button class="dropdown-item" onclick="logOut()">
+            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.59L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+            Logout
+          </button>
+          <button class="dropdown-item" onclick="openSettings()">
+            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.82,11.69,4.82,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>
+            Settings
+          </button>
+        </div>
+        <div class="user-info" onclick="toggleUserDropdown()">
+          <div class="user-avatar">RS</div>
+          <div>
+            <div class="user-name">Ragib Shahriar</div>
+            <div class="user-plan">Free</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Backdrop for mobile drawer -->
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <div class="chat-header">
+        <div class="chat-title">
+          <!-- Burger button -->
+          <button id="burger-btn"
+                  class="burger-btn"
+                  aria-label="Toggle sidebar"
+                  aria-controls="app-sidebar"
+                  aria-expanded="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M3 6h18v2H3zM3 11h18v2H3zM3 16h18v2H3z"></path>
+            </svg>
+          </button>
+
+          <!-- Model dropdown -->
+          <div class="dropdown">
+            <button class="btn btn-link dropdown-toggle p-0 text-decoration-none"
+                    type="button" id="modelDropdown" data-bs-toggle="dropdown"
+                    aria-expanded="false" style="color:#2d333a;font-size:16px;font-weight:600;">
+              <span id="current-model">Y Sales</span>
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="modelDropdown" id="modelMenu">
+              <li><button class="dropdown-item" type="button" data-selector=".y-sales">Y Sales</button></li>
+              <li><button class="dropdown-item" type="button" disabled>Coming soon</button></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="chat-actions">
+          {% comment %} <button class="action-btn" onclick="shareCurrentChat()">Share</button> {% endcomment %}
+        </div>
+      </div>
+
+      <!-- Chat Content -->
+      <div class="chat-content" id="chat-content">
+        <div class="text-center text-muted">Start a new conversation!</div>
+      </div>
+
+      <!-- Input Area -->
+      <div class="input-area">
+        <div class="input-container">
+          <div class="input-wrapper">
+            <textarea class="message-input" id="message-input" placeholder="Type a message..." rows="1"></textarea>
+            <div class="input-actions">
+              <button class="input-btn" id="voice-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6
+                           c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5
+                           c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
+                </svg>
+              </button>
+              <button class="input-btn send-btn" id="send-btn" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          {% comment %} <div class="disclaimer">ChatGPT can make mistakes. Check important info.</div> {% endcomment %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- libs (load first) -->
+  <script defer src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- your app script (after libs) -->
+  <script defer src="chat-ui.js"></script>
+</body>
+</html>
+
+
+// Base API
+const apiBase = `${window.location.origin}/api`;
+
+// Expose for dropdown usage
+window.onModelSelected = function(selector) {
+  console.log('Selected:', selector);
+  // run your handler here if needed
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Model menu label update
+  const menu   = document.getElementById('modelMenu');
+  const label  = document.getElementById('current-model');
+  const toggle = document.getElementById('modelDropdown');
+
+  if (menu && label && toggle) {
+    menu.addEventListener('click', (e) => {
+      const item = e.target.closest('.dropdown-item[data-selector]');
+      if (!item) return;
+      const selector = item.dataset.selector;
+      const text     = item.textContent.trim();
+      label.textContent = text;
+      window.onModelSelected(selector);
+      bootstrap.Dropdown.getOrCreateInstance(toggle).hide();
+    });
+  }
+});
+
+$(function() {
+  let currentChatId   = null;
+  let isSubmitting    = false;
+  let typingIndicator = null;
+
+  // Prefill user info
+  const fullName    = localStorage.getItem('full_name') || '';
+  const userName    = localStorage.getItem('username') || '';
+  const designation = localStorage.getItem('designation') || '';
+
+  $('.user-info .user-name').text(fullName);
+  $('.user-info .user-plan').text(designation || 'Free');
+
+  const initials = (fullName.trim()
+                    ? fullName.trim().split(/\s+/).map(s => s[0]).join('')
+                    : (userName || 'U').slice(0,2))
+                    .slice(0,2).toUpperCase();
+  $('.user-info .user-avatar').text(initials);
+
+  // Auth helpers
+  function getAuthToken() { return localStorage.getItem('auth_token'); }
+  function refreshToken() {
+    $.ajax({
+      url: apiBase + '/user/token/refresh/',
+      method: 'POST',
+      data: JSON.stringify({ refresh: localStorage.getItem('refresh_token') }),
+      contentType: 'application/json',
+      success(resp) {
+        localStorage.setItem('auth_token', resp.access);
+        localStorage.setItem('refresh_token', resp.refresh);
+        fetchChats();
+      },
+      error() {
+        localStorage.clear();
+        window.location.href = '/login';
+      }
+    });
+  }
+  function sendAuthenticatedRequest(url, method, data, onSuccess, onError) {
+    const token = getAuthToken();
+    if (!token) { window.location.href = '/login'; return; }
+    $.ajax({
+      url: apiBase + url,
+      method,
+      headers: { 'Authorization': 'Bearer ' + token },
+      data,
+      contentType: 'application/json',
+      success: onSuccess,
+      error(xhr, status, err) {
+        if (xhr.status === 401) refreshToken();
+        else if (onError) onError(xhr, status, err);
+      }
+    });
+  }
+
+  // UI helpers
+  function scrollToBottom() {
+    const $c = $('#chat-content');
+    $c.scrollTop($c.prop('scrollHeight'));
+  }
+  function addMessage(text, sender) {
+    const avatar = sender === 'user' ? '' : 'AI';
+    const cls    = sender === 'user' ? 'user' : 'assistant';
+    const html   = marked.parse(text || '');
+    const msgHtml = `
+      <div class="message ${cls}">
+        <div class="message-avatar ${cls}">${avatar}</div>
+        <div class="message-content">${html}</div>
+      </div>`;
+    $('#chat-content').append(msgHtml);
+    scrollToBottom();
+  }
+
+  // Data fetch
+  function fetchChats(cb) {
+    sendAuthenticatedRequest('/conversations/', 'GET', null, chats => {
+      const $sec = $('.chats-section').empty();
+      if (!chats.length) {
+        $sec.append('<div class="no-conversations">No previous conversations</div>');
+      } else {
+        chats.forEach(c => {
+          const active = c.uuid === currentChatId ? 'active' : '';
+          $sec.append(`
+            <div class="chat-item ${active}" data-chat-id="${c.uuid}">
+              <div class="chat-title">${c.title || 'Untitled Chat'}</div>
+              <button class="chat-menu-btn" onclick="toggleChatDropdown(event,'${c.uuid}')">…</button>
+              <div class="chat-dropdown" id="dropdown-${c.uuid}">
+                <button class="dropdown-item" onclick="shareChat('${c.uuid}')">Share</button>
+                <button class="dropdown-item" onclick="renameChat('${c.uuid}')">Rename</button>
+                <button class="dropdown-item" onclick="archiveChat('${c.uuid}')">Archive</button>
+                <button class="dropdown-item delete" onclick="deleteChat('${c.uuid}')">Delete</button>
+              </div>
+            </div>`);
+        });
+      }
+      if (cb) cb();
+    });
+  }
+
+  function fetchMessages(chatId) {
+    $('#chat-content').html('<div class="text-center text-muted">Loading messages...</div>');
+    sendAuthenticatedRequest(`/conversations/${chatId}/messages/`, 'GET', null, msgs => {
+      $('#chat-content').empty();
+      if (!msgs.length) {
+        $('#chat-content').append('<div class="text-center text-muted">Start a new conversation!</div>');
+      } else {
+        msgs.forEach(m => addMessage(m.text, m.sender === 'user' ? 'user' : 'assistant'));
+      }
+      scrollToBottom();
+    });
+  }
+
+  function startNewChat() {
+    currentChatId = null;
+    $('.chat-item').removeClass('active');
+    $('#chat-content').empty().append('<div class="text-center text-muted"><b>Start a new conversation!</b></div>');
+  }
+
+  function selectChat(chatId) {
+    currentChatId = chatId;
+    $('.chat-item').removeClass('active');
+    $(`.chat-item[data-chat-id="${chatId}"]`).addClass('active');
+    fetchMessages(chatId);
+  }
+
+  // Send message + typing indicator
+  function sendMessage() {
+    const $input  = $('#message-input');
+    const $send   = $('#send-btn');
+    const $chat   = $('#chat-content');
+    const text    = $input.val().trim();
+    if (!text || isSubmitting) return;
+
+    isSubmitting = true;
+    $input.prop('disabled', true);
+    $send.prop('disabled', true);
+
+    $chat.append(`
+      <div class="message user">
+        <div class="message-content">${marked.parse(text)}</div>
+      </div>`);
+    scrollToBottom();
+
+    typingIndicator = $(`
+      <div class="message assistant">
+        <div class="message-avatar assistant">AI</div>
+        <div class="message-content typing-indicator">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        </div>
+      </div>`);
+    $chat.append(typingIndicator);
+    scrollToBottom();
+
+    const url     = currentChatId ? `/sales/query/existing/${currentChatId}/` : '/sales/query/';
+    const payload = JSON.stringify({ prompt: text });
+
+    sendAuthenticatedRequest(url, 'POST', payload, resp => {
+      isSubmitting = false;
+      typingIndicator.remove();
+      $send.prop('disabled', false);
+
+      $('#message-input')
+        .val('')
+        .css('height','auto')
+        .prop('disabled', false)
+        .focus();
+
+      // new chat created
+      if (!currentChatId && resp.uuid) {
+        currentChatId = resp.uuid;
+        fetchChats(() => selectChat(currentChatId));
+      }
+
+      if (resp.assistant_message?.text) {
+        $chat.append(`
+          <div class="message assistant">
+            <div class="message-avatar assistant">AI</div>
+            <div class="message-content">${marked.parse(resp.assistant_message.text)}</div>
+          </div>`);
+        scrollToBottom();
+      } else if (currentChatId) {
+        fetchMessages(currentChatId);
+      }
+    }, () => {
+      isSubmitting = false;
+      typingIndicator.remove();
+      $send.prop('disabled', false);
+      $input.prop('disabled', false).focus();
+      Swal.fire({ icon:'error', title:'Error', text:'Failed to send message.' });
+    });
+  }
+
+  // Bindings
+  $('#send-btn').on('click', sendMessage);
+  $('#message-input').on('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+  // Auto-resize + enable/disable send button
+  $('#message-input').on('input', function() {
+    this.style.height = 'auto';
+    this.style.height = this.scrollHeight + 'px';
+    const hasText = this.value.trim().length > 0;
+    $('#send-btn').prop('disabled', !hasText);
+  });
+
+  $('.chats-section').on('click', '.chat-item', function() {
+    selectChat($(this).data('chat-id'));
+  });
+  $('.sidebar-menu .menu-item:contains("New chat")').on('click', startNewChat);
+
+  fetchChats();
+  startNewChat();
+});
+
+// Dropdown & misc handlers (globals for inline onclick)
+function toggleChatDropdown(event, chatId) {
+  event.stopPropagation();
+  $('.chat-dropdown').not(`#dropdown-${chatId}`).removeClass('show');
+  $('.user-dropdown').removeClass('show');
+  $(`#dropdown-${chatId}`).toggleClass('show');
+}
+function shareChat(chatId) {
+  alert(`Share link for chat ${chatId}`);
+  $('.chat-dropdown').removeClass('show');
+}
+function renameChat(chatId) {
+  const el = $(`.chat-item[data-chat-id="${chatId}"] .chat-title`);
+  const newTitle = prompt('Enter new chat title:', el.text());
+  if (newTitle) el.text(newTitle);
+  $('.chat-dropdown').removeClass('show');
+}
+function archiveChat(chatId) {
+  if (confirm('Archive this chat?')) {
+    $(`.chat-item[data-chat-id="${chatId}"]`).fadeOut(300, function(){ $(this).remove(); });
+  }
+  $('.chat-dropdown').removeClass('show');
+}
+function deleteChat(chatId) {
+  if (confirm('Delete this chat?')) {
+    $(`.chat-item[data-chat-id="${chatId}"]`).fadeOut(300, function(){ $(this).remove(); });
+  }
+  $('.chat-dropdown').removeClass('show');
+}
+function toggleUserDropdown() {
+  $('.chat-dropdown').removeClass('show');
+  $('#user-dropdown').toggleClass('show');
+}
+function logOut(){
+  const token = localStorage.getItem('auth_token');
+  const refreshToken = localStorage.getItem('refresh_token');
+  $.ajax({
+    url: apiBase+'/user/logout/',
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + token },
+    data: JSON.stringify({ refresh_token: refreshToken }),
+    contentType: "application/json",
+    success: function() {
+      localStorage.clear();
+      window.location.href = '/login';
+    },
+    error: function(xhr) {
+      let detail;
+      try { detail = JSON.parse(xhr.responseText).detail; } catch { detail = xhr.responseText; }
+      if (detail && detail.includes("Token is blacklisted")) {
+        localStorage.clear();
+        window.location.href = '/login';
+      } else {
+        Swal.fire({ icon: 'error', title: 'Oops...', text: 'Logout failed. Please try again.' });
+      }
+    }
+  });
+}
+function openSettings() {
+  $('.chat-dropdown, .user-dropdown').removeClass('show');
+  const modalEl = document.getElementById('settingsModal');
+  const bsModal = new bootstrap.Modal(modalEl);
+  bsModal.show();
+}
+function saveSettings() { /* hook up as needed */ }
+
+/* -------- Burger toggle (responsive) -------- */
+$(function(){
+  const $container = $('.main-container');
+  const $sidebar   = $('#app-sidebar');
+  const $backdrop  = $('#sidebar-backdrop');
+  const $burger    = $('#burger-btn');
+  const mql        = window.matchMedia('(max-width: 768px)');
+
+  function isMobile(){ return mql.matches; }
+  function closeMobile(){
+    $sidebar.removeClass('open');
+    $backdrop.removeClass('show');
+    $burger.attr('aria-expanded','false');
+  }
+
+  $burger.on('click', function(){
+    if (isMobile()){
+      const nowOpen = !$sidebar.hasClass('open');
+      $sidebar.toggleClass('open', nowOpen);
+      $backdrop.toggleClass('show', nowOpen);
+      $burger.attr('aria-expanded', String(nowOpen));
+    } else {
+      $container.toggleClass('sidebar-collapsed');
+      const collapsed = $container.hasClass('sidebar-collapsed');
+      $burger.attr('aria-pressed', String(collapsed));
+    }
+  });
+
+  $backdrop.on('click', closeMobile);
+  $(window).on('keydown', e => { if (e.key === 'Escape') closeMobile(); });
+
+  // Keep state sane when resizing
+  if (mql.addEventListener) {
+    mql.addEventListener('change', () => { if (!isMobile()) closeMobile(); });
+  } else if (mql.addListener) {
+    // older Safari fallback
+    mql.addListener(() => { if (!isMobile()) closeMobile(); });
+  }
+
+  // Initial ARIA state
+  $burger.attr('aria-expanded', String(!isMobile()));
+});

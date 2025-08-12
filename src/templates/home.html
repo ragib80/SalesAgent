@@ -1,133 +1,186 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Welcome to Voice of Sales</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <!-- Bootstrap 5 CDN -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body {
-            background: linear-gradient(120deg, #f3f4f6 0%, #e9ecef 100%);
-            min-height: 100vh;
-        }
-        .navbar {
-            background: #fff !important;
-            border-bottom: 1px solid #e5e7eb;
-            box-shadow: 0 2px 6px 0 rgba(60,60,60,.02);
-        }
-        .navbar-brand {
-            color: #202123 !important;
-            font-weight: 700;
-            letter-spacing: 1px;
-            font-family: 'Segoe UI', 'Inter', 'Arial', sans-serif;
-        }
-        .hero-card {
-            background: #fff;
-            border-radius: 2rem;
-            box-shadow: 0 6px 24px 0 rgba(60,60,60,0.09);
-            padding: 3rem 2rem 2.5rem 2rem;
-            margin-top: 3rem;
-            margin-bottom: 3rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 2rem;
-        }
-        .hero-btn {
-            padding: 0.9rem 2.4rem;
-            border-radius: 1.7rem;
-            font-size: 1.2rem;
-            font-weight: 600;
-            box-shadow: 0 2px 12px 0 rgba(60,60,60,0.07);
-            background: linear-gradient(90deg, #202123 70%, #343541 100%);
-            color: #fff;
-            border: none;
-            transition: background 0.2s, box-shadow 0.2s;
-        }
-        .hero-btn:hover {
-            background: linear-gradient(90deg, #343541 0%, #202123 100%);
-            box-shadow: 0 6px 20px 0 rgba(32,33,35,0.15);
-            color: #fff;
-        }
-        .hero-title {
-            font-size: 2.8rem;
-            font-weight: 800;
-            color: #202123;
-            font-family: 'Segoe UI', 'Inter', 'Arial', sans-serif;
-        }
-        .hero-lead {
-            font-size: 1rem;
-            color: #555a64;
-            font-family: 'Segoe UI', 'Inter', 'Arial', sans-serif;
-            text-align:center
-        }
-        .footer {
-            background: #fff;
-            border-top: 1px solid #e5e7eb;
-            color: #868686;
-            font-size: 1rem;
-        }
-        /* Responsive tweaks */
-        @media (max-width: 768px) {
-            .hero-title {
-                font-size: 2.1rem;
-            }
-            .hero-card {
-                padding: 2rem 1rem;
-            }
-        }
-        /* SVG bot icon color */
-        .gpt-icon-bg {
-            fill: #f3f4f6;
-        }
-        .gpt-icon-inner {
-            fill: #202123;
-            opacity: 0.13;
-        }
-        .gpt-icon-face {
-            fill: #343541;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <title>Welcome to Voice of Sales</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Bootstrap 5 CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    :root{
+      --brand:#202123;
+      --brand-2:#343541;
+      --border:#e5e7eb;
+      --text:#202123;
+      --muted:#555a64;
+      --bg1:#f3f4f6;
+      --bg2:#e9ecef;
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      background: linear-gradient(120deg, var(--bg1) 0%, var(--bg2) 100%);
+      min-height: 100svh; /* better on mobile dynamic viewport */
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Navbar */
+    .navbar {
+      background: #fff !important;
+      border-bottom: 1px solid var(--border);
+      box-shadow: 0 2px 6px rgba(60,60,60,.02);
+    }
+    .navbar-brand {
+      color: var(--text) !important;
+      font-weight: 700;
+      letter-spacing: .5px;
+      font-family: 'Segoe UI','Inter','Arial',sans-serif;
+    }
+    .navbar-toggler {
+      border: 1px solid var(--border);
+    }
+    .navbar-toggler:focus {
+      box-shadow: 0 0 0 .25rem rgba(52,53,65,.15);
+    }
+
+    /* Hero card */
+    .hero-card {
+      background: #fff;
+      border-radius: 2rem;
+      box-shadow: 0 6px 24px rgba(60,60,60,0.09);
+      padding: clamp(1.25rem, 3vw, 3rem) clamp(1rem, 2.5vw, 2rem);
+    }
+
+    .hero-title {
+      font-family: 'Segoe UI','Inter','Arial',sans-serif;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.15;
+      font-size: clamp(1.9rem, 3.8vw, 3rem);
+      text-align: center;
+    }
+
+    .hero-lead {
+      font-family: 'Segoe UI','Inter','Arial',sans-serif;
+      color: var(--muted);
+      font-size: clamp(.95rem, 1.2vw, 1.1rem);
+      text-align: center;
+      margin: 0 auto;
+      max-width: 48ch;
+    }
+
+    .hero-btn {
+      padding: .9rem 2.2rem;
+      border-radius: 1.7rem;
+      font-size: clamp(1rem, 1.2vw, 1.15rem);
+      font-weight: 600;
+      box-shadow: 0 2px 12px rgba(60,60,60,0.07);
+      background: linear-gradient(90deg, var(--brand) 70%, var(--brand-2) 100%);
+      color: #fff;
+      border: none;
+      transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+    }
+    .hero-btn:hover {
+      background: linear-gradient(90deg, var(--brand-2) 0%, var(--brand) 100%);
+      box-shadow: 0 6px 20px rgba(32,33,35,0.15);
+      color: #fff;
+      transform: translateY(-1px);
+    }
+    .hero-btn:focus-visible {
+      outline: 3px solid rgba(52,53,65,.25);
+      outline-offset: 3px;
+    }
+
+    /* SVG Illustration */
+    .hero-illustration {
+      width: min(32vw, 112px);
+      height: auto;
+    }
+    .gpt-icon-bg { fill: var(--bg1); }
+    .gpt-icon-inner { fill: var(--brand); opacity: .13; }
+    .gpt-icon-face { fill: var(--brand-2); }
+
+    /* Footer */
+    .footer {
+      background: #fff;
+      border-top: 1px solid var(--border);
+      color: #868686;
+      font-size: 1rem;
+    }
+
+    /* Reduced motion for users who prefer it */
+    @media (prefers-reduced-motion: reduce) {
+      .hero-btn { transition: none; }
+    }
+  </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-light">
-        <div class="container">
-            <a class="navbar-brand" href="#">Voice of    <span style="color:#343541"> Sales</span></a>
+  <header>
+    <nav class="navbar navbar-expand-md" aria-label="Primary">
+      <div class="container">
+        <a class="navbar-brand" href="javascript:void(0)">Voice of <span style="color:var(--brand-2)">Sales</span></a>
+
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#primaryNav" aria-controls="primaryNav" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="primaryNav">
+          <!-- Add nav items here if/when you have them -->
+          <ul class="navbar-nav ms-auto">
+            <!-- Example:
+            <li class="nav-item"><a class="nav-link" href="#">Features</a></li>
+            -->
+          </ul>
         </div>
+      </div>
     </nav>
+  </header>
 
-    <main class="container d-flex flex-column align-items-center justify-content-center flex-grow-1">
-        <div class="hero-card col-12 col-md-9 col-lg-7">
-            <!-- SVG Illustration (ChatGPT-inspired bot icon) -->
-            <div class="mb-2">
-                <svg width="96" height="96" viewBox="0 0 96 96">
-                  <rect x="8" y="20" width="80" height="56" rx="14" class="gpt-icon-bg"/>
-                  <rect x="16" y="28" width="64" height="40" rx="10" class="gpt-icon-inner"/>
-                  <rect x="34" y="44" width="28" height="8" rx="4" class="gpt-icon-face"/>
-                  <circle cx="44" cy="48" r="2" fill="#202123"/>
-                  <circle cx="52" cy="48" r="2" fill="#202123"/>
-                </svg>
+  <main class="flex-grow-1 d-flex align-items-center">
+    <div class="container py-4 py-lg-5">
+      <div class="row justify-content-center">
+        <div class="col-12 col-md-10 col-lg-8">
+          <section class="hero-card text-center">
+            <!-- SVG Illustration -->
+            <div class="mb-2" role="img" aria-labelledby="botIconTitle">
+              <svg class="hero-illustration" viewBox="0 0 96 96">
+                <title id="botIconTitle">Chat bot icon</title>
+                <rect x="8" y="20" width="80" height="56" rx="14" class="gpt-icon-bg"/>
+                <rect x="16" y="28" width="64" height="40" rx="10" class="gpt-icon-inner"/>
+                <rect x="34" y="44" width="28" height="8" rx="4" class="gpt-icon-face"/>
+                <circle cx="44" cy="48" r="2" fill="#202123"/>
+                <circle cx="52" cy="48" r="2" fill="#202123"/>
+              </svg>
             </div>
-            <h1 class="hero-title">Welcome to Voice of Sales</h1>
- 
-            <p class="hero-lead">
-                AI-Powered Insight Generator.
-                Your intelligent portal for managing and analyzing SAP sales data, reimagined for clarity and speed.
-            </p>
-            
-            <a href="{% url 'login-template' %}" class="btn hero-btn mt-2">Get Started</a>
-        </div>
-    </main>
 
-    <footer class="footer text-center py-3 mt-auto">
-        <div class="container">
-          &copy; <span id="year"></span> . All rights reserved.
+            <h1 class="hero-title">Welcome to Voice of Sales</h1>
+
+            <p class="hero-lead mt-2">
+              AI-Powered Insight Generator. Your intelligent portal for managing and analyzing SAP sales data, reimagined for clarity and speed.
+            </p>
+
+            <div class="d-grid d-sm-inline-flex gap-2 mt-3 justify-content-center">
+              <a href="{% url 'login-template' %}" class="btn hero-btn w-100 w-sm-auto">Get Started</a>
+            </div>
+          </section>
         </div>
-    </footer>
-    <script>
-        document.getElementById('year').textContent = new Date().getFullYear();
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer text-center py-3 mt-auto">
+    <div class="container">
+      &copy; <span id="year"></span>. All rights reserved.
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
