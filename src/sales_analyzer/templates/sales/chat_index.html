@@ -230,8 +230,8 @@
         }
         
         .user-avatar {
-            width: 24px;
-            height: 24px;
+            width: 30px;
+            height: 30px;
             border-radius: 50%;
             background-color: #19c37d;
             display: flex;
@@ -245,12 +245,12 @@
         
         .user-name {
             color: #374151;
-            font-size: 14px;
+            font-size: 15px;
         }
         
         .user-plan {
             color: #6b7280;
-            font-size: 12px;
+            font-size: 13px;
         }
         
         .user-dropdown {
@@ -645,34 +645,33 @@
   <!-- Chat Header (unchanged) -->
     <div class="chat-header">
         <div class="chat-title">
-        <div class="dropdown">
-            <button class="btn btn-link dropdown-toggle p-0 text-decoration-none"
-                    type="button"
-                    id="modelDropdown"
-                    data-bs-toggle="dropdown"
-                    aria-expanded="false"
-                    style="color: #2d333a; font-size: 16px; font-weight: 600;">
-            <span id="current-model">ChatGPT</span>
-            </button>
-            <ul class="dropdown-menu" aria-labelledby="modelDropdown">
-            <li><a class="dropdown-item" href="#" onclick="selectModel('ChatGPT')">ChatGPT</a></li>
-            <li><a class="dropdown-item" href="#" onclick="selectModel('GPT-4')">GPT-4</a></li>
-            <li><a class="dropdown-item" href="#" onclick="selectModel('GPT-3.5')">GPT-3.5</a></li>
-            <li><a class="dropdown-item" href="#" onclick="selectModel('Claude')">Claude</a></li>
-            </ul>
-        </div>
+            <div class="dropdown">
+                <button class="btn btn-link dropdown-toggle p-0 text-decoration-none"
+                        type="button" id="modelDropdown" data-bs-toggle="dropdown"
+                        aria-expanded="false" style="color:#2d333a;font-size:16px;font-weight:600;">
+                    <span id="current-model">Y Sales</span>
+                </button>
+
+                <ul class="dropdown-menu" aria-labelledby="modelDropdown" id="modelMenu">
+                    <!-- pass whatever selector/value you want via data-selector -->
+                    <li><button class="dropdown-item" type="button" data-selector=".y-sales">Y Sales</button></li>
+                    <li><button class="dropdown-item" type="button" disabled>Coming soon</button></li>
+                </ul>
+            </div>
+
+
         </div>
         <div class="chat-actions">
-        <button class="action-btn" onclick="shareCurrentChat()">
-            <svg style="width: 16px; height: 16px; margin-right: 4px;" viewBox="0 0 24 24">
-            <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7
-                    l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3
-                    c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3
-                    c.79 0 1.50-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92
-                    1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/>
-            </svg>
-            Share
-        </button>
+            {% comment %} <button class="action-btn" onclick="shareCurrentChat()">
+                <svg style="width: 16px; height: 16px; margin-right: 4px;" viewBox="0 0 24 24">
+                <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7
+                        l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3
+                        c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3
+                        c.79 0 1.50-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92
+                        1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/>
+                </svg>
+                Share
+            </button>  {% endcomment %}
         </div>
     </div>
 
@@ -691,13 +690,13 @@
                   placeholder="Type a message..."
                   rows="1"></textarea>
         <div class="input-actions">
-          <button class="input-btn" id="voice-btn">
+          {% comment %} <button class="input-btn" id="voice-btn">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6
                        c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5
                        c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
             </svg>
-          </button>
+          </button> {% endcomment %}
           <button class="input-btn send-btn"
                   id="send-btn"
                   disabled>
@@ -707,9 +706,9 @@
           </button>
         </div>
       </div>
-      <div class="disclaimer">
+      {% comment %} <div class="disclaimer">
         ChatGPT can make mistakes. Check important info.
-      </div>
+      </div> {% endcomment %}
     </div>
   </div>
 </div>
@@ -811,10 +810,56 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
    <script>
     const apiBase = `${window.location.origin}/api`;
+    // make it global so inline onclick can find it
+window.onModelSelected = function(selector) {
+    console.log('Selected:', selector);
+    // call your method here, e.g. runFor(selector);
+  };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const menu   = document.getElementById('modelMenu');
+    const label  = document.getElementById('current-model');
+    const toggle = document.getElementById('modelDropdown');
+
+    menu.addEventListener('click', (e) => {
+      const item = e.target.closest('.dropdown-item[data-selector]');
+      if (!item) return;
+
+      const selector = item.dataset.selector;
+      const text     = item.textContent.trim();
+
+      // update button text (optional)
+      label.textContent = text;
+
+      // call your method with the selector
+      window.onModelSelected(selector);
+
+      // close dropdown
+      bootstrap.Dropdown.getOrCreateInstance(toggle).hide();
+    });
+  });
+   
 $(function() {
   let currentChatId   = null;
   let isSubmitting    = false;
   let typingIndicator = null;
+
+  let fullName = localStorage.getItem('full_name');
+  let userName = localStorage.getItem('username');
+  let designation = localStorage.getItem('designation');
+  
+
+$('.user-info .user-name').text(localStorage.getItem('full_name') ?? '');
+$('.user-info .user-plan').text(localStorage.getItem('designation') ?? 'Free')
+
+  const initials =
+    (fullName.trim()
+      ? fullName.trim().split(/\s+/).map(s => s[0]).join('')
+      : username.slice(0, 2)
+    ).slice(0, 2).toUpperCase();
+
+  $('.user-info .user-avatar').text(initials || 'U');
+
 
   function getAuthToken() {
     return localStorage.getItem('auth_token');
@@ -1042,6 +1087,8 @@ $('#message-input').on('input', function() {
 
   fetchChats();
   startNewChat();
+
+  
 });
 
 // ─── Dropdown & Misc Handlers (unchanged) ────────────────────────────────────────
@@ -1139,12 +1186,9 @@ function openSettings() {
 }
 function saveSettings() { /* … */ }
 
-function selectModel(modelName) {
-  console.log(`Selected model: ${modelName}`);
-  $('#current-model').text(modelName);
-  const msg = `Switched to ${modelName} model`;
-  addMessage(msg, 'assistant');
-}
+
+
+
 </script>
 
 </body>

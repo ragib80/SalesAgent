@@ -6,7 +6,7 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
+from core.services.ad_service import ActiveDirectoryService  
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -22,37 +22,37 @@ def login_template_view(request):
 
 # -------- Serializer that uses your auth backends (AD) and adds extra fields --------
 class ADTokenObtainPairSerializer(TokenObtainPairSerializer):
-    """
-    Uses Django's authenticate(), so your AUTHENTICATION_BACKENDS apply:
-      - If AUTH_DEV_BYPASS_AD=True  -> bypass AD (pre-provisioned local user only)
-      - If AUTH_DEV_BYPASS_AD=False -> require AD password
-    Adds compact claims to the token and echoes user info in the response body.
-    """
-
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
-        # compact, useful claims inside the JWT itself
-        token["uid"] = str(getattr(user, "uuid", ""))   # your custom UUID field
+        # (optional) keep compact claims if you like
+        token["uid"] = str(getattr(user, "uuid", ""))
         token["un"] = user.username
         token["fn"] = user.get_full_name()
-        token["stf"] = user.is_staff
-        token["su"] = user.is_superuser
         return token
 
     def validate(self, attrs):
-        # Calls authenticate() under the hood -> hits your ADDBBackend
         data = super().validate(attrs)
-        user = self.user  # set by parent after successful authenticate()
+        user = self.user
 
-        # echo helpful fields in the API response body
-        data["user_uuid"] = str(getattr(user, "uuid", ""))
+        # Pull designation (title) from AD; fall back to ""
+        designation = ""
+        try:
+            ad = ActiveDirectoryService()
+            prof = ad.find_user(user.username) or ad.find_user(user.email or user.username)
+            if prof:
+                designation = prof.title or ""
+        except Exception:
+            designation = ""
+
+        # exact fields you asked for:
         data["username"] = user.username
         data["full_name"] = user.get_full_name()
-        data["is_staff"] = user.is_staff
-        data["is_superuser"] = user.is_superuser
-        return data
+        data["designation"] = designation
 
+        # (optional) keep anything else you already returned, e.g. user_uuid
+        data.setdefault("user_uuid", str(getattr(user, "uuid", "")))
+        return data
 
 # -------- Views --------
 class CustomTokenObtainPairView(TokenObtainPairView):

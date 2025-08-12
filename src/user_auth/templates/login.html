@@ -80,7 +80,12 @@
                         <label for="password" class="form-label">Password</label>
                         <input type="password" class="form-control" id="password" placeholder="Enter your password" required>
                     </div>
-                    <button type="submit" class="btn btn-primary w-100">Login</button>
+                    {% comment %} <button type="submit" class="btn btn-primary w-100">Login</button> {% endcomment %}
+                    <button type="submit" id="login-btn" class="btn btn-primary w-100 d-flex justify-content-center align-items-center">
+                        <span id="login-spinner" class="spinner-border spinner-border-sm text-light me-2 d-none" role="status" aria-hidden="true"></span>
+                        <span class="btn-text">Login</span>
+                    </button>
+
                 </form>
                 <div id="error-message" class="text-danger mt-3" style="display: none;">
                     Invalid credentials, please try again.
@@ -93,7 +98,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-        $(document).ready(function() {
+        {% comment %} $(document).ready(function() {
             // Handle form submission
             $('#login-form').on('submit', function(e) {
                 e.preventDefault();  // Prevent the form from submitting the traditional way
@@ -110,13 +115,15 @@
                         password: password
                     },
                     success: function(response) {
-                         //console.log(response)
-                       //alert(response.user_full_name)
+                        console.log(response)
+                       alert(response.user_full_name)
                         //localStorage.clear(); // or remove auth_token & refresh_token individually
                         // On success, store the token and redirect
                         localStorage.setItem('auth_token', response.access);
-                         localStorage.setItem('refresh_token', response.refresh);
-                         localStorage.setItem('username', response.username);
+                        localStorage.setItem('refresh_token', response.refresh);
+                        localStorage.setItem('full_name', response.full_name);
+                        localStorage.setItem('designation', response.designation);
+                        localStorage.setItem('username', response.username);
                         window.location.href = '/api/sales/index/';  // Redirect to a dashboard or home page
                     },
                     error: function() {
@@ -125,7 +132,57 @@
                     }
                 });
             });
-        });
+        }); {% endcomment %}
+
+        
+            $(document).ready(function() {
+                const $form = $('#login-form');
+                const $btn = $('#login-btn');
+                const $spinner = $('#login-spinner');
+                const $btnText = $btn.find('.btn-text');
+
+                $form.on('submit', function(e) {
+                    e.preventDefault();
+
+                    // UI: show spinner, disable button, hide any previous error
+                    $('#error-message').hide();
+                    $btn.prop('disabled', true);
+                    $spinner.removeClass('d-none');
+                    $btnText.text('Logging in...');
+
+                    var username = $('#username').val();
+                    var password = $('#password').val();
+
+                    $.ajax({
+                        url: '/api/user/token/',
+                        method: 'POST',
+                        data: { username: username, password: password },
+                        success: function(response) {
+                            // Optional: console.log(response);
+                            // alert(response.user_full_name);
+
+                            localStorage.setItem('auth_token', response.access);
+                            localStorage.setItem('refresh_token', response.refresh);
+                            localStorage.setItem('full_name', response.full_name || response.user_full_name || '');
+                            localStorage.setItem('designation', response.designation || '');
+                            localStorage.setItem('username', response.username || username);
+
+                            window.location.href = '/api/sales/index/';
+                        },
+                        error: function() {
+                            $('#error-message').show();
+                        },
+                        complete: function() {
+                            // In case of error (or before redirect kicks in on success)
+                            $btn.prop('disabled', false);
+                            $spinner.addClass('d-none');
+                            $btnText.text('Login');
+                        }
+                    });
+                });
+            });
+
+
     </script>
 </body>
 </html>
