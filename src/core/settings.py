@@ -31,7 +31,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-z350z@5$p*7=3ll0iw8n!7et86d-mw1zga94*q45^_b(so_#j4'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
+AUTH_DEV_BYPASS_AD = True
 
 ALLOWED_HOSTS = ['172.16.0.5',
                  '127.0.0.1']
@@ -78,7 +79,7 @@ AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",      # keep for local superuser fallback
 ]
 
-AUTH_DEV_BYPASS_AD = True
+
 
 # Prod behavior: if you want to allow local-password fallback for some users
 AUTH_ALLOW_LOCAL_PASSWORD_FALLBACK = True  # set False to force AD for everyone (except ModelBackend superusers)
@@ -242,6 +243,9 @@ AUTH_LDAP_BIND_PASSWORD   = os.getenv('AUTH_LDAP_BIND_PASSWORD')
 AUTH_LDAP_USER_SEARCH_BASE       = os.getenv('AUTH_LDAP_USER_SEARCH_BASE')
 LDAP_AUTH_SEARCH_FILTER      = os.getenv('LDAP_AUTH_SEARCH_FILTER ')
 
+AUTH_LDAP_UPN_SUFFIX       =        os.getenv('AUTH_LDAP_UPN_SUFFIX')
+
+AUTH_LDAP_DISABLE_NTLM     =        os.getenv('AUTH_LDAP_DISABLE_NTLM', default=True)
 
 # map LDAP attrs to Django User fields
 LDAP_AUTH_USER_FIELDS = {
@@ -258,3 +262,20 @@ LDAP_AUTH_FORMAT_USERNAME = (
     "django_python3_ldap.utils.format_username_active_directory"
 )
 # 4. Group-based flags
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {"class": "logging.StreamHandler"},
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "core": {"handlers": ["console"], "level": "DEBUG", "propagate": True},
+        # ldap3 can be noisy; enable if needed:
+        # "ldap3": {"handlers": ["console"], "level": "INFO", "propagate": False},
+    },
+}
