@@ -32,7 +32,7 @@ SECRET_KEY = 'django-insecure-z350z@5$p*7=3ll0iw8n!7et86d-mw1zga94*q45^_b(so_#j4
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-AUTH_DEV_BYPASS_AD = True
+AUTH_DEV_BYPASS_AD = False
 
 ALLOWED_HOSTS = ['172.16.0.5',
                  '127.0.0.1']
@@ -138,13 +138,25 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
 DATABASES = {
+    # 'default': {
+    #     'ENGINE': 'django.db.backends.sqlite3',
+    #     'NAME': BASE_DIR / 'db.sqlite3',
+    # },
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'mssql',
+        'NAME': os.getenv('DB_NAME', 'default_db_name'),  # default fallback value
+        'HOST': os.getenv('DB_HOST', 'localhost'),  # default fallback value
+        'PORT': os.getenv('DB_PORT', ''),  # Use default port if not specified
+        'USER': os.getenv('DB_USER', ''),  # Optional, if your SQL Server uses authentication
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),  # Optional, if your SQL Server uses authentication
+        'OPTIONS': {
+            'driver': os.getenv('DB_DRIVER', 'ODBC Driver 17 for SQL Server'),  # Default driver if not specified
+            'extra_params': os.getenv('DB_EXTRA_PARAMS', 'Trusted_Connection=yes;TrustServerCertificate=yes'),
+        },
     },
     'data_import': {
         'ENGINE': 'mssql',
-        'NAME': os.getenv('DB_NAME', 'default_db_name'),  # default fallback value
+        'NAME': os.getenv('DATA_IMPORT_DB_NAME', 'default_db_name'),  # default fallback value
         'HOST': os.getenv('DB_HOST', 'localhost'),  # default fallback value
         'PORT': os.getenv('DB_PORT', ''),  # Use default port if not specified
         'USER': os.getenv('DB_USER', ''),  # Optional, if your SQL Server uses authentication

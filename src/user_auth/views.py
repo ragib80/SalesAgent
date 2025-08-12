@@ -1,131 +1,115 @@
-from django.db import models
-from rest_framework_simplejwt.views import TokenObtainPairView
-from rest_framework import serializers
-from rest_framework.response import Response
+# user_auth/views.py
 
-from rest_framework import status
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from rest_framework_simplejwt.tokens import RefreshToken
-from .models import TokenBlacklist
-from rest_framework_simplejwt.exceptions import TokenError
-from rest_framework.views import exception_handler
-# Custom Token Serializer (optional, to extend with user info)
+import logging
 from django.shortcuts import render
+from rest_framework import status
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
+
+logger = logging.getLogger(__name__)
 
 
 def login_template_view(request):
-    return render(request, 'login.html')
+    # optional HTML page if you ever render a form
+    return render(request, "login.html")
 
 
-class CustomTokenObtainPairSerializer(serializers.Serializer):
-    username = serializers.CharField()
-    password = serializers.CharField()
+# -------- Serializer that uses your auth backends (AD) and adds extra fields --------
+class ADTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """
+    Uses Django's authenticate(), so your AUTHENTICATION_BACKENDS apply:
+      - If AUTH_DEV_BYPASS_AD=True  -> bypass AD (pre-provisioned local user only)
+      - If AUTH_DEV_BYPASS_AD=False -> require AD password
+    Adds compact claims to the token and echoes user info in the response body.
+    """
+
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        # compact, useful claims inside the JWT itself
+        token["uid"] = str(getattr(user, "uuid", ""))   # your custom UUID field
+        token["un"] = user.username
+        token["fn"] = user.get_full_name()
+        token["stf"] = user.is_staff
+        token["su"] = user.is_superuser
+        return token
 
     def validate(self, attrs):
-        # Here you can validate user credentials manually if needed
-        # Otherwise, you can use Django's built-in authentication
-        return super().validate(attrs)
+        # Calls authenticate() under the hood -> hits your ADDBBackend
+        data = super().validate(attrs)
+        user = self.user  # set by parent after successful authenticate()
+
+        # echo helpful fields in the API response body
+        data["user_uuid"] = str(getattr(user, "uuid", ""))
+        data["username"] = user.username
+        data["full_name"] = user.get_full_name()
+        data["is_staff"] = user.is_staff
+        data["is_superuser"] = user.is_superuser
+        return data
 
 
+# -------- Views --------
 class CustomTokenObtainPairView(TokenObtainPairView):
-    serializer_class = CustomTokenObtainPairSerializer
-
-    def post(self, request, *args, **kwargs):
-        # Call the parent class method for token creation
-        response = super().post(request, *args, **kwargs)
-
-        # Get the user associated with the request
-        user = request.user
-
-        # Add additional data to the response
-        response.data['message'] = 'Login successful!'
-        response.data['user_uuid'] = str(user.uuid)  # Add user UUID
-        response.data['user_full_name'] = user.get_full_name()  # Add user full name
-
-        return response
-# models.py
-class CustomTokenObtainPairView(TokenObtainPairView):
-    def post(self, request, *args, **kwargs):
-        response = super().post(request, *args, **kwargs)
-        serializer = self.get_serializer(data=request.data)
-        try:
-            serializer.is_valid(raise_exception=True)
-            user = serializer.user  # This is the user who just authenticated!
-        except Exception:
-            user = None
-        
-        print( user.username)
-
-        if user is not None:
-            response.data['user_uuid'] = str(user.uuid)
-            response.data['username'] = str(user.username)
-        # response.data['user_uuid'] = str(user.uuid)  # Add user UUID
-        # response.data['user_full_name'] = user.get_full_name()  # Add user full name
-        print( response.data)
-        return response
-
+    """
+    POST { "username": "...", "password": "..." }
+    returns refresh/access only if your AD backend authenticated the user
+    (or bypassed if AUTH_DEV_BYPASS_AD=True).
+    """
+    permission_classes = [AllowAny]
+    serializer_class = ADTokenObtainPairSerializer
 
 
 class LogoutAPIView(APIView):
+    """
+    Blacklists the provided refresh token. Accept either:
+      - body:   { "refresh_token": "<token>" }
+      - header: Authorization: Bearer <token>
+    """
+    permission_classes = [AllowAny]
+
     def post(self, request):
         try:
-            refresh_token = request.data.get("refresh_token") or request.headers.get('Authorization')
-            print(f"Received refresh_token: {refresh_token}")
-
-            if not refresh_token:
+            raw = request.data.get("refresh_token") or request.headers.get("Authorization")
+            if not raw:
                 return Response({"detail": "Refresh token is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-            if refresh_token.startswith('Bearer '):
-                refresh_token = refresh_token[7:]
+            if isinstance(raw, str) and raw.startswith("Bearer "):
+                raw = raw[7:]
 
-            token = RefreshToken(refresh_token)
+            token = RefreshToken(raw)
             token.blacklist()
             return Response({"detail": "Successfully logged out."}, status=status.HTTP_200_OK)
 
         except TokenError as e:
-            print("TokenError:", e)
-            if "Token is blacklisted" in str(e):
+            # If already blacklisted, treat as success (idempotent logout)
+            msg = str(e)
+            if "blacklisted" in msg.lower():
                 return Response({"detail": "Already logged out."}, status=status.HTTP_200_OK)
-            return Response({"detail": f"Token error: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            # PRINT THE STACK TRACE for debugging
-            import traceback; traceback.print_exc()
-            return Response({"detail": f"An error occurred during logout: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"detail": f"Token error: {msg}"}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            logger.exception("Unexpected error during logout")
+            return Response({"detail": "An error occurred during logout."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-# class LogoutAPIView(APIView):
-#     def post(self, request):
-#         """
-#         This endpoint will blacklist the user's refresh token on logout.
-#         """
-#         try:
-#             # Get the refresh token from the Authorization header
-#             refresh_token = request.data.get("refresh_token") or request.headers.get('Authorization')
-#             print("Received refresh_token:", refresh_token)
+class WhoAmIView(APIView):
+    """
+    Handy endpoint to verify JWTs and inspect the current user.
+    """
+    permission_classes = [IsAuthenticated]
 
-#             if not refresh_token:
-#                 return Response({"detail": "Refresh token is required."}, status=status.HTTP_400_BAD_REQUEST)
-
-#             # If the token is prefixed with 'Bearer ', remove it
-#             if refresh_token.startswith('Bearer '):  
-#                 refresh_token = refresh_token[7:]
-
-#             # Create a RefreshToken instance from the refresh token
-#             token = RefreshToken(refresh_token)
-
-#             # Blacklist the refresh token
-#             token.blacklist()
-
-#             # Clear the user session by setting request.user to None
-#             request.user = None  # Clear the user for this session
-#             _user.value = None  # Clear thread-local storage
-
-#             # Return a success message
-#             return Response({"detail": "Successfully logged out."}, status=status.HTTP_200_OK)
-
-#         except TokenError as e:
-#             return Response({"detail": f"Token error: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
-#         except Exception as e:
-#             return Response({"detail": "An error occurred during logout."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    def get(self, request):
+        u = request.user
+        return Response({
+            "user_uuid": str(getattr(u, "uuid", "")),
+            "username": u.username,
+            "full_name": u.get_full_name(),
+            "email": u.email,
+            "is_staff": u.is_staff,
+            "is_superuser": u.is_superuser,
+        })
