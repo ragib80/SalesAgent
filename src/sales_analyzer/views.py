@@ -10,6 +10,9 @@ from conversation.models.conversation import Conversation
 from conversation.models.message import Message
 from datetime import datetime
 import traceback
+from core.middleware.current_user import set_current_chat_user, clear_current_chat_user
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 class ChatView(TemplateView):
     template_name = 'sales/chat_index.html'
@@ -34,8 +37,14 @@ class ChatView(TemplateView):
 
 
 class ChatAPIView(APIView):
-    def post(self, request):
+    authentication_classes = (JWTAuthentication,)     
+    permission_classes = (IsAuthenticated,)           
+    def post(self, request,):
+        token = None
         try:
+            print("Authorization header present?:", bool(request.headers.get("Authorization")))
+            print("DRF user BEFORE set_current_chat_user:", request.user, getattr(request.user, "id", None))
+
             ser = ChatRequestSerializer(data=request.data)
             ser.is_valid(raise_exception=True)
             prompt = ser.validated_data['prompt']
@@ -46,7 +55,10 @@ class ChatAPIView(APIView):
                 conversation = self.get_or_create_conversation(request.user, conversation_uuid=conversation_id)
             else:
                 conversation = self.create_new_conversation(request.user)
-
+            
+            token = set_current_chat_user(request.user)   
+            
+            
             #  Run  agent 
             # result = handle_user_query(prompt)
             print("prompt recived  ",prompt)
@@ -70,6 +82,7 @@ class ChatAPIView(APIView):
             }
             response_ser = FirstChatResponseSerializer(out)
             return Response(response_ser.data, status=status.HTTP_200_OK)
+        
 
         except Exception as e:
             out = {
@@ -85,6 +98,8 @@ class ChatAPIView(APIView):
             traceback.print_exc()  # This prints the full traceback to help with debugging
             response_ser = FirstChatResponseSerializer(out)
             return Response(response_ser.data, status=status.HTTP_200_OK)
+        finally:
+                clear_current_chat_user(token)
 
     # Conversation/message helpers
     def create_new_conversation(self, user):
@@ -119,6 +134,7 @@ class ChatAPIView(APIView):
 
 
 class ExistingConversationAPIView(APIView):
+    token = None
     def post(self, request, conversation_uuid):
         try:
             ser = ChatRequestSerializer(data=request.data)
@@ -127,6 +143,7 @@ class ExistingConversationAPIView(APIView):
 
             conversation = self.get_or_create_conversation(request.user, conversation_uuid)
 
+            token = set_current_chat_user(request.user)  
             # > Run agent 
             # result = handle_user_query(prompt)
             result = handle_user_query(prompt, conversation_id=str(conversation.uuid))
@@ -155,6 +172,9 @@ class ExistingConversationAPIView(APIView):
             }
             response_ser = ChatResponseSerializer(out)
             return Response(response_ser.data, status=status.HTTP_200_OK)
+        
+        finally:
+                clear_current_chat_user(token)
 
     def get_or_create_conversation(self, user, conversation_uuid):
         existing_conversation = Conversation.objects.filter(

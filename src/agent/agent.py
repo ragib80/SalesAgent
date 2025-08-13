@@ -1,4 +1,5 @@
 # agent.py ─ Simplified SAP Sales bot for Azure ADX (SAPSalesInfos)
+from __future__ import annotations
 import os, re, json
 from functools import lru_cache
 import datetime
@@ -10,6 +11,9 @@ from langchain_openai import AzureChatOpenAI
 import logging
 import dateutil.parser
 import calendar
+from user_auth.models import UserDepoMap, UserZoneMap, UserTerritoryMap
+from typing import List, Dict
+from dataclasses import dataclass
 
 import logging
 
@@ -222,6 +226,51 @@ def find_gsber_code(user_input, mapping):
             return orig_k, code
     return None, None
 
+#role based access
+# def _is_admin(user) -> bool:
+#     if not user or not user.is_authenticated:
+#         return False
+#     if getattr(user, "is_superuser", False):
+#         return True
+#     try:
+#         return user.groups.filter(name__in=["Admin", "Super Admin"]).exists()
+#     except Exception:
+#         return False
+def _is_admin(user) -> bool:
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if getattr(user, "is_superuser", False) or getattr(user, "is_staff", False):
+        return True
+    # Optional: support app-specific role fields, if you have them
+    for attr in ("role", "designation", "user_role"):
+        val = getattr(user, attr, None)
+        if isinstance(val, str) and val.lower() in ("admin", "super admin", "superadmin"):
+            return True
+    try:
+        return user.groups.filter(name__icontains="admin").exists()
+    except Exception:
+        return False
+    
+@dataclass
+class UserAreaScope:
+    depots: List[str]
+    zones: List[str]
+    territories: List[str]
+    restricted: bool
+
+def get_user_area_scope(user) -> UserAreaScope:
+    print(">>> get_user_area_scope user:", user, "| is_authenticated:", getattr(user, "is_authenticated", None))
+    if _is_admin(user):
+        print(">>> user is admin/superadmin; unrestricted scope")
+        return UserAreaScope([], [], [], restricted=False)
+
+    depots = list(UserDepoMap.objects.filter(user=user).values_list("depo__code", flat=True))
+    zones = list(UserZoneMap.objects.filter(user=user).values_list("zone__code", flat=True))
+    territories = list(UserTerritoryMap.objects.filter(user=user).values_list("territory__code", flat=True))
+    print(f">>> resolved scope depots={depots} zones={zones} territories={territories}")
+
+    return UserAreaScope(depots=depots, zones=zones, territories=territories, restricted=True)
+#end role based access
 
 # compile once
 MTD_RE = re.compile(r'\b(?:mtd|month[- ]to[- ]date)\b', re.IGNORECASE)
@@ -253,6 +302,68 @@ def generate_kql(user_req: str, strict=False) -> str:
     prompt = SYSTEM_PROMPT_KQL
     if strict:
         prompt += "\n\nSTRICT MODE: previous query failed. Return corrected KQL only."
+    
+    #user access 
+    _scope = None
+    try:
+        from core.middleware.current_user import get_current_chat_user  # thread-local accessor
+        # from salesbot.utils.access_scope import get_user_area_scope
+        _user = get_current_chat_user()
+        print(">>> agent current_user:", _user, "| id:", getattr(_user, "id", None))
+        print(_user)
+        _scope = get_user_area_scope(_user) if _user else None
+        print(">>> generate_kql scope:", _scope)
+    except Exception:
+        _scope = None
+
+    try:
+        # Column map for ADX area columns; override via settings.ADX_AREA_COLUMNS if needed
+        _colmap = getattr(settings, "ADX_AREA_COLUMNS", {
+            "depo":      {"col": "gsber",     "type": "long"},
+            "zone":      {"col": "Szone",     "type": "string"},
+            "territory": {"col": "Territory", "type": "string"},
+        })
+
+        # Attach JSON block the LLM will use to add filters (case-insensitive)
+        if _scope and getattr(_scope, "restricted", False):
+            depots_raw = list(getattr(_scope, "depots", []) or [])
+            depots_num = []
+            for v in depots_raw:
+                try:
+                    depots_num.append(int(str(v).strip()))
+                except Exception:
+                    pass  # silently drop non-numeric
+            scope_payload = {
+                "restricted": True,
+                "depots": depots_num,                                # numeric list
+                "zones": list(getattr(_scope, "zones", []) or []),
+                "territories": list(getattr(_scope, "territories", []) or []),
+                "column_map": _colmap,
+            }
+            prompt += (
+                "\n\nUSER_AREA_SCOPE (JSON):\n"
+                + json.dumps(scope_payload, ensure_ascii=False) + "\n"
+                "Rules for area scoping:\n"
+                "- If restricted=true, RESTRICT results to this scope right after the table.\n"
+                "- Column types:\n"
+                f"    • depo → {_colmap['depo']['col']} ({_colmap['depo']['type']})\n"
+                f"    • zone → {_colmap['zone']['col']} ({_colmap['zone']['type']})\n"
+                f"    • territory → {_colmap['territory']['col']} ({_colmap['territory']['type']})\n"
+                "- Build filters by type:\n"
+                "    • long:    <col> in (4000, 4010)  OR  <col> == 4000  (NO quotes, NO in~)\n"
+                "    • string:  <col> in~ (\"A\",\"B\")  OR  <col> =~ \"A\" (case-insensitive)\n"
+                "- If a scope array is empty, DO NOT add a filter for that dimension.\n"
+                "- If the user already asked for area filters, INTERSECT them with this scope using AND.\n"
+                "- Do not use joins/subqueries just to enforce scope; keep simple where-clauses.\n"
+            )
+        else:
+            prompt += (
+                "\n\nUSER_AREA_SCOPE (JSON): {\"restricted\": false}\n"
+                "If restricted=false, do NOT add any area filters.\n"
+            )
+    except Exception:
+        # Non-fatal; keep going without scope hints
+        pass
     
     # Detect if the user is asking for MTD sales or growth
     # if "MTD" in user_req or "Month-to-Date" in user_req:

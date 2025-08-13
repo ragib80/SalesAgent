@@ -32,7 +32,7 @@ SECRET_KEY = 'django-insecure-z350z@5$p*7=3ll0iw8n!7et86d-mw1zga94*q45^_b(so_#j4
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-AUTH_DEV_BYPASS_AD = False
+AUTH_DEV_BYPASS_AD = True
 
 ALLOWED_HOSTS = ['172.16.0.5',
                  '127.0.0.1']
@@ -67,7 +67,7 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'core.middleware.current_user.CurrentUserMiddleware',
+    "core.middleware.current_user.AttachCurrentAdminUserMiddleware",  # session/admin users
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
      
