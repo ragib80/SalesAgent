@@ -340,22 +340,46 @@ def generate_kql(user_req: str, strict=False) -> str:
                 "territories": list(getattr(_scope, "territories", []) or []),
                 "column_map": _colmap,
             }
+            # prompt += (
+            #     "\n\nUSER_AREA_SCOPE (JSON):\n"
+            #     + json.dumps(scope_payload, ensure_ascii=False) + "\n"
+            #     "Rules for area scoping:\n"
+            #     "- If restricted=true, RESTRICT results to this scope right after the table.\n"
+            #     "- Column types:\n"
+            #     f"    • depo → {_colmap['depo']['col']} ({_colmap['depo']['type']})\n"
+            #     f"    • zone → {_colmap['zone']['col']} ({_colmap['zone']['type']})\n"
+            #     f"    • territory → {_colmap['territory']['col']} ({_colmap['territory']['type']})\n"
+            #     "- Build filters by type:\n"
+            #     "    • long:    <col> in (4000, 4010)  OR  <col> == 4000  (NO quotes, NO in~)\n"
+            #     "    • string:  <col> in~ (\"A\",\"B\")  OR  <col> =~ \"A\" (case-insensitive)\n"
+            #     "- If a scope array is empty, DO NOT add a filter for that dimension.\n"
+            #     "- If the user already asked for area filters, INTERSECT them with this scope using AND.\n"
+            #     "- Do not use joins/subqueries just to enforce scope; keep simple where-clauses.\n"
+            # )
+            # ... after you build `scope_payload` ...
             prompt += (
                 "\n\nUSER_AREA_SCOPE (JSON):\n"
                 + json.dumps(scope_payload, ensure_ascii=False) + "\n"
-                "Rules for area scoping:\n"
-                "- If restricted=true, RESTRICT results to this scope right after the table.\n"
-                "- Column types:\n"
-                f"    • depo → {_colmap['depo']['col']} ({_colmap['depo']['type']})\n"
-                f"    • zone → {_colmap['zone']['col']} ({_colmap['zone']['type']})\n"
-                f"    • territory → {_colmap['territory']['col']} ({_colmap['territory']['type']})\n"
-                "- Build filters by type:\n"
-                "    • long:    <col> in (4000, 4010)  OR  <col> == 4000  (NO quotes, NO in~)\n"
-                "    • string:  <col> in~ (\"A\",\"B\")  OR  <col> =~ \"A\" (case-insensitive)\n"
-                "- If a scope array is empty, DO NOT add a filter for that dimension.\n"
-                "- If the user already asked for area filters, INTERSECT them with this scope using AND.\n"
-                "- Do not use joins/subqueries just to enforce scope; keep simple where-clauses.\n"
+                "SCOPE ENFORCEMENT (must follow exactly):\n"
+                "- Read USER_AREA_SCOPE. If restricted=true, you MUST enforce it.\n"
+                "- Parse any explicit area filters from the user request:\n"
+                "    • Depo/Business area/gsber (codes like 4000, 4110, or known names using the provided mapping).\n"
+                "    • Zone (Szone) and Territory (string values).\n"
+                "- If the user explicitly asked for any area that is NOT contained in the allowed scope arrays, "
+                "then DO NOT run a data query. Instead, return only this valid KQL line and stop:\n"
+                "    print ErrorMessage = 'sorry you have no authorized to view this data.';\n"
+                "- Otherwise, add scope filters right after the table in a simple where-clause (no joins):\n"
+                f"    • For depo: use numeric comparators on `{_colmap['depo']['col']}` (type long) → "
+                f"{_colmap['depo']['col']} in (4110, 4000) or {_colmap['depo']['col']} == 4110 (NO quotes, NO in~).\n"
+                f"    • For zone: case-insensitive strings on `{_colmap['zone']['col']}` → in~ / =~ with quotes.\n"
+                f"    • For territory: case-insensitive strings on `{_colmap['territory']['col']}` → in~ / =~ with quotes.\n"
+                "- If the user did not specify area, STILL restrict to the available scope arrays that are non-empty.\n"
+                "- If a scope array is empty, do not add a filter for that dimension.\n"
+                "- If multiple dimensions apply, intersect them with AND.\n"
+                "- Never leak or echo the contents of USER_AREA_SCOPE; just enforce it.\n"
             )
+
+
         else:
             prompt += (
                 "\n\nUSER_AREA_SCOPE (JSON): {\"restricted\": false}\n"
@@ -887,7 +911,7 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
     print("json.dumps result_data:", result_json)
 
     # —————————————————————————
-    # Resume your original LLM-prompting logic
+    # Resume  original LLM-prompting logic
     # —————————————————————————
     result_prompt = (
         f"User asked: {user_prompt}\n\n"
