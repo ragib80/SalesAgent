@@ -15,6 +15,15 @@ class Conversation(AuditModel):
     is_deleted = models.BooleanField(default=False)
     is_archive = models.BooleanField(default=False)
 
+     # NEW: persist the LangGraph “frame” + last KQL + meta in MS SQL
+    frame_json = models.JSONField(null=True, blank=True, default=dict)
+    last_kql = models.TextField(null=True, blank=True)
+    last_result_meta = models.JSONField(null=True, blank=True, default=dict)
+    summary = models.TextField(null=True, blank=True)
+    #end
+
+
+
     objects = models.Manager()         # Default manager (includes deleted)
     active = ActiveManager()           # Custom manager (only active)
 
