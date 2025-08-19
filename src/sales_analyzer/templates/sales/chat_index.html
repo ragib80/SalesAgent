@@ -22,6 +22,22 @@
         .main-container {
             display: flex;
             height: 100vh;
+            position: relative;
+        }
+        
+        /* Mobile Burger Menu */
+        .mobile-menu-btn {
+            display: none;
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            z-index: 1001;
+            background: #fff;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 8px;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
         
         /* Sidebar Styles */
@@ -32,6 +48,9 @@
             display: flex;
             flex-direction: column;
             border-right: 1px solid #e5e7eb;
+            position: relative;
+            z-index: 1000;
+            transition: transform 0.3s ease;
         }
         
         .sidebar-header {
@@ -372,12 +391,6 @@
             flex-shrink: 0;
         }
         
-        {% comment %} .message-avatar.user {
-            background-color: #19c37d;
-            color: #fff;
-            order: 2;
-        } {% endcomment %}
-        
         .message-avatar.assistant {
             background-color: #74aa9c;
             color: #fff;
@@ -467,7 +480,7 @@
             background: transparent;
             min-height: 24px;
             max-height: 200px;
-            overflow-y: hidden;  /* so it won’t show a scrollbar */
+            overflow-y: hidden;
         }
         
         .message-input::placeholder {
@@ -504,13 +517,14 @@
             color: #fff;
         }
         
-        .send-btn:hover {
+        .send-btn:hover:not(:disabled) {
             background-color: #0d8f6b;
         }
         
         .send-btn:disabled {
             background-color: #d1d5db;
             cursor: not-allowed;
+            opacity: 0.5;
         }
         
         .disclaimer {
@@ -519,56 +533,123 @@
             font-size: 12px;
             margin-top: 12px;
         }
-        
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 0;
-                overflow: hidden;
-                transition: width 0.3s;
-            }
-            
-            .sidebar.open {
-                width: 260px;
-            }
-            
-            .main-content {
-                width: 100%;
-            }
-        }
 
         /* typing-indicator dots */
         .typing-indicator {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
         }
 
         .typing-indicator .dot {
-        width: 8px; height: 8px;
-        background: #ccc;
-        border-radius: 50%;
-        animation: blink 1.4s infinite both;
+            width: 8px; 
+            height: 8px;
+            background: #ccc;
+            border-radius: 50%;
+            animation: blink 1.4s infinite both;
         }
 
         .typing-indicator .dot:nth-child(2) { animation-delay: 0.2s; }
         .typing-indicator .dot:nth-child(3) { animation-delay: 0.4s; }
 
         @keyframes blink {
-        0%, 80%, 100% { opacity: 0; }
-        40% { opacity: 1; }
+            0%, 80%, 100% { opacity: 0; }
+            40% { opacity: 1; }
         }
+        
+        /* Mobile Overlay */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .mobile-menu-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                transform: translateX(-100%);
+                z-index: 1000;
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .sidebar-overlay.show {
+                display: block;
+            }
+            
+            .main-content {
+                width: 100%;
+                margin-left: 0;
+            }
+            
+            .chat-header {
+                padding-left: 60px; /* Make room for burger button */
+            }
+            
+            .chat-content {
+                padding: 24px 16px;
+            }
+            
+            .input-area {
+                padding: 16px;
+            }
+            {% comment %} new added for chat load more {% endcomment %}
+            .chats-section .menu-item.load-more-btn{
+                display:flex; align-items:center; gap:.5rem;
+                padding:10px 12px; margin:6px 8px; border-radius:8px;
+                cursor:pointer; user-select:none;
+                font-weight:500;
+            }
+            .chats-section .menu-item.load-more-btn:hover{ background:var(--hover-bg, #f5f5f5); }
+            .chats-section .menu-item.load-more-btn.disabled{ opacity:.6; cursor:default; }
+            .chats-section .menu-item.load-more-btn .icon{ font-weight:700; }
+                    }
+            #load-prev-wrap {
+                position: sticky;
+                top: 0;
+                background: transparent; /* was #fff */
+                z-index: 2;
+                padding-top: 4px;
+            }
+
+
     </style>
 </head>
 <body>
+    <!-- Mobile burger menu button -->
+    <button class="mobile-menu-btn" id="mobile-menu-btn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+    </button>
+    
+    <!-- Sidebar overlay for mobile -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    
     <div class="main-container">
         <!-- Sidebar -->
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="menu-item" style="padding: 0px 0px 0px 0px !important; margin: 1px 0px !important; text-align: justify !important; " >
-                    {% comment %} <svg class="menu-icon" viewBox="0 0 24 24">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                    </svg> {% endcomment %}
                     <b><h5> Chats  </b></h5>
                 </div>
             </div>
@@ -587,27 +668,6 @@
                     </svg>
                     Search chats
                 </div>
-                
-                {% comment %} <div class="menu-item">
-                    <svg class="menu-icon" viewBox="0 0 24 24">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                    </svg>
-                    Library
-                </div> {% endcomment %}
-                
-                {% comment %} <div class="menu-item">
-                    <svg class="menu-icon" viewBox="0 0 24 24">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                    </svg>
-                    Sora
-                </div>
-                
-                <div class="menu-item">
-                    <svg class="menu-icon" viewBox="0 0 24 24">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                    </svg>
-                    GPTs
-                </div> {% endcomment %}
             </div>
             
             <div class="chats-section">
@@ -642,77 +702,52 @@
         
         <!-- Main Content -->
         <div class="main-content">
-  <!-- Chat Header (unchanged) -->
-    <div class="chat-header">
-        <div class="chat-title">
-            <div class="dropdown">
-                <button class="btn btn-link dropdown-toggle p-0 text-decoration-none"
-                        type="button" id="modelDropdown" data-bs-toggle="dropdown"
-                        aria-expanded="false" style="color:#2d333a;font-size:16px;font-weight:600;">
-                    <span id="current-model">Y Sales</span>
-                </button>
+            <!-- Chat Header -->
+            <div class="chat-header">
+                <div class="chat-title">
+                    <div class="dropdown">
+                        <button class="btn btn-link dropdown-toggle p-0 text-decoration-none"
+                                type="button" id="modelDropdown" data-bs-toggle="dropdown"
+                                aria-expanded="false" style="color:#2d333a;font-size:16px;font-weight:600;">
+                            <span id="current-model">Y Sales</span>
+                        </button>
 
-                <ul class="dropdown-menu" aria-labelledby="modelDropdown" id="modelMenu">
-                    <!-- pass whatever selector/value you want via data-selector -->
-                    <li><button class="dropdown-item" type="button" data-selector=".y-sales">Y Sales</button></li>
-                    <li><button class="dropdown-item" type="button" disabled>Coming soon</button></li>
-                </ul>
+                        <ul class="dropdown-menu" aria-labelledby="modelDropdown" id="modelMenu">
+                            <li><button class="dropdown-item" type="button" data-selector=".y-sales">Y Sales</button></li>
+                            <li><button class="dropdown-item" type="button" disabled>Coming soon</button></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="chat-actions">
+                </div>
             </div>
 
+            <!-- Chat Content -->
+            <div class="chat-content" id="chat-content">
+                <div class="text-center text-muted">Start a new conversation!</div>
+            </div>
 
+            <!-- Input Area -->
+            <div class="input-area">
+                <div class="input-container">
+                    <div class="input-wrapper">
+                        <textarea class="message-input"
+                                  id="message-input"
+                                  placeholder="Type a message..."
+                                  rows="1"></textarea>
+                        <div class="input-actions">
+                            <button class="input-btn send-btn"
+                                    id="send-btn"
+                                    disabled>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="chat-actions">
-            {% comment %} <button class="action-btn" onclick="shareCurrentChat()">
-                <svg style="width: 16px; height: 16px; margin-right: 4px;" viewBox="0 0 24 24">
-                <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7
-                        l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3
-                        c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3
-                        c.79 0 1.50-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92
-                        1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/>
-                </svg>
-                Share
-            </button>  {% endcomment %}
-        </div>
-    </div>
-
-  <!-- Chat Content (messages go here) -->
-  <div class="chat-content" id="chat-content">
-    <!-- on new chat start, this is replaced by JS -->
-    <div class="text-center text-muted">Start a new conversation!</div>
-  </div>
-
-  <!-- Input Area -->
-  <div class="input-area">
-    <div class="input-container">
-      <div class="input-wrapper">
-        <textarea class="message-input"
-                  id="message-input"
-                  placeholder="Type a message..."
-                  rows="1"></textarea>
-        <div class="input-actions">
-          {% comment %} <button class="input-btn" id="voice-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6
-                       c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5
-                       c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
-            </svg>
-          </button> {% endcomment %}
-          <button class="input-btn send-btn"
-                  id="send-btn"
-                  disabled>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-      {% comment %} <div class="disclaimer">
-        ChatGPT can make mistakes. Check important info.
-      </div> {% endcomment %}
-    </div>
-  </div>
-</div>
-
     </div>
 
     <!-- Settings Modal -->
@@ -804,21 +839,56 @@
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-        <!-- marked.js for Markdown Parsing -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <!-- SweetAlert2 for alerts -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-   <script>
-    const apiBase = `${window.location.origin}/api`;
-    // make it global so inline onclick can find it
-window.onModelSelected = function(selector) {
+  <script>
+  const apiBase = `${window.location.origin}/api`;
+
+  // Mobile menu toggle functionality
+  $(document).ready(function () {
+    $('#mobile-menu-btn').on('click', function () {
+      const $sidebar = $('#sidebar');
+      const $overlay = $('#sidebar-overlay');
+
+      if ($sidebar.hasClass('open')) {
+        $sidebar.removeClass('open');
+        $overlay.removeClass('show');
+      } else {
+        $sidebar.addClass('open');
+        $overlay.addClass('show');
+      }
+    });
+
+    $('#sidebar-overlay').on('click', function () {
+      $('#sidebar').removeClass('open');
+      $('#sidebar-overlay').removeClass('show');
+    });
+
+    // Close sidebar when clicking on a chat item (mobile)
+    $('.chats-section').on('click', '.chat-item', function () {
+      if (window.innerWidth <= 768) {
+        $('#sidebar').removeClass('open');
+        $('#sidebar-overlay').removeClass('show');
+      }
+    });
+
+    // Close sidebar when starting new chat (mobile)
+    $('.sidebar-menu .menu-item:contains("New chat")').on('click', function () {
+      if (window.innerWidth <= 768) {
+        $('#sidebar').removeClass('open');
+        $('#sidebar-overlay').removeClass('show');
+      }
+    });
+  });
+
+  // Make onModelSelected global
+  window.onModelSelected = function (selector) {
     console.log('Selected:', selector);
-    // call your method here, e.g. runFor(selector);
   };
 
   document.addEventListener('DOMContentLoaded', () => {
-    const menu   = document.getElementById('modelMenu');
-    const label  = document.getElementById('current-model');
+    const menu = document.getElementById('modelMenu');
+    const label = document.getElementById('current-model');
     const toggle = document.getElementById('modelDropdown');
 
     menu.addEventListener('click', (e) => {
@@ -826,370 +896,675 @@ window.onModelSelected = function(selector) {
       if (!item) return;
 
       const selector = item.dataset.selector;
-      const text     = item.textContent.trim();
+      const text = item.textContent.trim();
 
-      // update button text (optional)
       label.textContent = text;
-
-      // call your method with the selector
       window.onModelSelected(selector);
-
-      // close dropdown
       bootstrap.Dropdown.getOrCreateInstance(toggle).hide();
     });
   });
-   
-$(function() {
-  let currentChatId   = null;
-  let isSubmitting    = false;
-  let typingIndicator = null;
 
-  let fullName = localStorage.getItem('full_name');
-  let userName = localStorage.getItem('username');
-  let designation = localStorage.getItem('designation');
-  
+  $(function () {
+    let currentChatId = null;
+    let isSubmitting = false;
+    let typingIndicator = null;
 
-$('.user-info .user-name').text(localStorage.getItem('full_name') ?? '');
-$('.user-info .user-plan').text(localStorage.getItem('designation') ?? 'Free')
+    // ===== Pagination state for the chats list =====
+    let chatsPage = 1;
+    let chatsHasNext = true;
+    let chatsIsLoading = false;
 
-  const initials =
-    (fullName.trim()
-      ? fullName.trim().split(/\s+/).map(s => s[0]).join('')
-      : username.slice(0, 2)
-    ).slice(0, 2).toUpperCase();
+    // ===== Messages pagination state (next PATH approach) =====
+    let msgsIsLoading = false;
+    let msgsHasNext   = false;     // whether there’s an older page
+    let msgsNextPath  = null;      // relative API path for the next (older) page
 
-  $('.user-info .user-avatar').text(initials || 'U');
+    // User info (from localStorage)
+    let fullName = localStorage.getItem('full_name') || 'User';
+    let userName = localStorage.getItem('username') || 'user';
+    let designation = localStorage.getItem('designation') || 'Free';
 
+    $('.user-info .user-name').text(fullName);
+    $('.user-info .user-plan').text(designation);
 
-  function getAuthToken() {
-    return localStorage.getItem('auth_token');
-  }
+    const initials = (fullName.trim()
+      ? fullName.trim().split(/\s+/).map((s) => s[0]).join('')
+      : userName.slice(0, 2)
+    )
+      .slice(0, 2)
+      .toUpperCase();
 
-  function refreshToken() {
-    $.ajax({
-      url: apiBase + '/user/token/refresh/',
-      method: 'POST',
-      data: JSON.stringify({ refresh: localStorage.getItem('refresh_token') }),
-      contentType: 'application/json',
-      success(resp) {
-        localStorage.setItem('auth_token', resp.access);
-        localStorage.setItem('refresh_token', resp.refresh);
-        fetchChats();
-      },
-      error() {
-        localStorage.clear();
+    $('.user-info .user-avatar').text(initials || 'U');
+
+    function getAuthToken() {
+      return localStorage.getItem('auth_token');
+    }
+
+    function refreshToken() {
+      $.ajax({
+        url: apiBase + '/user/token/refresh/',
+        method: 'POST',
+        data: JSON.stringify({ refresh: localStorage.getItem('refresh_token') }),
+        contentType: 'application/json',
+        success(resp) {
+          localStorage.setItem('auth_token', resp.access);
+          localStorage.setItem('refresh_token', resp.refresh);
+          // reload chats from page 1 on refresh
+          fetchChats(false);
+        },
+        error() {
+          localStorage.clear();
+          window.location.href = '/login';
+        },
+      });
+    }
+
+    function sendAuthenticatedRequest(url, method, data, onSuccess, onError) {
+      const token = getAuthToken();
+      if (!token) {
         window.location.href = '/login';
+        return;
       }
-    });
-  }
+      $.ajax({
+        url: apiBase + url,
+        method,
+        headers: { Authorization: 'Bearer ' + token },
+        data,
+        contentType: 'application/json',
+        success: onSuccess,
+        error(xhr, status, err) {
+          if (xhr.status === 401) refreshToken();
+          else if (onError) onError(xhr, status, err);
+        },
+      });
+    }
 
-  function sendAuthenticatedRequest(url, method, data, onSuccess, onError) {
-    const token = getAuthToken();
-    if (!token) { window.location.href = '/login'; return; }
-    $.ajax({
-      url: apiBase + url,
-      method,
-      headers: { 'Authorization': 'Bearer ' + token },
-      data,
-      contentType: 'application/json',
-      success: onSuccess,
-      error(xhr, status, err) {
-        if (xhr.status === 401) refreshToken();
-        else if (onError) onError(xhr, status, err);
+    function scrollToBottom() {
+      const $c = $('#chat-content');
+      $c.scrollTop($c.prop('scrollHeight'));
+    }
+
+    function updateSendButton() {
+      const text = $('#message-input').val().trim();
+      $('#send-btn').prop('disabled', text.length === 0 || isSubmitting);
+    }
+
+    // ----- Chats: Load more button helpers -----
+    function renderLoadMoreButton() {
+      const $sec = $('.chats-section');
+      const id = 'load-more-convos';
+      $('#' + id).remove(); // avoid duplicates
+
+      if (chatsHasNext) {
+        $sec.append(`
+          <div id="${id}" class="menu-item load-more-btn" style="margin-top:6px;">
+            <span class="icon">＋</span> Load more
+          </div>
+        `);
       }
-    });
-  }
+    }
 
-  // ─── Helpers ────────────────────────────────────────────────────────────────────
-
-  function scrollToBottom() {
-    const $c = $('#chat-content');
-    $c.scrollTop($c.prop('scrollHeight'));
-  }
-
-  function addMessage(text, sender) {
-    //const avatar = sender === 'user' ? 'U' : 'AI';
-    const avatar = sender === 'user' ? '' : 'AI';
-    const cls    = sender === 'user' ? 'user' : 'assistant';
-    const html   = marked.parse(text);
-
-    const msgHtml = `
-      <div class="message ${cls}">
-        <div class="message-avatar ${cls}">${avatar}</div>
-        <div class="message-content">${html}</div>
-      </div>`;
-    $('#chat-content').append(msgHtml);
-    scrollToBottom();
-  }
-
-  // ─── Fetching / Rendering ────────────────────────────────────────────────────────
-
-  function fetchChats(cb) {
-    sendAuthenticatedRequest('/conversations/', 'GET', null, chats => {
-      const $sec = $('.chats-section').empty();
-      if (!chats.length) {
-        $sec.append('<div class="no-conversations">No previous conversations</div>');
+    function setLoadMoreLoading(loading) {
+      const $btn = $('#load-more-convos');
+      if (!$btn.length) return;
+      if (loading) {
+        $btn.addClass('disabled').css('pointer-events', 'none').text('Loading…');
       } else {
-        chats.forEach(c => {
-          const active = c.uuid === currentChatId ? 'active' : '';
-          $sec.append(`
-            <div class="chat-item ${active}" data-chat-id="${c.uuid}">
-              <div class="chat-title">${c.title||'Untitled Chat'}</div>
-              <button class="chat-menu-btn" onclick="toggleChatDropdown(event,'${c.uuid}')">…</button>
-              <div class="chat-dropdown" id="dropdown-${c.uuid}">
-                <button class="dropdown-item" onclick="shareChat('${c.uuid}')">Share</button>
-                <button class="dropdown-item" onclick="renameChat('${c.uuid}')">Rename</button>
-                <button class="dropdown-item" onclick="archiveChat('${c.uuid}')">Archive</button>
-                <button class="dropdown-item delete" onclick="deleteChat('${c.uuid}')">Delete</button>
-              </div>
-            </div>`);
-        });
+        $btn.removeClass('disabled').css('pointer-events', '').html('<span class="icon">＋</span> Load more');
       }
-      if (cb) cb();
-    });
-  }
+    }
 
-  function fetchMessages(chatId) {
-    $('#chat-content').html('<div class="text-center text-muted">Loading messages...</div>');
-    sendAuthenticatedRequest(`/conversations/${chatId}/messages/`, 'GET', null, msgs => {
-      $('#chat-content').empty();
-      if (!msgs.length) {
-        $('#chat-content').append('<div class="text-center text-muted">Start a new conversation!</div>');
+    /**
+     * Fetch conversations (server paginated)
+     * @param {boolean} append - append results (true) or reset (false)
+     * @param {function} cb    - optional callback after render
+     */
+    function fetchChats(append = false, cb) {
+      if (chatsIsLoading) return;
+
+      const $sec = $('.chats-section');
+
+      if (!append) {
+        chatsPage = 1;
+        chatsHasNext = true;
+        $sec.empty().append('<div class="chats-header">Chats</div>');
       } else {
-        msgs.forEach(m => addMessage(m.text, m.sender==='user' ? 'user' : 'assistant'));
+        setLoadMoreLoading(true);
       }
-      scrollToBottom();
-    });
-  }
 
-  function startNewChat() {
-    currentChatId = null;
-    $('.chat-item').removeClass('active');
-    $('#chat-content')
-      .empty()
-      .append('<div class="text-center text-muted"><b>Start a new conversation!</b></div>');
-  }
+      if (!chatsHasNext) {
+        renderLoadMoreButton();
+        if (cb) cb();
+        return;
+      }
 
-  function selectChat(chatId) {
-    currentChatId = chatId;
-    $('.chat-item').removeClass('active');
-    $(`.chat-item[data-chat-id="${chatId}"]`).addClass('active');
-    fetchMessages(chatId);
-  }
+      chatsIsLoading = true;
 
-  // ─── Sending with “…” typing indicator ───────────────────────────────────────────
+      const url = `/conversations/?page=${chatsPage}`;
+      sendAuthenticatedRequest(
+        url,
+        'GET',
+        null,
+        (resp) => {
+          chatsIsLoading = false;
+          setLoadMoreLoading(false);
 
-function sendMessage() {
-  const $input  = $('#message-input');
-  const $send   = $('#send-btn');
-  const $chat   = $('#chat-content');
-  const text    = $input.val().trim();
+          // Normalize DRF-style pagination (count/next/previous/results)
+          const meta =
+            resp && (resp.meta
+              ? resp.meta
+              : typeof resp === 'object' && ('next' in resp || 'previous' in resp || 'count' in resp)
+              ? { next: resp.next, previous: resp.previous, count: resp.count }
+              : null);
 
-  if (!text || isSubmitting) return;
+          const list = resp && resp.results ? resp.results : Array.isArray(resp) ? resp : [];
 
-  // disable input + button
-  isSubmitting = true;
-  $input.prop('disabled', true);
-  $send.prop('disabled', true);
+          if (!append && list.length === 0) {
+            $sec.append('<div class="no-conversations">No previous conversations</div>');
+          } else {
+            list.forEach((c) => {
+              const active = c.uuid === currentChatId ? 'active' : '';
+              if ($sec.find(`.chat-item[data-chat-id="${c.uuid}"]`).length) return; // de-dupe
+              $sec.append(`
+                <div class="chat-item ${active}" data-chat-id="${c.uuid}">
+                  <div class="chat-title">${c.title || 'Untitled Chat'}</div>
+                  <button class="chat-menu-btn" onclick="toggleChatDropdown(event,'${c.uuid}')">…</button>
+                  <div class="chat-dropdown" id="dropdown-${c.uuid}">
+                    <button class="dropdown-item" onclick="shareChat('${c.uuid}')">Share</button>
+                    <button class="dropdown-item" onclick="renameChat('${c.uuid}')">Rename</button>
+                    <button class="dropdown-item" onclick="archiveChat('${c.uuid}')">Archive</button>
+                    <button class="dropdown-item delete" onclick="deleteChat('${c.uuid}')">Delete</button>
+                  </div>
+                </div>
+              `);
+            });
+          }
 
-  // append user bubble
-  //<div class="message-avatar user">U</div>
-  $chat.append(`
-    <div class="message user">
-      
-      <div class="message-content">${marked.parse(text)}</div>
-    </div>`);
-  scrollToBottom();
+          // Pagination state (show "Load more" only when next exists)
+          if (meta) {
+            const hasNext = !!meta.next;
+            chatsHasNext = hasNext;
 
-  // show three-dot typing indicator
-  typingIndicator = $(`
-    <div class="message assistant">
-      <div class="message-avatar assistant">AI</div>
-      <div class="message-content typing-indicator">
-        <span class="dot"></span>
-        <span class="dot"></span>
-        <span class="dot"></span>
-      </div>
-    </div>`);
-  $chat.append(typingIndicator);
-  scrollToBottom();
+            if (hasNext) {
+              const m = /[?&]page=(\d+)/.exec(meta.next);
+              chatsPage = m ? parseInt(m[1], 10) : chatsPage + 1;
+            }
+          } else {
+            chatsHasNext = false;
+          }
 
-  // fire off API
-  const url     = currentChatId
-                ? `/sales/query/existing/${currentChatId}/`
-                : '/sales/query/';
-  const payload = JSON.stringify({ prompt: text });
-
-  sendAuthenticatedRequest(url, 'POST', payload, resp => {
-    // remove indicator, re-enable UI
-    isSubmitting = false;
-    typingIndicator.remove();
-    $send.prop('disabled', false);
-
-    // clear input _now_
-   // $input.val('').css('height','auto').prop('disabled', false).focus();
-    $('#message-input').val('')
-    .css('height','auto')   // reset height so it can shrink
-    .prop('disabled', false)
-    .focus();
-
-
-    // handle new-chat & sidebar
-    if (!currentChatId && resp.uuid) {
-      currentChatId = resp.uuid;
-      fetchChats(() => selectChat(currentChatId));
+          renderLoadMoreButton();
+          if (cb) cb();
+        },
+        () => {
+          chatsIsLoading = false;
+          setLoadMoreLoading(false);
+          if (!append) {
+            $sec.append('<div class="no-conversations text-danger">Failed to load conversations.</div>');
+          }
+          renderLoadMoreButton();
+          if (cb) cb();
+        }
+      );
     }
 
-    // append assistant reply
-    if (resp.assistant_message?.text) {
-      $chat.append(`
-        <div class="message assistant">
-          <div class="message-avatar assistant">AI</div>
-          <div class="message-content">${marked.parse(resp.assistant_message.text)}</div>
-        </div>`);
-      scrollToBottom();
-    } else if (currentChatId) {
-      fetchMessages(currentChatId);
+    // ===== Messages: utilities =====
+    function ensureMessageShell() {
+      const $chat = $('#chat-content');
+      if (!$('#messages-list').length) {
+        $chat.html(`
+          <div id="load-prev-wrap" class="text-center"></div>
+          <div id="messages-list"></div>
+        `);
+      }
     }
-  }, () => {
-    // on error: cleanup + alert
-    isSubmitting = false;
-    typingIndicator.remove();
-    $send.prop('disabled', false);
-    $input.prop('disabled', false).focus();
-    Swal.fire({ icon:'error', title:'Error', text:'Failed to send message.' });
-  });
-}
 
-
-  // ─── Bind events & init ─────────────────────────────────────────────────────────
-
-  $('#send-btn').on('click', sendMessage);
-
-  $('#message-input').on('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
+    // Initial (first page) loader
+    function showInitialMessagesLoader() {
+      const $list = $('#messages-list');
+      if (!$list.length || $('#initial-msgs-loader').length) return;
+      $list.append(`
+        <div id="initial-msgs-loader" class="py-3 d-flex justify-content-center">
+          <div class="spinner-border" role="status" aria-label="Loading messages"></div>
+        </div>
+      `);
     }
-  });
+    function hideInitialMessagesLoader() { $('#initial-msgs-loader').remove(); }
 
-// Auto-resize textarea (grow and shrink)
-$('#message-input').on('input', function() {
-  this.style.height = 'auto';
-  this.style.height = this.scrollHeight + 'px';
-});
+    // Load previous button helpers
+    function renderLoadPrevButton() {
+      const $wrap = $('#load-prev-wrap');
+      if (!$wrap.length) return;
 
+      if (!msgsHasNext) {
+        $wrap.empty();
+        return;
+      }
 
-  $('.chats-section').on('click', '.chat-item', function() {
-    selectChat($(this).data('chat-id'));
-  });
-  $('.sidebar-menu .menu-item:contains("New chat")').on('click', startNewChat);
+      if (!$('#load-prev-msgs').length) {
+        $wrap.html(`
+          <button id="load-prev-msgs"
+                  class="btn btn-outline-secondary btn-sm d-none"
+                  style="margin: 6px auto 12px; display:inline-flex; align-items:center; gap:.4rem;">
+            <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+            Load previous
+          </button>
+        `);
+      }
+      updateLoadPrevVisibility(); // sync visibility with current scroll/top
+    }
+    function setLoadPrevLoading(loading) {
+      const $btn = $('#load-prev-msgs');
+      if (!$btn.length) return;
+      $btn.prop('disabled', loading);
+      $btn.find('.spinner-border').toggleClass('d-none', !loading);
+    }
 
-  fetchChats();
-  startNewChat();
+    // Dynamic near-top detection (2.5% of container height, clamped 8–64px)
+    function computeTopThresholdPx() {
+      const c = document.getElementById('chat-content');
+      if (!c) return 16;
+      const px = c.clientHeight * 0.025;
+      return Math.max(8, Math.min(64, Math.round(px)));
+    }
+    function isNearTop() {
+      const c = document.getElementById('chat-content');
+      if (!c) return false;
+      return c.scrollTop <= computeTopThresholdPx();
+    }
+    function updateLoadPrevVisibility() {
+      const $btn = $('#load-prev-msgs');
+      if (!$btn.length) return;
+      if (!msgsHasNext) { $btn.addClass('d-none'); return; }
+      if (isNearTop()) $btn.removeClass('d-none'); else $btn.addClass('d-none');
+    }
 
-  
-});
+    // Single message renderer (API sends sender=username; compare with localStorage userName)
+    function renderMessageEl(m) {
+      const cls = (m.sender === userName) ? 'user' : 'assistant';
+      const avatar = (cls === 'user') ? '' : 'AI';
+      const html = marked.parse(m.text || '');
+      return `
+        <div class="message ${cls}">
+          <div class="message-avatar ${cls}">${avatar}</div>
+          <div class="message-content">${html}</div>
+        </div>
+      `;
+    }
 
-// ─── Dropdown & Misc Handlers (unchanged) ────────────────────────────────────────
+    // Compute next PATH from meta (supports custom meta and DRF default)
+    function deriveNextPathFromMeta(meta, chatId) {
+      if (meta && meta.has_next) {
+        if (meta.next_page) {
+          return `/conversations/${chatId}/messages/?page=${meta.next_page}`;
+        }
+        if (meta.next) {
+          try {
+            const u = new URL(meta.next);
+            let path = u.pathname + u.search;
+            if (path.startsWith('/api/')) path = path.slice(4);
+            return path;
+          } catch {
+            return meta.next.replace(/^\/api\//, '/');
+          }
+        }
+        return `/conversations/${chatId}/messages/?page=2`;
+      }
+      if (meta && meta.next) {
+        try {
+          const u = new URL(meta.next);
+          let path = u.pathname + u.search;
+          if (path.startsWith('/api/')) path = path.slice(4);
+          return path;
+        } catch {
+          return meta.next.replace(/^\/api\//, '/');
+        }
+      }
+      return null;
+    }
 
- function toggleChatDropdown(event, chatId) {
-            event.stopPropagation();
-            
-            // Close all other dropdowns
-            $('.chat-dropdown').not(`#dropdown-${chatId}`).removeClass('show');
-            $('.user-dropdown').removeClass('show');
-            
-            // Toggle current dropdown
-            $(`#dropdown-${chatId}`).toggleClass('show');
+    /**
+     * Fetch messages for a conversation.
+     * mode = 'reset'   → load latest page (?page=1), bottom-align, show initial loader
+     * mode = 'prepend' → call msgsNextPath (older page) and PREPEND without scroll jump
+     */
+    function fetchMessages(chatId, mode = 'reset') {
+      const $chat = $('#chat-content');
+
+      if (mode === 'reset') {
+        msgsIsLoading = false;
+        msgsHasNext   = false;
+        msgsNextPath  = null;
+
+        ensureMessageShell();
+        $('#messages-list').empty();
+        $('#load-prev-wrap').empty();
+
+        // show initial loader while first page is loading
+        showInitialMessagesLoader();
+      }
+
+      if (msgsIsLoading) return;
+      msgsIsLoading = true;
+      if (mode === 'prepend') setLoadPrevLoading(true);
+
+      const url = (mode === 'prepend' && msgsNextPath)
+        ? msgsNextPath
+        : `/conversations/${chatId}/messages/?page=1`;
+
+      sendAuthenticatedRequest(url, 'GET', null, (resp) => {
+        msgsIsLoading = false;
+        if (mode === 'prepend') setLoadPrevLoading(false);
+
+        // normalize meta (custom or DRF default)
+        const meta = resp && (resp.meta ? resp.meta : (
+          (typeof resp === 'object' && ('next' in resp || 'previous' in resp || 'count' in resp))
+            ? { next: resp.next, previous: resp.previous, count: resp.count }
+            : null
+        ));
+
+        const list = resp && resp.results
+          ? resp.results
+          : Array.isArray(resp) ? resp : [];
+
+        const $list = $('#messages-list');
+
+        if (mode === 'reset') {
+          hideInitialMessagesLoader();
         }
 
-function shareChat(chatId) {
-  alert(`Share link for chat ${chatId}`);
-  $('.chat-dropdown').removeClass('show');
-}
+        if (mode === 'reset' && list.length === 0) {
+          $chat.html('<div class="text-center text-muted">Start a new conversation!</div>');
+          return;
+        }
 
-function renameChat(chatId) {
-  const el = $(`.chat-item[data-chat-id="${chatId}"] .chat-title`);
-  const newTitle = prompt('Enter new chat title:', el.text());
-  if (newTitle) el.text(newTitle);
-  $('.chat-dropdown').removeClass('show');
-}
+        // API sends newest→oldest; reverse per page for chat UX
+        const ascending = list.slice().reverse();
 
-function archiveChat(chatId) {
-  if (confirm('Archive this chat?')) {
-    $(`.chat-item[data-chat-id="${chatId}"]`).fadeOut(300, function(){ $(this).remove(); });
+        if (mode === 'reset') {
+          $list.empty(); // remove loader node before appending
+          ascending.forEach(m => $list.append(renderMessageEl(m)));
+          const c = document.getElementById('chat-content');
+          c.scrollTop = c.scrollHeight; // bottom-align first load
+        } else {
+          // Keep viewport anchored when prepending
+          const c = document.getElementById('chat-content');
+          const before = c.scrollHeight;
+          $list.prepend(ascending.map(renderMessageEl).join(''));
+          const after = c.scrollHeight;
+          c.scrollTop = after - before;
+        }
+
+        // Update next (older) page path
+        const nextPath = deriveNextPathFromMeta(meta, chatId);
+        msgsHasNext   = !!nextPath;
+        msgsNextPath  = nextPath;
+
+        renderLoadPrevButton();
+        updateLoadPrevVisibility(); // recalc with dynamic threshold
+
+      }, () => {
+        msgsIsLoading = false;
+        if (mode === 'prepend') setLoadPrevLoading(false);
+        if (mode === 'reset') {
+          hideInitialMessagesLoader();
+          $chat.html('<div class="text-center text-danger">Failed to load messages.</div>');
+        }
+      });
+    }
+
+    function startNewChat() {
+      currentChatId = null;
+      $('.chat-item').removeClass('active');
+      $('#chat-content')
+        .empty()
+        .append('<div class="text-center text-muted"><b>Start a new conversation!</b></div>');
+    }
+
+    function selectChat(chatId) {
+      currentChatId = chatId;
+      $('.chat-item').removeClass('active');
+      $(`.chat-item[data-chat-id="${chatId}"]`).addClass('active');
+      fetchMessages(chatId, 'reset');
+    }
+
+    function sendMessage() {
+      const $input = $('#message-input');
+      const text = $input.val().trim();
+
+      if (!text || isSubmitting) return;
+
+      isSubmitting = true;
+      updateSendButton();
+      $input.prop('disabled', true);
+
+      // Append user's message immediately
+      const $list = $('#messages-list').length ? $('#messages-list') : $('#chat-content');
+      $list.append(
+        renderMessageEl({
+          sender: userName, // so it renders on the right
+          text: text,
+        })
+      );
+      scrollToBottom();
+
+      // Typing indicator
+      typingIndicator = $(`
+        <div class="message assistant">
+          <div class="message-avatar assistant">AI</div>
+          <div class="message-content typing-indicator">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+          </div>
+        </div>`);
+      $list.append(typingIndicator);
+      scrollToBottom();
+
+      const url = currentChatId ? `/sales/query/existing/${currentChatId}/` : '/sales/query/';
+      const payload = JSON.stringify({ prompt: text });
+
+      sendAuthenticatedRequest(
+        url,
+        'POST',
+        payload,
+        (resp) => {
+          isSubmitting = false;
+          typingIndicator.remove();
+          updateSendButton();
+
+          $('#message-input').val('').css('height', 'auto').prop('disabled', false).focus();
+
+          if (!currentChatId && resp.uuid) {
+            currentChatId = resp.uuid;
+            // reload chats from page 1 so the new chat appears at the top
+            fetchChats(false, () => selectChat(currentChatId));
+          }
+
+          if (resp.assistant_message?.text) {
+            $('#messages-list').append(
+              renderMessageEl({
+                sender: 'assistant', // will render as assistant (!= userName)
+                text: resp.assistant_message.text,
+              })
+            );
+            scrollToBottom();
+          } else if (currentChatId) {
+            // refresh latest page to reflect canonical timeline
+            fetchMessages(currentChatId, 'reset');
+          }
+        },
+        () => {
+          isSubmitting = false;
+          typingIndicator.remove();
+          updateSendButton();
+          $input.prop('disabled', false).focus();
+          Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to send message.' });
+        }
+      );
+    }
+
+    // Event bindings
+    $('#send-btn').on('click', sendMessage);
+
+    $('#message-input').on('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    // Enable/disable send button based on input content
+    $('#message-input').on('input', function () {
+      this.style.height = 'auto';
+      this.style.height = this.scrollHeight + 'px';
+      updateSendButton();
+    });
+
+    $('.chats-section').on('click', '.chat-item', function () {
+      selectChat($(this).data('chat-id'));
+    });
+
+    $('.sidebar-menu .menu-item:contains("New chat")').on('click', startNewChat);
+
+    // Click handler for the Load more chats button
+    $('.chats-section').on('click', '#load-more-convos', function () {
+      fetchChats(true);
+    });
+
+    // Load older messages when clicking the button
+    $('#chat-content').on('click', '#load-prev-msgs', function () {
+      if (currentChatId && msgsHasNext && !msgsIsLoading) {
+        fetchMessages(currentChatId, 'prepend');
+      }
+    });
+
+    // Show/hide Load previous based on scroll position (dynamic threshold)
+    let topScrollTimer = null;
+    $('#chat-content').on('scroll', function () {
+      if (topScrollTimer) clearTimeout(topScrollTimer);
+      topScrollTimer = setTimeout(updateLoadPrevVisibility, 50);
+    });
+
+    // Recalculate on resize as well
+    let resizeTimer = null;
+    $(window).on('resize', function () {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(updateLoadPrevVisibility, 100);
+    });
+
+    // Initialize
+    const $sec = $('.chats-section');
+    if ($sec.children('.chats-header').length === 0) {
+      $sec.prepend('<div class="chats-header">Chats</div>');
+    }
+
+    fetchChats(false); // first page
+    startNewChat();
+    updateSendButton();
+  });
+
+  // Dropdown & Misc Handlers
+  function toggleChatDropdown(event, chatId) {
+    event.stopPropagation();
+    $('.chat-dropdown').not(`#dropdown-${chatId}`).removeClass('show');
+    $('.user-dropdown').removeClass('show');
+    $(`#dropdown-${chatId}`).toggleClass('show');
   }
-  $('.chat-dropdown').removeClass('show');
-}
 
-function deleteChat(chatId) {
-  if (confirm('Delete this chat?')) {
-    $(`.chat-item[data-chat-id="${chatId}"]`).fadeOut(300, function(){ $(this).remove(); });
+  function shareChat(chatId) {
+    alert(`Share link for chat ${chatId}`);
+    $('.chat-dropdown').removeClass('show');
   }
-  $('.chat-dropdown').removeClass('show');
-}
-function toggleUserDropdown() {
-  // Close any open chat‐item dropdowns
-  $('.chat-dropdown').removeClass('show');
-  // Toggle the user dropdown
-  $('#user-dropdown').toggleClass('show');
-}
 
-function logOut(){
+  function renameChat(chatId) {
+    const el = $(`.chat-item[data-chat-id="${chatId}"] .chat-title`);
+    const newTitle = prompt('Enter new chat title:', el.text());
+    if (newTitle) el.text(newTitle);
+    $('.chat-dropdown').removeClass('show');
+  }
+
+  function archiveChat(chatId) {
+    if (confirm('Archive this chat?')) {
+      $(`.chat-item[data-chat-id="${chatId}"]`).fadeOut(300, function () {
+        $(this).remove();
+      });
+    }
+    $('.chat-dropdown').removeClass('show');
+  }
+
+  function deleteChat(chatId) {
+    if (confirm('Delete this chat?')) {
+      $(`.chat-item[data-chat-id="${chatId}"]`).fadeOut(300, function () {
+        $(this).remove();
+      });
+    }
+    $('.chat-dropdown').removeClass('show');
+  }
+
+  function toggleUserDropdown() {
+    $('.chat-dropdown').removeClass('show');
+    $('#user-dropdown').toggleClass('show');
+  }
+
+  function logOut() {
     const token = localStorage.getItem('auth_token');
     const refreshToken = localStorage.getItem('refresh_token');
 
     $.ajax({
-        url: apiBase+'/user/logout/', // Your logout API URL
-        method: 'POST',
-        headers: {
-            'Authorization': 'Bearer ' + token,
-        },
-        data: JSON.stringify({ refresh_token: refreshToken }), // Send as JSON
-        contentType: "application/json",
-        success: function(response) {
-            localStorage.removeItem('auth_token');
-            localStorage.removeItem('refresh_token');
-            localStorage.clear();
-            window.location.href = '/login'; // Redirect to the login page
-        },
-        error: function(xhr, status, error) {
-            let detail;
-            try {
-                detail = JSON.parse(xhr.responseText).detail;
-            } catch {
-                detail = xhr.responseText;
-            }
-            if (detail && detail.includes("Token is blacklisted")) {
-                // Already logged out, treat as success
-                localStorage.removeItem('auth_token');
-                localStorage.removeItem('refresh_token');
-                localStorage.clear();
-                window.location.href = '/login';
-            } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Oops...',
-                    text: 'Logout failed. Please try again.',
-                });
-            }
+      url: apiBase + '/user/logout/',
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token },
+      data: JSON.stringify({ refresh_token: refreshToken }),
+      contentType: 'application/json',
+      success: function () {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.clear();
+        window.location.href = '/login';
+      },
+      error: function (xhr) {
+        let detail;
+        try {
+          detail = JSON.parse(xhr.responseText).detail;
+        } catch {
+          detail = xhr.responseText;
         }
-
+        if (detail && detail.includes('Token is blacklisted')) {
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('refresh_token');
+          localStorage.clear();
+          window.location.href = '/login';
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: 'Logout failed. Please try again.',
+          });
+        }
+      },
     });
-}
-function openSettings() {
-  $('.chat-dropdown, .user-dropdown').removeClass('show');
-  const modalEl = document.getElementById('settingsModal');
-  const bsModal = new bootstrap.Modal(modalEl);
-  bsModal.show();
-}
-function saveSettings() { /* … */ }
+  }
 
+  function openSettings() {
+    $('.chat-dropdown, .user-dropdown').removeClass('show');
+    const modalEl = document.getElementById('settingsModal');
+    const bsModal = new bootstrap.Modal(modalEl);
+    bsModal.show();
+  }
 
+  function saveSettings() {
+    // Add your settings save logic here
+  }
 
-
+  // Close dropdowns when clicking outside
+  $(document).on('click', function (e) {
+    if (!$(e.target).closest('.chat-item, .user-info').length) {
+      $('.chat-dropdown, .user-dropdown').removeClass('show');
+    }
+  });
 </script>
+
 
 </body>
 </html>

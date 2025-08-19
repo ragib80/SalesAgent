@@ -7,36 +7,63 @@ from .serializers import ConversationSerializer, MessageSerializer
 from django.shortcuts import get_object_or_404
 # Importing the custom function
 from core.middleware.current_user import get_current_user
+from rest_framework.pagination import PageNumberPagination
+from core.utils.helper.pagination_helper import ConversationPagination,ConversationMessagePagination,get_paginated_response
 
+# class ConversationPagination(PageNumberPagination):
+#     page_size = 5                # fixed at 15 per page
+#     page_query_param = 'page'     # ?page=1,2,3,...
+#     page_size_query_param = None  # do not allow client override
+#     max_page_size = 10000000000            # optional safety
+
+# def get_paginated_response(self, data):
+#         return Response({
+#             "meta": {
+#                 "page": self.page.number,
+#                 "page_size": self.get_page_size(self.request),
+#                 "total_pages": self.page.paginator.num_pages,
+#                 "total_items": self.page.paginator.count,
+#                 "has_next": self.page.has_next(),
+#                 "has_previous": self.page.has_previous(),
+#                 "next_page": self.page.next_page_number() if self.page.has_next() else None,
+#                 "previous_page": self.page.previous_page_number() if self.page.has_previous() else None,
+#                 "next": self.get_next_link(),
+#                 "previous": self.get_previous_link(),
+#             },
+#             "results": data
+#         })    
 
 class ConversationListCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         """
-        List all conversations for the logged-in user
+        List all conversations for the logged-in user, paginated (15 per page)
         """
-        current_user = request.user  # Get the current user directly from request.user
-        print('current_user ',current_user)
+        current_user = request.user
         if current_user is None:
-            return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({"detail": "Authentication credentials were not provided."},
+                            status=status.HTTP_401_UNAUTHORIZED)
 
-        conversations = Conversation.active.filter(
-            user=current_user, is_deleted=False)
-        print ("C U C ",conversations)
-        serializer = ConversationSerializer(conversations, many=True)
-        return Response(serializer.data)
+        conversations = (Conversation.active
+                         .filter(user=current_user, is_deleted=False)
+                         .order_by('-id'))  # stable ordering
+
+        paginator = ConversationPagination()
+        page = paginator.paginate_queryset(conversations, request, view=self)
+        serializer = ConversationSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
         """
         Create a new conversation for the logged-in user
         """
-        current_user = request.user  # Get the current user
+        current_user = request.user
         if current_user is None:
-            return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({"detail": "Authentication credentials were not provided."},
+                            status=status.HTTP_401_UNAUTHORIZED)
 
-        data = request.data
-        # Automatically assign the logged-in user
+        data = request.data.copy()
         data['user'] = current_user.id
         serializer = ConversationSerializer(data=data)
         if serializer.is_valid():
@@ -94,20 +121,34 @@ class ConversationRetrieveUpdateDestroyAPIView(APIView):
 
 class ConversationMessagesAPIView(APIView):
     permission_classes = [IsAuthenticated]
-
     def get(self, request, pk):
         """
-        List all messages for a specific conversation identified by its UUID
+        GET /api/conversations/<uuid>/messages/?page=1&page_size=10
+        Returns newest→oldest in each page (created_at desc). Frontend will reverse for chat view.
         """
-        current_user = request.user  # Get the current user
-        if current_user is None:
-            return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
+        convo = get_object_or_404(Conversation, uuid=pk, user=request.user)
 
-        # Get conversation using UUID, not primary key
-        conversation = get_object_or_404(Conversation, uuid=pk, user=current_user)
-        messages = Message.objects.filter(conversation=conversation, is_deleted=False)
-        serializer = MessageSerializer(messages, many=True)
-        return Response(serializer.data)
+        qs = (Message.objects
+              .filter(conversation=convo, is_deleted=False)
+              .order_by('-created_at', '-id'))  # stable + fast
+
+        paginator = ConversationMessagePagination()
+        page = paginator.paginate_queryset(qs, request, view=self)
+        serializer = MessageSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+    # def get(self, request, pk):
+    #     """
+    #     List all messages for a specific conversation identified by its UUID
+    #     """
+    #     current_user = request.user  # Get the current user
+    #     if current_user is None:
+    #         return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
+
+    #     # Get conversation using UUID, not primary key
+    #     conversation = get_object_or_404(Conversation, uuid=pk, user=current_user)
+    #     messages = Message.objects.filter(conversation=conversation, is_deleted=False)
+    #     serializer = MessageSerializer(messages, many=True)
+    #     return Response(serializer.data)
 
     def post(self, request, pk):
         """
