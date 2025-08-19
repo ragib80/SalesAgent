@@ -6,7 +6,7 @@ import datetime
 from django.conf import settings
 from azure.kusto.data import KustoClient, KustoConnectionStringBuilder
 from azure.kusto.data.exceptions import KustoApiError
-
+from django.db.models import Q
 from langchain_openai import AzureChatOpenAI
 import logging
 import dateutil.parser
@@ -236,18 +236,38 @@ def find_gsber_code(user_input, mapping):
 #         return user.groups.filter(name__in=["Admin", "Super Admin"]).exists()
 #     except Exception:
 #         return False
+# def _is_admin(user) -> bool:
+#     if not getattr(user, "is_authenticated", False):
+#         return False
+#     if getattr(user, "is_superuser", False) or getattr(user, "is_staff", False):
+#         return True
+#     # Optional: support app-specific role fields, if you have them
+#     for attr in ("role", "designation", "user_role"):
+#         val = getattr(user, attr, None)
+#         if isinstance(val, str) and val.lower() in ("admin", "super admin", "superadmin"):
+#             return True
+#     try:
+#         return user.groups.filter(name__icontains="admin").exists()
+#     except Exception:
+#         return False
+
 def _is_admin(user) -> bool:
     if not getattr(user, "is_authenticated", False):
         return False
+
     if getattr(user, "is_superuser", False) or getattr(user, "is_staff", False):
         return True
+
     # Optional: support app-specific role fields, if you have them
     for attr in ("role", "designation", "user_role"):
         val = getattr(user, attr, None)
         if isinstance(val, str) and val.lower() in ("admin", "super admin", "superadmin"):
             return True
+
     try:
-        return user.groups.filter(name__icontains="admin").exists()
+        return user.groups.filter(
+            Q(name__icontains="admin") | Q(name__iexact="BetaUser")
+        ).exists()
     except Exception:
         return False
     
