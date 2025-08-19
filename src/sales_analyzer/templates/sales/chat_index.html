@@ -1179,11 +1179,27 @@
       if (isNearTop()) $btn.removeClass('d-none'); else $btn.addClass('d-none');
     }
 
+    function resolveRole(m) {
+      // Prefer explicit role strings
+      const raw = (m.sender ?? m.role ?? m.author ?? '').toString().toLowerCase();
+      if (raw === 'user' || raw === 'assistant') return raw;
+
+      // Fallbacks for other shapes
+      if (typeof m.is_user === 'boolean') return m.is_user ? 'user' : 'assistant';
+      if (m.sender === userName) return 'user';   // legacy: sender was username
+      return 'assistant';
+    }
+
+    function getText(m) {
+      return m.text ?? m.content ?? m.message ?? '';
+    }
+
     // Single message renderer (API sends sender=username; compare with localStorage userName)
     function renderMessageEl(m) {
-      const cls = (m.sender === userName) ? 'user' : 'assistant';
-      const avatar = (cls === 'user') ? '' : 'AI';
-      const html = marked.parse(m.text || '');
+      const role   = resolveRole(m);
+      const cls    = role === 'user' ? 'user' : 'assistant';
+      const avatar = role === 'assistant' ? 'AI' : '';
+      const html   = marked.parse(getText(m));
       return `
         <div class="message ${cls}">
           <div class="message-avatar ${cls}">${avatar}</div>
