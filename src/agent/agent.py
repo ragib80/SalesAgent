@@ -70,7 +70,7 @@ FIELD_MAPPINGS = {
     "credit control area":"kkber","Dealer group":"kukla","account group":"ktokd",
     "sales group":"vkgrp_c","sales office":"vkbur_c","payer id":"Payer_DL",
     "product code":"matnr","unit":"meins","volume unit":"voleh","business group":"GK",
-    "territory":"Territory","sales zone":"Szone","date":"fkdat",
+    "territory":"Territory","sales zone":"Szone","zone":"Szone","date":"fkdat",
     "fkdat":"fkdat"
 }
 MAPPING_STR = "\n".join(f'"{k}": "{v}"' for k, v in FIELD_MAPPINGS.items())
@@ -127,7 +127,12 @@ SYSTEM_PROMPT_KQL = (
     "• If a date range is required, declare:\n"
     "      let StartDate = datetime(YYYY-MM-DD);\n"
     "      let EndDate   = datetime(YYYY-MM-DD);\n"
- 
+
+    "• For **string filters**, always use **case-insensitive** operators:\n"
+    "      =~ for equality (e.g., spart_text =~ \"decorative\")\n"
+    "      in~ for membership (e.g., brand in~ (\"premium\",\"economy\"))\n"
+    "  Do not use == or in for string comparisons.\n"
+
     "• End every statement with a semicolon.\n"
     "• Provide real line-breaks (no \\n literals).\n\n"
     "Business → column mapping:\n" + MAPPING_STR +

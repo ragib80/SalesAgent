@@ -1,3 +1,4 @@
+# src/agent/ai/frame_types.py
 from typing import Optional, Literal, Dict
 from pydantic import BaseModel, Field
 
@@ -9,8 +10,9 @@ class DateRange(BaseModel):
 class Scope(BaseModel):
     region: Optional[str] = None
     zone: Optional[str] = None
-    depo: Optional[str] = None         # gsber (code or human name accepted)
+    depo: Optional[str] = None          # gsber (code or human name accepted)
     dealer: Optional[str] = None
+    division: Optional[str] = None      # <-- NEW: spart_text (e.g., "Marine Paints")
 
 class Entities(BaseModel):
     brand: Optional[str] = None

@@ -22,7 +22,7 @@ intent_llm = AzureChatOpenAI(
     azure_deployment = settings.AZURE_OPENAI_DEPLOYMENT,
     temperature      = 0,
 )
-# Structured output for stable frame deltas
+# Use function_calling for robust structured output
 delta_llm = intent_llm.with_structured_output(FrameDelta, method="function_calling")
 
 summary_llm = AzureChatOpenAI(
@@ -35,7 +35,6 @@ summary_llm = AzureChatOpenAI(
 
 # ---------- Graph State ----------
 class ConvState(TypedDict):
-    # messages uses add_messages aggregator; always append like {"messages": [HumanMessage(...)]}
     messages: Annotated[List[BaseMessage], add_messages]
     frame: Frame
     kql: Optional[str]
@@ -47,10 +46,9 @@ class ConvState(TypedDict):
 INTENT_SYS = SystemMessage(content=
 """You are a sales analytics intent parser for SAP sales on ADX.
 
-Use PRIOR_FRAME as running context. If the user omits details (e.g., “same division/date range”, “now depo”),
-carry forward those values from PRIOR_FRAME.
-
-Output ONLY a JSON delta with fields that changed. Never output KQL.
+Given the user's latest message and the prior frame, output ONLY a JSON delta with fields that changed.
+- Do not include fields you intend to keep from prior context.
+- Never output KQL.
 
 Canonical metrics (use these exact values if you set metric):
 - Revenue  (synonyms: sales, sale, amount, turnover, net sales, gross sales)
@@ -65,9 +63,6 @@ Canonical group_by values:
 - depo (business area, gsber, sales office)
 - zone (sales zone, szone, zone)
 - date (date, day, month, period, timeperiod, fkdat, time)
-
-Scope fields you may set/retain:
-- scope.depo (gsber), scope.zone, scope.region, scope.dealer, scope.division (spart_text)
 """
 )
 
@@ -75,35 +70,47 @@ Scope fields you may set/retain:
 SUMMARY_SYS = SystemMessage(content=
 """Write a concise, user-facing summary of sales results:
 
-- No title/header. Short bullets.
-- Currency BDT. No labels like "Scope/Grouping/Top N".
-- If show_scope=false, DO NOT mention any scope terms.
-- If show_scope=true, mention active filters naturally (e.g., “Marine Paints”, “Dhaka Sales”).
-- End with 1–2 crisp business insights.
+- Do NOT include any title/header.
+- Do NOT include the labels "Scope", "Metric", "Grouping", "Top N", or "Total Rows".
+- Currency is BDT. Use short bullet points.
+- If show_scope=false, DO NOT mention any scope (division/depo/zone/territory/brand/product) even if present in the frame.
+- If show_scope=true, you may naturally mention the active filters (e.g., "Marine Paints" or "Dhaka Sales") in the text, but don't print them as separate labeled lines.
+- Always include 1–2 crisp business insights at the end.
+- Do not echo KQL or internal JSON. Only produce the final text the user should see.
 """
 )
 
 # ---------- Normalization helpers ----------
 def _canon(s: Optional[str]) -> Optional[str]:
-    if not s: return None
+    if not s:
+        return None
     return " ".join(str(s).lower().split())
 
 _METRIC_MAP = {
-    "revenue":"Revenue","sales":"Revenue","sale":"Revenue","amount":"Revenue",
-    "turnover":"Revenue","net sales":"Revenue","gross sales":"Revenue",
-    "volume":"Volume","volum":"Volume","quantity":"Volume","qty":"Volume","units":"Volume","unit":"Volume",
-    "invoicecount":"InvoiceCount","invoice count":"InvoiceCount","invoices":"InvoiceCount","bills":"InvoiceCount",
-    "orders":"InvoiceCount","order count":"InvoiceCount",
-    "avgsellingprice":"AvgSellingPrice","avg selling price":"AvgSellingPrice",
-    "average selling price":"AvgSellingPrice","avg price":"AvgSellingPrice","average unit price":"AvgSellingPrice","asp":"AvgSellingPrice",
+    # Revenue
+    "revenue": "Revenue", "sales": "Revenue", "sale": "Revenue", "amount": "Revenue",
+    "turnover": "Revenue", "net sales": "Revenue", "gross sales": "Revenue",
+    # Volume
+    "volume": "Volume", "volum": "Volume", "quantity": "Volume", "qty": "Volume",
+    "units": "Volume", "unit": "Volume",
+    # InvoiceCount
+    "invoicecount": "InvoiceCount", "invoice count": "InvoiceCount",
+    "invoices": "InvoiceCount", "bills": "InvoiceCount",
+    "orders": "InvoiceCount", "order count": "InvoiceCount",
+    # AvgSellingPrice
+    "avgsellingprice": "AvgSellingPrice", "avg selling price": "AvgSellingPrice",
+    "average selling price": "AvgSellingPrice", "avg price": "AvgSellingPrice",
+    "average unit price": "AvgSellingPrice", "asp": "AvgSellingPrice",
 }
 _GROUPBY_MAP = {
-    "dealer":"dealer","customer":"dealer","client":"dealer","cname":"dealer",
-    "brand":"brand","wgbez":"brand",
-    "product":"product","product name":"product","material":"product","sku":"product","item":"product","arktx":"product","matnr":"product",
-    "depo":"depo","business area":"depo","gsber":"depo","sales office":"depo",
-    "zone":"zone","sales zone":"zone","szone":"zone",
-    "date":"date","day":"date","month":"date","period":"date","timeperiod":"date","fkdat":"date","time":"date",
+    "dealer": "dealer", "customer": "dealer", "client": "dealer", "cname": "dealer",
+    "brand": "brand", "wgbez": "brand",
+    "product": "product", "product name": "product", "material": "product",
+    "sku": "product", "item": "product", "arktx": "product", "matnr": "product",
+    "depo": "depo", "business area": "depo", "gsber": "depo", "sales office": "depo",
+    "zone": "zone", "sales zone": "zone", "szone": "zone",
+    "date": "date", "day": "date", "month": "date", "period": "date",
+    "timeperiod": "date", "fkdat": "date", "time": "date",
 }
 
 def normalize_metric(maybe_metric: Optional[str]) -> Optional[str]:
@@ -116,16 +123,18 @@ def deep_merge_frame(base: Frame, delta: FrameDelta) -> Frame:
     data = base.model_dump()
     d = (delta or FrameDelta()).model_dump(exclude_none=True)
 
+    # Normalize metric & group_by BEFORE merging into strict Frame
     if "metric" in d:
         nm = normalize_metric(d.get("metric"))
         if nm: d["metric"] = nm
-        else:  d.pop("metric", None)
+        else:  d.pop("metric", None)  # keep previous
 
     if "group_by" in d:
         ng = normalize_group_by(d.get("group_by"))
         if ng: d["group_by"] = ng
-        else:  d.pop("group_by", None)
+        else:  d.pop("group_by", None)  # keep previous
 
+    # Shallow merge dicts
     for k, v in d.items():
         if isinstance(v, dict) and isinstance(data.get(k), dict):
             data[k].update(v)
@@ -134,20 +143,18 @@ def deep_merge_frame(base: Frame, delta: FrameDelta) -> Frame:
 
     return Frame(**data)
 
-# ---------- Types: align with your ADX table ----------
-# Table shows these as string (not long): gsber, bukrs, spart, vkorg, kunrg, kunnr_sh,
-# Payer_DL, vbeln, vkbur_c, vkgrp_c, kukla, posnr, vtweg, kkber, matkl, wgbez, matnr,
-# arktx, meins, voleh, Territory, Szone, cname, spart_text, GK, FKDAT_TEMP, erzet_T.
-# Id is long; fkimg/volum/Revenue are real; fkdat is datetime.
-
+# ---------- Column types from your ADX schema ----------
 STRING_COLS = {
-    "bukrs","spart","matkl","wgbez","matnr","vkorg","kunrg","kunnr_sh","Payer_DL",
-    "vbeln","vkbur_c","vkgrp_c","kukla","posnr","arktx","meins","voleh","Territory",
-    "Szone","cname","spart_text","ktokd","vtweg","erzet_T","kkber","FKDAT_TEMP","GK","gsber"
+    "matkl","wgbez","matnr","vkgrp_c","arktx","meins","voleh",
+    "Territory","Szone","cname","spart_text","ktokd","GK"
 }
-LONG_COLS = {"Id"}
-REAL_COLS = {"Revenue","fkimg","volum"}
-DATETIME_COLS = {"fkdat"}
+LONG_COLS = {
+    "bukrs","spart","vkorg","kunrg","kunnr_sh","Payer_DL","vbeln",
+    "vkbur_c","kukla","posnr","gsber","fkimg","vtweg","kkber"
+}
+REAL_COLS = {"Revenue","volum"}
+DATETIME_COLS = {"fkdat","FKDAT_TEMP"}
+TIMESPAN_COLS = {"erzet_T"}
 
 # ---------- Allowed WHERE columns ----------
 def _mentions_any(s: str, words: List[str]) -> bool:
@@ -155,24 +162,37 @@ def _mentions_any(s: str, words: List[str]) -> bool:
     return any(w in s for w in words)
 
 def allowed_where_columns(frame: Frame, user_text: str) -> List[str]:
+    """
+    WHERE may only reference columns:
+      - Always: fkdat (date window)
+      - Area/entity only if present in prior frame OR explicitly asked in user text.
+    """
     s = (user_text or "").lower()
     allow = set(["fkdat"])
 
+    # Area filters
     if frame.scope.depo or _mentions_any(s, ["depo","business area","gsber","sales office"]):
         allow.add("gsber")
-    if frame.scope.zone or _mentions_any(s, ["zone","sales zone","szone"]):
+    if getattr(frame.scope, "zone", None) or _mentions_any(s, ["zone","sales zone","szone"]):
         allow.add("Szone")
-    if frame.scope.dealer or _mentions_any(s, ["dealer ","customer ","client ","cname "]):
-        allow.add("cname")
-    if getattr(frame.scope, "division", None) or _mentions_any(s, ["division","spart_text","decorative","industrial","protective","marine paints"]):
+    if getattr(frame.scope, "territory", None) or _mentions_any(s, ["territory"]):
+        allow.add("Territory")
+
+    # Division (spart_text) only if asked
+    if _mentions_any(s, ["division","spart_text","decorative","industrial","protective","marine paints"]):
         allow.add("spart_text")
 
+    # Brand / Product
     if frame.entities.brand or _mentions_any(s, ["brand","wgbez"]):
         allow.add("wgbez")
     if frame.entities.product or _mentions_any(s, ["product","product name","material","sku","arktx","matnr"]):
         allow.update(["arktx","matnr"])
 
-    # enterprise columns only when explicitly asked
+    # Dealer (rarely filtered; usually grouped)
+    if _mentions_any(s, ["dealer ","customer ","client ","cname "]):
+        allow.add("cname")
+
+    # Other enterprise columns only if explicitly asked
     if _mentions_any(s, ["company code","bukrs"]): allow.add("bukrs")
     if _mentions_any(s, ["sales org","vkorg"]):    allow.add("vkorg")
     if _mentions_any(s, ["dist channel","distribution channel","vtweg"]): allow.add("vtweg")
@@ -189,10 +209,11 @@ def allowed_where_columns(frame: Frame, user_text: str) -> List[str]:
 
     return list(allow)
 
-# ---------- WHERE sanitizer ----------
+# ---------- Sanitize WHERE lines to only allowed columns ----------
 _AND_SPLIT = re.compile(r"\s+and\s+", re.IGNORECASE)
 
 def enforce_allowed_filters(kql: str, allowed_cols: List[str]) -> str:
+    """Keep only predicates whose leftmost column is in allowed_cols or refers to Start/EndDate/fkdat."""
     if not kql:
         return kql
     lines = kql.splitlines()
@@ -210,19 +231,23 @@ def enforce_allowed_filters(kql: str, allowed_cols: List[str]) -> str:
         for p in parts:
             p_stripped = p.strip()
 
+            # always allow date conditions & Start/EndDate refs
             if p_stripped.lower().startswith("fkdat "):
                 kept.append(p_stripped);  continue
             if "StartDate" in p_stripped or "EndDate" in p_stripped:
                 kept.append(p_stripped);  continue
 
+            # Extract leftmost identifier (column name)
             m = re.match(r"([A-Za-z_][A-Za-z0-9_]*)\s*[=~<>i]*", p_stripped)
             col = m.group(1) if m else None
 
             if col and col in allowed_cols:
                 kept.append(p_stripped)
+            # else drop silently
 
         if kept:
             out_lines.append(f"{head}| where " + " and ".join(kept))
+        # if nothing kept, drop the where line entirely
     return "\n".join(out_lines)
 
 # ---------- Type-aware operator & quoting fixes ----------
@@ -255,10 +280,11 @@ def _fix_in_list_for_long(content: str) -> str:
     return ", ".join(parts)
 
 def apply_dtype_fixes(kql: str) -> str:
+    """Make operators & literals match the ADX column data types."""
     if not kql:
         return kql
 
-    # STRING columns: use =~ and in~ with quoted values
+    # --- STRING columns: force =~ and in~ with quoted values ---
     for col in STRING_COLS:
         pattern_eq = re.compile(rf'(\b{re.escape(col)}\b)\s*==\s*(".*?"|\S+)', re.IGNORECASE)
         kql = pattern_eq.sub(lambda m: f'{m.group(1)} =~ {_quote(m.group(2))}', kql)
@@ -269,7 +295,7 @@ def apply_dtype_fixes(kql: str) -> str:
         pattern_in_tilde = re.compile(rf'(\b{re.escape(col)}\b)\s+in~\s*\(([^)]*)\)', re.IGNORECASE)
         kql = pattern_in_tilde.sub(lambda m: f'{m.group(1)} in~ ({_fix_in_list_for_string(m.group(2))})', kql)
 
-    # LONG columns: use == and in with unquoted numbers
+    # --- LONG columns: force == and in; remove quotes for numeric literals ---
     for col in LONG_COLS:
         pattern_eq_tilde = re.compile(rf'(\b{re.escape(col)}\b)\s*=~\s*(".*?"|\S+)', re.IGNORECASE)
         kql = pattern_eq_tilde.sub(lambda m: f'{m.group(1)} == {_unquote_number_if_needed(m.group(2))}', kql)
@@ -285,27 +311,7 @@ def apply_dtype_fixes(kql: str) -> str:
 
     return kql
 
-# ----- Dedupe duplicate "extend TimePeriod = startofmonth(fkdat)" lines -----
-_TIMEPERIOD_LINE = re.compile(
-    r'^\s*\|\s*extend\s+TimePeriod\s*=\s*startofmonth\(\s*fkdat\s*\)\s*;?\s*$',
-    re.IGNORECASE | re.MULTILINE
-)
-
-def _dedupe_timeperiod_extend(kql: str) -> str:
-    if not kql:
-        return kql
-    lines = kql.splitlines()
-    seen = False
-    out = []
-    for ln in lines:
-        if _TIMEPERIOD_LINE.match(ln):
-            if seen:
-                continue
-            seen = True
-        out.append(ln)
-    return "\n".join(out)
-
-# ---------- Helper: humanize used scope from KQL ----------
+# ---------- Helper: humanize used scope from KQL for logging ----------
 _SCOPE_LABELS = {
     "gsber": "Depo/Sales Office",
     "Szone": "Sales Zone",
@@ -329,30 +335,34 @@ _SCOPE_LABELS = {
     "meins": "Unit",
     "voleh": "Volume Unit",
 }
+
 SCOPE_COLS_SET = set(_SCOPE_LABELS.keys())
 
-def _parse_start_end(kql: Optional[str]) -> Dict[str, Optional[str]]:
-    """Extract StartDate/EndDate literals from the generated KQL."""
-    if not kql:
-        return {"start": None, "end": None}
-    # allow optional trailing semicolons
-    m = re.search(r'let\s+StartDate\s*=\s*datetime\((\d{4}-\d{2}-\d{2})\)\s*;?', kql, re.IGNORECASE)
-    start = m.group(1) if m else None
-    m = re.search(r'let\s+EndDate\s*=\s*datetime\((\d{4}-\d{2}-\d{2})\)\s*;?', kql, re.IGNORECASE)
-    end = m.group(1) if m else None
+def _parse_start_end(kql: str) -> Dict[str, Optional[str]]:
+    start = None; end = None
+    m = re.search(r'let\s+StartDate\s*=\s*datetime\((\d{4}-\d{2}-\d{2})\)\s*;', kql, re.IGNORECASE)
+    if m: start = m.group(1)
+    m = re.search(r'let\s+EndDate\s*=\s*datetime\((\d{4}-\d{2}-\d{2})\)\s*;', kql, re.IGNORECASE)
+    if m: end = m.group(1)
     return {"start": start, "end": end}
 
 def _extract_used_filters(kql: str) -> Dict[str, List[str]]:
+    """
+    Return dict col -> list of values used in WHERE (eq or in).
+    Only for columns we consider as "scope-ish" (_SCOPE_LABELS).
+    """
     used: Dict[str, List[str]] = {}
     if not kql:
         return used
 
     for col in SCOPE_COLS_SET:
+        # equality == or =~
         p_eq = re.compile(rf'\b{re.escape(col)}\b\s*[=~]{{1,2}}\s*(".*?"|\S+)', re.IGNORECASE)
         for m in p_eq.finditer(kql):
             val = _strip_quotes(m.group(1))
             used.setdefault(col, []).append(val)
 
+        # membership in(...) or in~(...)
         p_in = re.compile(rf'\b{re.escape(col)}\b\s+in~?\s*\(([^)]*)\)', re.IGNORECASE)
         for m in p_in.finditer(kql):
             content = m.group(1)
@@ -361,7 +371,7 @@ def _extract_used_filters(kql: str) -> Dict[str, List[str]]:
             if parts:
                 used.setdefault(col, []).extend(parts)
 
-    # de-dup
+    # Deduplicate values per column
     for k in list(used.keys()):
         seen = []
         for v in used[k]:
@@ -371,20 +381,25 @@ def _extract_used_filters(kql: str) -> Dict[str, List[str]]:
     return used
 
 def _humanize_scope(used: Dict[str, List[str]]) -> List[str]:
+    """Turn used scope dict into readable parts for logging."""
     out = []
     for col, vals in used.items():
         label = _SCOPE_LABELS.get(col, col)
         if col == "gsber":
             friendly = []
             for v in vals:
+                # try to map code to name
                 name = next((k for k, code in GSBER_MAPPING.items() if str(code) == str(v)), None)
-                friendly.append(f"{name} ({v})" if name else str(v))
+                if name:
+                    friendly.append(f"{name} ({v})")
+                else:
+                    friendly.append(str(v))
             out.append(f"{label}: {', '.join(friendly)}")
         else:
             out.append(f"{label}: {', '.join(vals)}")
     return out
 
-# ---------- Hints injected to the LLM ----------
+# ---------- Helpers ----------
 def frame_defaults_as_hints(frame: Frame) -> str:
     bits = []
     if frame.date.start and frame.date.end:
@@ -395,48 +410,27 @@ def frame_defaults_as_hints(frame: Frame) -> str:
         bits.append(f"Top N: {frame.limit}")
     return "Assume these defaults if not stated:\n- " + "\n- ".join(bits) if bits else ""
 
-def scope_filter_hints(frame: Frame) -> str:
-    """
-    Turn active frame scope/entities into explicit KQL filter requirements.
-    This is what makes 'same division' resolve to the real value instead of the literal word 'division'.
-    """
-    lines = []
-    if getattr(frame.scope, "division", None):
-        lines.append(f'- Apply division filter: spart_text =~ "{frame.scope.division}"')
-    if getattr(frame.scope, "depo", None):
-        lines.append(f'- Apply depo filter if present: gsber =~ "{frame.scope.depo}"')
-    if getattr(frame.scope, "zone", None):
-        lines.append(f'- Apply zone filter if present: Szone =~ "{frame.scope.zone}"')
-    if getattr(frame.scope, "dealer", None):
-        lines.append(f'- Apply dealer filter if present: cname =~ "{frame.scope.dealer}"')
-    if getattr(frame.entities, "brand", None):
-        lines.append(f'- Apply brand filter if present: wgbez =~ "{frame.entities.brand}"')
-    if getattr(frame.entities, "product", None):
-        lines.append(f'- Apply product filter if present: arktx =~ "{frame.entities.product}" or matnr =~ "{frame.entities.product}"')
-    return "\n".join(lines)
-
-# ---------- Nodes (return PARTIAL updates only) ----------
-def n_extract_delta(state: ConvState) -> Dict:
+# ---------- Nodes ----------
+def n_extract_delta(state: ConvState) -> ConvState:
     prior = state["frame"]
     user_text = next((m.content for m in reversed(state["messages"]) if isinstance(m, HumanMessage)), "")
     delta = delta_llm.invoke([
         INTENT_SYS,
         HumanMessage(content=f"PRIOR_FRAME:\n{prior.model_dump_json()}\n\nUSER:\n{user_text}")
     ])
-    new_frame = deep_merge_frame(prior, delta)
-    return {
-        "frame": new_frame,
-        "messages": [AIMessage(content=f"[delta]{delta.model_dump_json()}")]
-    }
+    state["messages"].append(AIMessage(content=f"[delta]{delta.model_dump_json()}"))
+    state["frame"] = deep_merge_frame(prior, delta)
+    return state
 
-def n_gen_kql(state: ConvState) -> Dict:
+def n_gen_kql(state: ConvState) -> ConvState:
     if state.get("error"):
-        return {}
+        return state
+
     frame = state["frame"]
     user_text = next((m.content for m in reversed(state["messages"]) if isinstance(m, HumanMessage)), "")
     ctx = frame_defaults_as_hints(frame)
-    scope_hints = scope_filter_hints(frame)
 
+    # Allowed WHERE columns + HARD CONSTRAINTS
     allow = allowed_where_columns(frame, user_text)
 
     type_hints = (
@@ -454,82 +448,64 @@ def n_gen_kql(state: ConvState) -> Dict:
         f"- WHERE may only reference these columns: {', '.join(allow)}\n"
         "- Do NOT add any other filters. If a filter is not explicitly requested by the user "
         "or present in the prior frame, omit it.\n"
-        "- Do not use bin(fkdat, 1mo). Use startofmonth(fkdat) instead via: | extend TimePeriod = startofmonth(fkdat)\n"
-        "- Always use named columns in summarize.\n"
+        "- Use the operator rules from the Column types guidance above.\n"
     )
 
-    carryover = ""
-    if scope_hints:
-        carryover = "\nCARRY-OVER FILTERS (apply exactly; do not paraphrase words like 'division', use the actual values):\n" + scope_hints
-
     effective_prompt = user_text
-    if ctx: effective_prompt += f"\n\n{ctx}"
-    effective_prompt += f"\n\n{type_hints}{hard_constraints}{carryover}"
+    if ctx:
+        effective_prompt += f"\n\n{ctx}"
+    effective_prompt += f"\n\n{type_hints}{hard_constraints}"
 
     try:
         raw_kql = generate_kql(effective_prompt)
+        # 1) Strip predicates for disallowed columns
         kql = enforce_allowed_filters(raw_kql, allow)
+        # 2) Fix operators & quoting by ADX data types
         kql = apply_dtype_fixes(kql)
-        kql = _dedupe_timeperiod_extend(kql)
-        return {"kql": kql}
+        state["kql"] = kql
     except Exception as ex:
-        return {"error": f"generate_kql failed: {ex}"}
+        state["error"] = f"generate_kql failed: {ex}"
+    return state
 
-def n_run_adx(state: ConvState) -> Dict:
+def n_run_adx(state: ConvState) -> ConvState:
     if state.get("error"):
-        return {}
+        return state
     try:
         cols, rows = adx().run(state["kql"])
-        meta = {"rowcount": len(rows), "cols": cols}
-        rows_list = [dict(zip(cols, r)) for r in rows]
-        return {"rows": rows_list, "meta": meta}
+        state["rows"] = [dict(zip(cols, r)) for r in rows]
+        state["meta"] = {"rowcount": len(rows), "cols": cols}
     except Exception as ex:
-        return {"error": f"ADX error: {ex}"}
+        state["error"] = f"ADX error: {ex}"
+    return state
 
-def n_repair(state: ConvState) -> Dict:
-    err = state.get("error")
-    if not err:
-        return {}
-    if "ADX error" in err or "generate_kql failed" in err:
-        user_text = next((m.content for m in reversed(state["messages"]) if isinstance(m, HumanMessage)), "")
-        frame = state["frame"]
-        try:
-            retry_prompt = user_text + "\n\nSTRICT MODE: previous query failed. Return corrected KQL only.\n"
-            retry_prompt += scope_filter_hints(frame)
-            raw_kql = generate_kql(retry_prompt)
-            kql = enforce_allowed_filters(raw_kql, allowed_where_columns(frame, user_text))
-            kql = apply_dtype_fixes(kql)
-            kql = _dedupe_timeperiod_extend(kql)
-            cols, rows = adx().run(kql)
-            meta = {"rowcount": len(rows), "cols": cols}
-            rows_list = [dict(zip(cols, r)) for r in rows]
-            return {"kql": kql, "rows": rows_list, "meta": meta, "error": None}
-        except Exception as ex:
-            return {"error": f"Repair failed: {ex}"}
-    return {}
-
-def n_summarize(state: ConvState) -> Dict:
+def n_summarize(state: ConvState) -> ConvState:
     frame = state["frame"]
     rows = state.get("rows") or []
     meta = state.get("meta") or {}
     kql = state.get("kql") or ""
 
-    used_filters = _extract_used_filters(kql)
-    show_scope_to_user = bool(used_filters)
-    date_bounds = _parse_start_end(kql)
+    # Derive which scope filters were ACTUALLY USED in this turn's KQL
+    used_filters = _extract_used_filters(kql)            # dict of col -> values
+    show_scope_to_user = bool(used_filters)              # only if current KQL has any scope-ish filters
+    date_bounds = _parse_start_end(kql)                  # StartDate/EndDate if present
 
+    # Prepare a redacted frame for the summarizer so it doesn't leak old scope
+    # frame_for_summary = frame.model_dump(deep=True)
     frame_for_summary = frame.model_dump()
+
     if not show_scope_to_user:
+        # wipe scope-ish fields so LLM doesn't mention them
         if "scope" in frame_for_summary:
-            for fld in ("depo", "zone", "territory", "region", "dealer", "division"):
+            for fld in ("depo", "zone", "territory", "region", "dealer"):
                 if fld in frame_for_summary["scope"]:
                     frame_for_summary["scope"][fld] = None
+        # also clear entities (brand/product) to be safe
         if "entities" in frame_for_summary:
             for fld in ("brand", "product"):
                 if fld in frame_for_summary["entities"]:
                     frame_for_summary["entities"][fld] = None
 
-    # Debug logs
+    # Log debug info to console (NOT shown to user)
     human_scope = _humanize_scope(used_filters)
     logger.info("KQL Date Range: %s -> %s", date_bounds.get("start"), date_bounds.get("end"))
     logger.info("Metric (frame): %s", frame.metric)
@@ -538,32 +514,32 @@ def n_summarize(state: ConvState) -> Dict:
     logger.info("Grouping: %s | Top N: %s | Total Rows: %s",
                 frame.group_by, frame.limit, meta.get("rowcount"))
 
+    # Build concise, user-facing summary
     preview = rows[:50]
     msg = summary_llm.invoke([
         SUMMARY_SYS,
         HumanMessage(content=json.dumps({
-            "show_scope": show_scope_to_user,
-            "date_range": date_bounds,
-            "frame": frame_for_summary,
+            "show_scope": show_scope_to_user,     # governs whether scope can be mentioned
+            "date_range": date_bounds,            # used to mention dates cleanly
+            "frame": frame_for_summary,           # redacted when needed
             "meta": meta,
             "rows_sample": preview
         }))
     ])
-    return {"messages": [AIMessage(content=msg.content)], "text": msg.content}
+    state["messages"].append(AIMessage(content=msg.content))
+    state["text"] = msg.content
+    return state
 
 def build_graph():
     g = StateGraph(ConvState)
     g.add_node("extract_delta", n_extract_delta)
     g.add_node("gen_kql", n_gen_kql)
     g.add_node("run_adx", n_run_adx)
-    g.add_node("repair", n_repair)
     g.add_node("summarize", n_summarize)
 
     g.set_entry_point("extract_delta")
     g.add_edge("extract_delta", "gen_kql")
     g.add_edge("gen_kql", "run_adx")
-    g.add_edge("run_adx", "repair")
-    g.add_edge("repair", "summarize")
     g.add_edge("run_adx", "summarize")
     g.add_edge("summarize", END)
     return g
