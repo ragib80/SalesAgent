@@ -250,7 +250,54 @@ def _is_admin(user) -> bool:
         return user.groups.filter(name__icontains="admin").exists()
     except Exception:
         return False
-    
+
+#column data type
+def _parse_schema_types_from_string(schema: str) -> dict[str, str]:
+    m = re.search(r'\.create\s+table\s+\w+\s*\(\s*([\s\S]*?)\s*\)\s*', schema, flags=re.I)
+    if not m:
+        return {}
+    body = m.group(1)
+    pairs = re.findall(r'([A-Za-z_]\w*)\s*:\s*([A-Za-z_]\w*)', body)
+    return {col: typ.lower() for col, typ in pairs}
+
+@lru_cache(maxsize=1)
+def get_schema_types_from_static() -> dict[str, str]:
+    return _parse_schema_types_from_string(KUSTO_SCHEMA)
+
+def split_types(types: dict[str, str]):
+    string_cols   = {c for c, t in types.items() if t == "string"}
+    numeric_cols  = {c for c, t in types.items() if t in {"int","long","real","float","double","decimal","bool"}}
+    datetime_cols = {c for c, t in types.items() if t in {"datetime","date"}}
+    return string_cols, numeric_cols, datetime_cols
+
+def build_schema_prompt_block() -> str:
+    types = get_schema_types_from_static()          # parsed from KUSTO_SCHEMA
+    string_cols, numeric_cols, datetime_cols = split_types(types)
+
+    schema_lines = "\n".join(f"- {c}: {t}" for c, t in types.items())
+    string_cols_csv  = ", ".join(sorted(string_cols)) or "(none)"
+    numeric_cols_csv = ", ".join(sorted(numeric_cols)) or "(none)"
+    datetime_cols_csv= ", ".join(sorted(datetime_cols)) or "(none)"
+
+    return (
+        "\n\nTABLE SCHEMA (from code):\n"
+        f"{schema_lines}\n"
+        "\nFILTER RULES:\n"
+        "- For STRING columns, use case-insensitive operators: `=~` for equality and `in~` for lists.\n"
+        "- For NUMERIC columns, use `==` / `in` (no quotes for numbers).\n"
+        "- Do NOT use tolower()/toupper(); prefer =~ / in~ for strings.\n"
+        "- Do NOT use `bin(fkdat, 1mo)`; use `startofmonth(fkdat)` etc. when grouping.\n"
+        "\nSPECIAL COLUMN RULES:\n"
+        "- `spart_text` must be matched by case-insensitive substring: use `spart_text contains \"<text>\"`.\n"
+        "  If multiple values are provided, expand to `(spart_text contains \"A\" or spart_text contains \"B\" ...)`.\n"
+        "\nDERIVED TYPE GROUPS:\n"
+        f"- STRING columns: {string_cols_csv}\n"
+        f"- NUMERIC columns: {numeric_cols_csv}\n"
+        f"- DATETIME columns: {datetime_cols_csv}\n"
+    )
+
+#end column data type
+
 @dataclass
 class UserAreaScope:
     depots: List[str]
@@ -302,6 +349,24 @@ def generate_kql(user_req: str, strict=False) -> str:
     prompt = SYSTEM_PROMPT_KQL
     if strict:
         prompt += "\n\nSTRICT MODE: previous query failed. Return corrected KQL only."
+
+    prompt += build_schema_prompt_block()
+
+
+
+    print("-------------------------------------",prompt)
+    
+    # types = get_schema_types_from_static()
+    # STRING_COLUMNS, NUMERIC_COLUMNS, DATETIME_COLUMNS = split_types(types)
+
+    # prompt += (
+    #     "\n\nTABLE SCHEMA (dynamic from code):\n" +
+    #     "\n".join(f"- {c}: {t}" for c, t in types.items()) +
+    #     "\n\nFILTER RULES:\n"
+    #     "- For STRING columns, use case-insensitive operators: `=~` for equality and `in~` for lists.\n"
+    #     "- For NUMERIC columns, use `==` / `in` (no quotes for numbers).\n"
+    #     "- Do NOT use tolower()/toupper(); prefer =~ / in~.\n"
+    # )
     
     #user access 
     _scope = None
