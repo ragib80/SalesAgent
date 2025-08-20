@@ -6,7 +6,7 @@ import datetime
 from django.conf import settings
 from azure.kusto.data import KustoClient, KustoConnectionStringBuilder
 from azure.kusto.data.exceptions import KustoApiError
-
+from typing import Optional
 from langchain_openai import AzureChatOpenAI
 import logging
 import dateutil.parser
@@ -14,7 +14,7 @@ import calendar
 from user_auth.models import UserDepoMap, UserZoneMap, UserTerritoryMap
 from typing import List, Dict
 from dataclasses import dataclass
-
+from agent.utils.conversation_history import fetch_history,pack_history_by_chars,build_history_prompt_block
 import logging
 
 logger = logging.getLogger(__name__)
@@ -296,6 +296,8 @@ def build_schema_prompt_block() -> str:
         f"- DATETIME columns: {datetime_cols_csv}\n"
     )
 
+def join_system_blocks(blocks: List[str]) -> str:
+    return "\n\n".join([b for b in blocks if b and b.strip()])
 #end column data type
 
 @dataclass
@@ -344,7 +346,7 @@ def cleanup_kql(kql: str) -> str:
     kql = re.sub(r'TimePeriod', '', kql)
     return kql
 
-def generate_kql(user_req: str, strict=False) -> str:
+def generate_kql(user_req: str,conversation_uuid: Optional[str] = None, strict=False) -> str:
     # Start with the base prompt for LLM
     prompt = SYSTEM_PROMPT_KQL
     if strict:
@@ -354,7 +356,17 @@ def generate_kql(user_req: str, strict=False) -> str:
 
 
 
-    print("-------------------------------------",prompt)
+    # NEW: Fetch + pack history (ORM/Redis; char-budget) and give the model usage rules
+    try:
+        full_hist   = fetch_history(conversation_uuid, use_cache=True)   # oldest→newest
+        packed_hist = pack_history_by_chars(full_hist)                  # trims heavy blocks / caps chars
+        hist_block  = build_history_prompt_block(packed_hist)           # adds usage policy
+        if hist_block:
+            prompt += "\n\n" + hist_block
+    except Exception:
+        pass
+
+    print("-------------------------------------", prompt)
     
     # types = get_schema_types_from_static()
     # STRING_COLUMNS, NUMERIC_COLUMNS, DATETIME_COLUMNS = split_types(types)
@@ -915,7 +927,7 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
     print("date range :", start_date)
     print("date range :", end_date_str)
     # -- [unchanged] raw KQL generation + fixes
-    kql = generate_kql(user_prompt)
+    kql = generate_kql(user_prompt,conversation_id)
     kql = format_dates(kql)
     kql = re.sub(r'ago\(3mo\)', 'ago(90d)', kql, flags=re.I)
     kql = re.sub(r'startofquarter\((.*?)\)', r'startofmonth(\1)', kql, flags=re.I)
@@ -942,7 +954,7 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
             break
         except KustoApiError:
             if attempt == 1:
-                kql = generate_kql(user_prompt, strict=True)
+                kql = generate_kql(user_prompt,conversation_id,strict=True)
                 continue
             return "Please refine your query for better results. I’m learning day by day and will help you improve your query."
 
