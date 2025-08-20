@@ -69,21 +69,21 @@ FIELD_MAPPINGS = {
     "dist channel":"vtweg","distribution channel":"vtweg","business area":"gsber","depo":"gsber",
     "credit control area":"kkber","Dealer group":"kukla","account group":"ktokd",
     "sales group":"vkgrp_c","sales office":"vkbur_c","payer id":"Payer_DL",
-    "product code":"matnr","unit":"meins","volume unit":"voleh","business group":"GK",
-    "territory":"Territory","sales zone":"Szone","date":"fkdat",
-    "fkdat":"fkdat"
+    "product code":"matnr","material code":"meins","volume unit":"voleh","business group":"GK",
+    "territory":"Territory","sales zone":"Szone","date":"fkdat","Dealer Code":"kunrg","dealer code":"kunrg",
+    "fkdat":"fkdat","invoice number":"vbeln", "sales org":"vkorg","sales organization":"vkorg","credit control area":"kkber"
 }
 MAPPING_STR = "\n".join(f'"{k}": "{v}"' for k, v in FIELD_MAPPINGS.items())
 
 KUSTO_SCHEMA = """
 .create table SAPSalesInfos (
-    Id: long, CreatedTime: datetime, ModifiedTime: datetime, bukrs: string,
-    spart: string, matkl: string, wgbez: string, matnr: string, vkorg: string,
-    kunrg: string, kunnr_sh: string, Payer_DL: string, vbeln: string, vkbur_c: string,
-    vkgrp_c: string, kukla: string, fkdat: datetime, posnr: string, arktx: string,
+    Id: long, CreatedTime: datetime, ModifiedTime: datetime, bukrs: long,
+    spart: string, matkl: string, wgbez: string, matnr: string, vkorg: long,
+    kunrg: long, kunnr_sh: long, Payer_DL: long, vbeln: long, vkbur_c: long,
+    vkgrp_c: string, kukla: long, fkdat: datetime, posnr: long, arktx: string,
     meins: string, voleh: string, Territory: string, Szone: string, cname: string,
-    spart_text: string, Revenue: real, gsber: string, fkimg: real, volum: real,
-    ktokd: string, vtweg: string, erzet_T: string, kkber: string, FKDAT_TEMP: string,
+    spart_text: string, Revenue: real, gsber: long, fkimg: long, volum: real,
+    ktokd: string, vtweg: string, erzet_T: string, kkber: long, FKDAT_TEMP: string,
     GK: string
 )
 """
