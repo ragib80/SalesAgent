@@ -14,7 +14,7 @@ import calendar
 from user_auth.models import UserDepoMap, UserZoneMap, UserTerritoryMap
 from typing import List, Dict
 from dataclasses import dataclass
-from agent.utils.conversation_history import fetch_history,pack_history_by_chars,build_history_prompt_block
+from agent.utils.conversation_history import fetch_history,pack_history_by_chars,build_history_prompt_block,_build_carryover_block
 import logging
 
 logger = logging.getLogger(__name__)
@@ -298,6 +298,33 @@ def build_schema_prompt_block() -> str:
 
 def join_system_blocks(blocks: List[str]) -> str:
     return "\n\n".join([b for b in blocks if b and b.strip()])
+
+
+# Holds the META from the most recent KQL generation (use wherever you need)
+LAST_KQL_META: dict = {}
+
+# // META {"dates":{...},"filters":[...]}
+_META_LINE_RE = re.compile(r'^\s*//\s*META\s+(\{.*?\})\s*$', re.M)
+
+def _extract_meta_line_and_strip(text: str) -> tuple[dict, str]:
+    """
+    Looks for a first-line comment:  // META {...}
+    Returns (meta_dict, text_without_that_line).
+    If not found or invalid JSON → ({}, original_text).
+    """
+    if not text:
+        return {}, text
+    m = _META_LINE_RE.search(text)
+    if not m:
+        return {}, text
+    try:
+        meta = json.loads(m.group(1))
+    except Exception:
+        meta = {}
+    # remove exactly that line
+    stripped = text[:m.start()] + text[m.end():]
+    return meta, stripped.strip()
+
 #end column data type
 
 @dataclass
@@ -354,6 +381,15 @@ def generate_kql(user_req: str,conversation_uuid: Optional[str] = None, strict=F
 
     prompt += build_schema_prompt_block()
 
+    prompt += """
+    OUTPUT FORMAT (must follow exactly):
+    - First line MUST be a one-line comment with compact JSON, then raw KQL only:
+    // META {"dates":{"start":"YYYY-MM-DD","end":"YYYY-MM-DD"},"filters":{"<column>":["<v1>","<v2>"]}}
+    - `dates` should reflect the actual StartDate/EndDate you set (or null if not used).
+    - `filters` must list only the columns and values you actually apply in WHERE, e.g.:
+    {"filters":{"spart_text":["Industrial Paints"], "cname":["Delwar Paint"], "gsber":["4110"]}}
+    """
+
 
 
     # NEW: Fetch + pack history (ORM/Redis; char-budget) and give the model usage rules
@@ -363,6 +399,10 @@ def generate_kql(user_req: str,conversation_uuid: Optional[str] = None, strict=F
         hist_block  = build_history_prompt_block(packed_hist)           # adds usage policy
         if hist_block:
             prompt += "\n\n" + hist_block
+        
+        carry_block = _build_carryover_block(packed_hist, user_req)
+        if carry_block:
+            prompt += "\n\n" + carry_block
     except Exception:
         pass
 
@@ -775,35 +815,44 @@ def generate_kql(user_req: str,conversation_uuid: Optional[str] = None, strict=F
 
         # 4. Build prompt for LLM
         prompt += f"""
-    Hard rule: Never use the `extend` operator anywhere in this query. Never use `extend` for period extraction. All period extractions (Month, Week, etc.) must be done only inside the `summarize by` clause. Do not use or create a `TimePeriod` field.
+            Hard rule: Never use the `extend` operator anywhere in this query. Never use `extend` for period extraction. All period extractions (Month, Week, etc.) must be done only inside the `summarize by` clause. Do not use or create a `TimePeriod` field.
 
-    Instruction:
-    - The user requested an average {period} sales analysis{f' by {dim_col}' if dim_col else ''} for the period {start_date} to {end_date}.
-    - Filter data between {start_date} and {end_date}{f' and by {dim_col}' if dim_col else ''}.
-    - Step 1: Summarize total revenue per {period} using `{period_func}` inside the `summarize by` clause.{f' Also include {dim_col} in the by clause if specified.' if dim_col else ''}
-    - Step 2: Calculate the average of these totals using `summarize {avg_col} = avg(TotalRevenue)`{f' by {dim_col}' if dim_col else ''}.
-    - After the first summarize, you may only use columns you have grouped by or calculated.
-    - Output columns: |{f' {dim_col} |' if dim_col else ''}{avg_col} |
-    - Example KQL:
+            Instruction:
+            - The user requested an average {period} sales analysis{f' by {dim_col}' if dim_col else ''} for the period {start_date} to {end_date}.
+            - Filter data between {start_date} and {end_date}{f' and by {dim_col}' if dim_col else ''}.
+            - Step 1: Summarize total revenue per {period} using `{period_func}` inside the `summarize by` clause.{f' Also include {dim_col} in the by clause if specified.' if dim_col else ''}
+            - Step 2: Calculate the average of these totals using `summarize {avg_col} = avg(TotalRevenue)`{f' by {dim_col}' if dim_col else ''}.
+            - After the first summarize, you may only use columns you have grouped by or calculated.
+            - Output columns: |{f' {dim_col} |' if dim_col else ''}{avg_col} |
+            - Example KQL:
 
-    let StartDate = datetime({start_date});
-    let EndDate = datetime({end_date});
-    SAPSalesInfos
-    | where fkdat >= StartDate and fkdat <= EndDate{f' and {dim_col} == "<value>"' if dim_col else ''}
-    | summarize TotalRevenue = sum(Revenue) by{f' {dim_col},' if dim_col else ''} {period_func}
-    | summarize {avg_col} = avg(TotalRevenue){f' by {dim_col}' if dim_col else ''}
-    """
+            let StartDate = datetime({start_date});
+            let EndDate = datetime({end_date});
+            SAPSalesInfos
+            | where fkdat >= StartDate and fkdat <= EndDate{f' and {dim_col} == "<value>"' if dim_col else ''}
+            | summarize TotalRevenue = sum(Revenue) by{f' {dim_col},' if dim_col else ''} {period_func}
+            | summarize {avg_col} = avg(TotalRevenue){f' by {dim_col}' if dim_col else ''}
+            """
 
         prompt += f"\n\nUser request: {user_req}"
 
         # 5. Call the LLM to generate KQL
-        kql_generated = llm.invoke([{"role": "user", "content": prompt}]).content
+        # kql_generated = llm.invoke([{"role": "user", "content": prompt}]).content
 
-        # 6. Clean up any forbidden 'extend' or 'TimePeriod'
+        # # 6. Clean up any forbidden 'extend' or 'TimePeriod'
+        # kql_generated = cleanup_kql(kql_generated)
+
+        # print("response from generate kql ", kql_generated)
+        # return _extract_kql(kql_generated)
+
+        kql_generated = llm.invoke([{"role": "user", "content": prompt}]).content
         kql_generated = cleanup_kql(kql_generated)
 
-        print("response from generate kql ", kql_generated)
-        return _extract_kql(kql_generated)
+        # NEW — capture META if present
+        global LAST_KQL_META
+        meta, kql_body = _extract_meta_line_and_strip(kql_generated)
+        LAST_KQL_META = meta
+        return _extract_kql(kql_body)
 
 
 
@@ -830,23 +879,40 @@ def generate_kql(user_req: str,conversation_uuid: Optional[str] = None, strict=F
     # Send the request to the LLM
     response = llm.invoke([{"role": "user", "content": prompt}]).content
 
+    meta, kql_body = _extract_meta_line_and_strip(response)
+    LAST_KQL_META = meta  # now  have {"dates": {...}, "filters": {...}}
+    #  do cleanups on kql_body 
+    kql_clean = kql_body.replace("bin(fkdat, 1mo)", "startofmonth(fkdat)")
+
+    if "summarize" in kql_clean and "by ," in kql_clean:
+        kql_clean = kql_clean.replace("by ,", "by TimePeriod")
+
+    if "summarize" in kql_clean and ", )" in kql_clean:
+        kql_clean = kql_clean.replace(", )", ", TimePeriod)")
+
+    if "summarize" in kql_clean and "by TimePeriod" not in kql_clean:
+        kql_clean = kql_clean.replace("summarize", "extend TimePeriod = startofmonth(fkdat)\n| summarize")
+
+    print("response from generate kql ", kql_clean)
+    return _extract_kql(kql_clean)
+
     # Explicitly replace `bin(fkdat, 1mo)` with `startofmonth(fkdat)` or appropriate time function if found
-    response = response.replace("bin(fkdat, 1mo)", "startofmonth(fkdat)")  # Replace bin with startofmonth
+    # response = response.replace("bin(fkdat, 1mo)", "startofmonth(fkdat)")  # Replace bin with startofmonth
 
-    # Ensure the query has the correct `extend` and `summarize` structure
-    if "summarize" in response and "by ," in response:  # Check if summarize doesn't have a valid grouping field
-        response = response.replace("by ,", "by TimePeriod")  # Insert a valid field for grouping
+    # # Ensure the query has the correct `extend` and `summarize` structure
+    # if "summarize" in response and "by ," in response:  # Check if summarize doesn't have a valid grouping field
+    #     response = response.replace("by ,", "by TimePeriod")  # Insert a valid field for grouping
 
-    # If `summarize` is missing the grouping field, add a default grouping by `TimePeriod`
-    if "summarize" in response and ", )" in response:
-        response = response.replace(", )", ", TimePeriod)")  # Correct the empty `summarize`
+    # # If `summarize` is missing the grouping field, add a default grouping by `TimePeriod`
+    # if "summarize" in response and ", )" in response:
+    #     response = response.replace(", )", ", TimePeriod)")  # Correct the empty `summarize`
 
-    # If the query doesn't contain a `TimePeriod` column, we add it dynamically (for time-based queries)
-    if "summarize" in response and "by TimePeriod" not in response:
-        response = response.replace("summarize", "extend TimePeriod = startofmonth(fkdat)\n| summarize")  # Ensure TimePeriod is used
+    # # If the query doesn't contain a `TimePeriod` column, we add it dynamically (for time-based queries)
+    # if "summarize" in response and "by TimePeriod" not in response:
+    #     response = response.replace("summarize", "extend TimePeriod = startofmonth(fkdat)\n| summarize")  # Ensure TimePeriod is used
     
-    print("response from generate kql ", response)
-    return _extract_kql(response)
+    # print("response from generate kql ", response)
+    # return _extract_kql(response)
 
 
 

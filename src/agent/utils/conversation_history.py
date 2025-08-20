@@ -6,7 +6,9 @@ from django.conf import settings
 # Import your models
 from conversation.models.conversation import Conversation
 from conversation.models.message import Message
-
+from collections import defaultdict
+import re, json
+# from agent.agent import MAPPING_STR
 # Tunables (override in Django settings if you want)
 HISTORY_CACHE_TTL         = getattr(settings, "HISTORY_CACHE_TTL", 300)       # seconds
 HISTORY_CACHE_MAX_MSGS    = getattr(settings, "HISTORY_CACHE_MAX_MSGS", 600)  # max msgs cached
@@ -22,6 +24,19 @@ def invalidate_history_cache(conv_uuid: str) -> None:
 _CODE_FENCE = re.compile(r"```[\s\S]*?```")
 _HEAVY_JSON = re.compile(r"\{[\s\S]{800,}\}")
 _HEAVY_ARR  = re.compile(r"\[[\s\S]{800,}\]")
+
+FIELD_MAPPINGS = {
+    "revenue":"Revenue","quantity":"fkimg","volume":"volum","Dealer":"cname",
+    "brand":"wgbez","product name":"arktx","product":"arktx","category":"matkl",
+    "division":"spart_text","company code":"bukrs","sales org":"vkorg",
+    "dist channel":"vtweg","distribution channel":"vtweg","business area":"gsber","depo":"gsber",
+    "credit control area":"kkber","Dealer group":"kukla","account group":"ktokd",
+    "sales group":"vkgrp_c","sales office":"vkbur_c","payer id":"Payer_DL",
+    "product code":"matnr","unit":"meins","volume unit":"voleh","business group":"GK",
+    "territory":"Territory","sales zone":"Szone","date":"fkdat",
+    "fkdat":"fkdat"
+}
+MAPPING_STR = "\n".join(f'"{k}": "{v}"' for k, v in FIELD_MAPPINGS.items())
 
 def _strip_heavy(text: str, max_len: int = 1200) -> str:
     if not text:
@@ -46,16 +61,37 @@ def fetch_history_from_db(conv_uuid: str, limit: Optional[int] = None) -> List[D
         qs = qs[:limit]
 
     history: List[Dict[str, str]] = []
+    # for r in qs:
+    #     sender = (r["sender"] or "").lower()
+    #     if sender == "user":
+    #         content = (r["text"] or "").strip()
+    #         role = "user"
+    #     else:
+    #         content = (r["ai_model_response"] or r["text"] or "").strip()
+    #         role = "assistant"
+    #     if content:
+    #         history.append({"role": role, "content": content})
     for r in qs:
         sender = (r["sender"] or "").lower()
         if sender == "user":
             content = (r["text"] or "").strip()
-            role = "user"
         else:
+            # prefer ai_model_response; then trim after Business Insight(s)
             content = (r["ai_model_response"] or r["text"] or "").strip()
-            role = "assistant"
+            content = _trim_after_business_insight(content)
+
         if content:
+            role = "user" if sender == "user" else "assistant"
             history.append({"role": role, "content": content})
+    # for r in qs:
+    #     sender = (r["sender"] or "").lower()
+    #     if sender == "user":
+    #         content = (r["text"] or "").strip()
+    #         history.append({"role": "user", "content": content})
+    #     else:
+    #         content = (r["ai_model_response"] or r["text"] or "").strip()
+    #         content = _trim_before_business_insights(content)  # <-- keep only the summary part
+    #         history.append({"role": "assistant", "content": content})
     return history
 
 def fetch_history(conv_uuid: Optional[str], use_cache: bool = True) -> List[Dict[str, str]]:
@@ -115,4 +151,120 @@ def build_history_prompt_block(history_msgs: List[Dict[str, str]]) -> str:
         "- Do not invent values; if information is still insufficient, prefer your existing defaults "
         "(e.g., last full month) rather than relying on partial history.\n"
         "- Never echo or summarize the history; use it silently to build the KQL.\n"
+    )
+
+
+_BI_MARK = re.compile(r'(^|\n)\s*#{0,6}\s*Business\s+Insights\s*:?', flags=re.I | re.M)
+
+def _trim_before_business_insights(text: str) -> str:
+    if not text:
+        return ""
+    m = _BI_MARK.search(text)
+    return text[:m.start()].rstrip() if m else text
+
+_BI_LINE = re.compile(
+    r'(?im)^[ \t]{0,3}(?:#{1,6}[ \t]*)?(?:\*\*|__)?[ \t]*Business[ \t]+Insights?(?:\*\*|__)?[ \t]*:?[ \t]*$'
+)
+
+def _trim_after_business_insight(text: str) -> str:
+    """
+    Keep everything BEFORE the first 'Business Insight'/'Business Insights' heading (any markdown style).
+    If not present, return the original text.
+    """
+    if not text:
+        return ""
+    m = _BI_LINE.search(text)
+    return text[:m.start()].rstrip() if m else text
+
+
+# --- 2) Build synonyms from your FIELD_MAPPINGS (no hard-coded columns)
+def _synonyms_by_col() -> Dict[str, List[str]]:
+    syns = defaultdict(set)
+    for k, v in MAPPING_STR.items():
+        syns[v].add(k.lower())
+    # add the column names themselves as synonyms
+    for col in list(syns.keys()):
+        syns[col].add(col.lower())
+    return {c: sorted(list(names)) for c, names in syns.items()}
+
+# --- 3) Extract carry-forward values from trimmed history
+_DATE_RE = re.compile(r'\bfrom\s+(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})\b', re.I)
+
+def _extract_carryover_values(history_msgs: List[Dict[str, str]]) -> Dict:
+    """
+    Scan newest→oldest; take the most recent mention of date range + any field:value hints.
+    Fields are detected as lines like 'Dealer: Delwar Paint' or 'gsber: 4110', using synonyms.
+    """
+    syns = _synonyms_by_col()
+    filters: Dict[str, str] = {}
+    sources: Dict[str, str] = {}
+    date_start = date_end = None
+
+    for m in reversed(history_msgs):  # newest first
+        text = m.get("content", "") or ""
+        # date range
+        if date_start is None:
+            dm = _DATE_RE.search(text)
+            if dm:
+                date_start, date_end = dm.group(1), dm.group(2)
+                sources["date_range"] = m.get("role", "assistant")
+
+        # fields
+        for col, names in syns.items():
+            if col in filters:
+                continue
+            pat = re.compile(r'\b(?:' + "|".join(map(re.escape, names)) + r')\s*[:=]\s*([^\n,;]+)', re.I)
+            mm = pat.search(text)
+            if mm:
+                val = mm.group(1).strip().strip('"').strip("'")
+                filters[col] = val
+                sources[col] = m.get("role", "assistant")
+
+        if date_start and len(filters) >= 12:
+            break
+
+    return {"date_start": date_start, "date_end": date_end, "filters": filters, "sources": sources}
+
+# --- 4) Decide what to actually reuse for THIS request, and produce a prompt block
+def _build_carryover_block(history_msgs: List[Dict[str, str]], current_user_req: str) -> str:
+    if not history_msgs:
+        return ""
+    carry = _extract_carryover_values(history_msgs)
+    syns = _synonyms_by_col()
+    req_l = (current_user_req or "").lower()
+
+    # If the user already provided a date range, don't reuse past one
+    has_dates_now = bool(_DATE_RE.search(req_l))
+    reuse_date = None if has_dates_now else (
+        {"start": carry["date_start"], "end": carry["date_end"]}
+        if carry["date_start"] and carry["date_end"] else None
+    )
+
+    # For fields: reuse only if current request doesn't mention any synonym for that column
+    reused_filters: Dict[str, str] = {}
+    for col, val in carry["filters"].items():
+        names = syns.get(col, [])
+        if not any(name in req_l for name in names):
+            reused_filters[col] = val
+
+    if not reuse_date and not reused_filters:
+        return ""
+
+    payload = {
+        "reuse_if_missing_in_current_request": True,
+        "date_range": reuse_date,
+        "filters": reused_filters,
+    }
+
+    # Human note listing what we're reusing
+    notes = []
+    if reuse_date:
+        notes.append(f"- date_range: {reuse_date['start']} .. {reuse_date['end']}")
+    for k, v in reused_filters.items():
+        notes.append(f"- {k}: {v}")
+
+    return (
+        "CARRIED_FORWARD_HINTS (JSON):\n"
+        + json.dumps(payload, ensure_ascii=False)
+        + ("\n\nREUSED VALUES (for transparency):\n" + "\n".join(notes) if notes else "")
     )
