@@ -1,5 +1,5 @@
 # --- History (ORM + Redis cache) + char-budget packer -----------------
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional,Any
 from django.core.cache import cache
 import re
 from django.conf import settings
@@ -8,6 +8,7 @@ from conversation.models.conversation import Conversation
 from conversation.models.message import Message
 from collections import defaultdict
 import re, json
+import calendar
 # from agent.agent import MAPPING_STR
 # Tunables (override in Django settings if you want)
 HISTORY_CACHE_TTL         = getattr(settings, "HISTORY_CACHE_TTL", 300)       # seconds
@@ -37,6 +38,37 @@ FIELD_MAPPINGS = {
     "fkdat":"fkdat"
 }
 MAPPING_STR = "\n".join(f'"{k}": "{v}"' for k, v in FIELD_MAPPINGS.items())
+
+GSBER_MAPPING = {
+    "Dhaka Factory": "1000",
+    "Chittagong Factory": "1100",
+    "Mirsarai Factory": "1200",
+    "Dhaka Sales": "4000",
+    "Chittagong Sales": "4010",
+    "Sylhet Sales": "4020",
+    "Comilla Sales": "4030",
+    "Rajshahi Sales": "4040",
+    "Bogra Sales": "4050",
+    "Khulna Sales": "4060",
+    "Mymensing Sales": "4070",
+    "Barishal Sales": "4080",
+    "Rangpur Sales": "4090",
+    "Feni Sales": "4100",
+    "Dhaka South": "4110",  # Mapping "Dhaka South" to gsber == '4110'
+    "Brahmanbaria Sales": "4120",
+    "Dhaka North": "4130",
+    "Test Business Area": "4500",
+    "PPHD": "5000",
+    "Berger Design Studio": "5010",
+    "Berger Training Institute": "5020",
+    "Berger Tech Consulting Ltd": "5100",
+    "Jenson & Nicholson BD Ltd": "6000",
+    "JNBL 2nd Unit Dhaka": "6100",
+    "Berger Becker Bangladesh": "7000",
+    "Berger Fosroc Limited": "8000",
+    "Corporate": "9000"
+}
+GSBER_MAPPING_STR = "\n".join(f'"{k}": "{v}"' for k, v in GSBER_MAPPING.items())
 
 def _strip_heavy(text: str, max_len: int = 1200) -> str:
     if not text:
@@ -148,6 +180,7 @@ def build_history_prompt_block(history_msgs: List[Dict[str, str]]) -> str:
         "- Use history only to resolve missing constraints (dates, areas, dealers, brands, products) "
         "when the current request does not specify them.\n"
         "- If the current request specifies a value, it OVERRIDES history.\n"
+        "- If no specific date range present in user prompt,try to get it from history.\n"
         "- Do not invent values; if information is still insufficient, prefer your existing defaults "
         "(e.g., last full month) rather than relying on partial history.\n"
         "- Never echo or summarize the history; use it silently to build the KQL.\n"
@@ -268,3 +301,78 @@ def _build_carryover_block(history_msgs: List[Dict[str, str]], current_user_req:
         + json.dumps(payload, ensure_ascii=False)
         + ("\n\nREUSED VALUES (for transparency):\n" + "\n".join(notes) if notes else "")
     )
+
+
+#new
+
+
+
+
+# Reverse map for gsber code -> name
+_GSBER_REV: Dict[str, str] = {v: k for k, v in GSBER_MAPPING.items()}
+
+def _friendly_col_name(col: str) -> str:
+    """Use FIELD_MAPPINGS to produce a nice display label for a column."""
+    aliases = [k for k, v in FIELD_MAPPINGS.items() if v == col]
+    if not aliases:
+        return col
+    name = min(aliases, key=len).strip()
+    return " ".join(w.capitalize() for w in name.split())
+
+def _format_month_range(start: Optional[str], end: Optional[str]) -> Optional[str]:
+    """Return 'June 2025' or '2025-06-01 to 2025-06-30' if not same month."""
+    if not start or not end:
+        return None
+    try:
+        y1, m1, d1 = map(int, start.split("-"))
+        y2, m2, d2 = map(int, end.split("-"))
+        if y1 == y2 and m1 == m2:
+            month_name = calendar.month_name[m1]
+            return f"{month_name} {y1}"
+        return f"{start} to {end}"
+    except Exception:
+        return f"{start} to {end}"
+
+def _resolve_gsber_values(vals: List[str]) -> List[str]:
+    """Map gsber codes to human names when possible, keep originals otherwise."""
+    out = []
+    for v in vals or []:
+        v_str = str(v).strip()
+        human = _GSBER_REV.get(v_str)
+        out.append(human if human else v_str)
+    return out
+
+def build_applied_context_block(meta: Dict[str, Any]) -> str:
+    """
+    Build a small human-readable block from LAST_KQL_META:
+      - Dates (pretty)
+      - Filters: friendly names; gsber -> Depo/Sales Office human name(s)
+    """
+    if not meta or not isinstance(meta, dict):
+        return ""
+
+    dates = meta.get("dates") or {}
+    # be robust to accidental key split like 'en d'
+    end_val = (dates.get("end") or dates.get("en d") or dates.get("to"))
+    start_val = (dates.get("start") or dates.get("from"))
+    period_text = _format_month_range(start_val, end_val)
+
+    filters: Dict[str, List[str]] = {}
+    for col, values in (meta.get("filters") or {}).items():
+        vals = list(values or [])
+        if col == "gsber":
+            vals = _resolve_gsber_values(vals)
+            label = "Depo/Sales Office"
+        else:
+            label = _friendly_col_name(col)
+        filters[label] = vals
+
+    lines = []
+    if period_text:
+        lines.append(f"- Period: {period_text}")
+    for label, vals in filters.items():
+        if vals:
+            joined = ", ".join(vals)
+            lines.append(f"- {label}: {joined}")
+
+    return ("APPLIED CONTEXT (from KQL):\n" + "\n".join(lines)) if lines else ""

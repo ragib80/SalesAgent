@@ -15,7 +15,7 @@ import calendar
 from user_auth.models import UserDepoMap, UserZoneMap, UserTerritoryMap
 from typing import List, Dict
 from dataclasses import dataclass
-from agent.utils.conversation_history import fetch_history,pack_history_by_chars,build_history_prompt_block,_build_carryover_block
+from agent.utils.conversation_history import fetch_history,pack_history_by_chars,build_history_prompt_block,_build_carryover_block,build_applied_context_block
 import logging
 
 logger = logging.getLogger(__name__)
@@ -120,12 +120,27 @@ GSBER_MAPPING = {
 }
 GSBER_MAPPING_STR = "\n".join(f'"{k}": "{v}"' for k, v in GSBER_MAPPING.items())
 
+# SYSTEM_PROMPT_KQL = (
+#     "You are an expert Kusto (ADX) analyst for SAP sales data.\n"
+#     "Output **only raw KQL**, no markdown or commentary.\n"
+#     "Rules:\n"
+#     "• Use the table SAPSalesInfos and columns below.\n"
+#     "• If a date range is required, declare:\n"
+#     "      let StartDate = datetime(YYYY-MM-DD);\n"
+#     "      let EndDate   = datetime(YYYY-MM-DD);\n"
+ 
+#     "• End every statement with a semicolon.\n"
+#     "• Provide real line-breaks (no \\n literals).\n\n"
+#     "Business → column mapping:\n" + MAPPING_STR +
+#     "\n\nDepo/Business Area (gsber) → column Value mapping:\n" + GSBER_MAPPING_STR +
+#     "\n\nTable schema:\n" + KUSTO_SCHEMA
+# )
 SYSTEM_PROMPT_KQL = (
     "You are an expert Kusto (ADX) analyst for SAP sales data.\n"
     "Output **only raw KQL**, no markdown or commentary.\n"
     "Rules:\n"
     "• Use the table SAPSalesInfos and columns below.\n"
-    "• If a date range is required, declare:\n"
+    "• If a date range is optional  , declare:\n"
     "      let StartDate = datetime(YYYY-MM-DD);\n"
     "      let EndDate   = datetime(YYYY-MM-DD);\n"
  
@@ -444,7 +459,7 @@ def generate_kql(user_req: str,conversation_uuid: Optional[str] = None, strict=F
     #user access 
     _scope = None
     try:
-        from core.middleware.current_user import get_current_chat_user  # thread-local accessor
+        from core.middleware.current_user import get_current_chat_user 
         # from salesbot.utils.access_scope import get_user_area_scope
         _user = get_current_chat_user()
         print(">>> agent current_user:", _user, "| id:", getattr(_user, "id", None))
@@ -873,6 +888,7 @@ def generate_kql(user_req: str,conversation_uuid: Optional[str] = None, strict=F
         global LAST_KQL_META
         meta, kql_body = _extract_meta_line_and_strip(kql_generated)
         LAST_KQL_META = meta
+  
         return _extract_kql(kql_body)
 
 
@@ -903,6 +919,7 @@ def generate_kql(user_req: str,conversation_uuid: Optional[str] = None, strict=F
     meta, kql_body = _extract_meta_line_and_strip(response)
     LAST_KQL_META = meta  # now  have {"dates": {...}, "filters": {...}}
     #  do cleanups on kql_body 
+    print("-------------------------------  LAST_KQL_META    ------------------------",LAST_KQL_META)
     kql_clean = kql_body.replace("bin(fkdat, 1mo)", "startofmonth(fkdat)")
 
     if "summarize" in kql_clean and "by ," in kql_clean:
@@ -1004,15 +1021,18 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
     print("user_prompt:", user_prompt)
     logger.debug("This is a debug message")
     start_date, end_date = detect_date_filter_using_llm(user_prompt)
+
     if start_date and end_date:
         start_date_str = start_date.strftime("%Y-%m-%d")
         end_date_str   = end_date.strftime("%Y-%m-%d")
         user_prompt   += f" from {start_date_str} to {end_date_str}"
   
-    else:
-        user_prompt   += " Please specify a date range for the data (e.g., from 2025-01-01 to 2025-12-31)."
-    print("date range :", start_date)
-    print("date range :", end_date_str)
+    # else:
+    #     user_prompt   += " Please specify a date range for the data (e.g., from 2025-01-01 to 2025-12-31)."
+    # print("date range :", start_date)
+    # print("date range :", end_date_str)
+
+
     # -- [unchanged] raw KQL generation + fixes
     kql = generate_kql(user_prompt,conversation_id)
     kql = format_dates(kql)
@@ -1073,6 +1093,9 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
     # 4) Safe JSON serialization
     result_json = json.dumps(result_data, default=str, indent=2)
     print("json.dumps result_data:", result_json)
+    from_agent_meta = build_applied_context_block(LAST_KQL_META)
+
+
 
     # —————————————————————————
     # Resume  original LLM-prompting logic
@@ -1080,12 +1103,19 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
     result_prompt = (
         f"User asked: {user_prompt}\n\n"
         f"Context Data:\n{result_json}\n\n"
-        "Based on the query results, format the output in bulleted format. "
-         "if you found gsber, then it's human readable name is Depo/Sales Office.so if you find gsber use Depo/Sales Office"
-        "If the result is numerical or comparative, bullet points for proper indication. If it's categorical or simple, use bullet points. "
-        "After formatting, provide a concise business insight related to the data, such as trends, patterns, or key takeaways. Amount is in BDT."
-        "If Needed, Based on the Context Data give meaningful business-related suggestions such as increasing sales, revenue."
+        + "META_DATA :" + (from_agent_meta + "\n\n" if from_agent_meta else "") 
+        +  "RENDERING RULES for META_DATA:\n"
+        +"- Use META_DATA to understand which dates/filters were applied.\n"
+        +"- SHOW ONLY the subset of META_DATA that the user explicitly asked for in this prompt, "
+        +"or that is clearly implied by the prompt (e.g., “same division” implies the division in META). "
+        "Hide unrelated filters.\n"
+        +"Based on the query results, format the output in bulleted format. "
+        + "if you found gsber, then it's human readable name is Depo/Sales Office.so if you find gsber use Depo/Sales Office"
+        +"If the result is numerical or comparative, bullet points for proper indication. If it's categorical or simple, use bullet points. "
+        +"After formatting, provide a concise business insight related to the data, such as trends, patterns, or key takeaways. Amount is in BDT."
+        +"If Needed, Based on the Context Data give meaningful business-related suggestions such as increasing sales, revenue."
     )
+    print("final prompt",result_prompt)
     formatted_result = llm.invoke([{"role": "user", "content": result_prompt}]).content
     return formatted_result
 
