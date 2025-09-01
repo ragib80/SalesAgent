@@ -80,7 +80,7 @@ def _strip_heavy(text: str, max_len: int = 1200) -> str:
     return (text[:max_len] + "…") if len(text) > max_len else text
 
 def fetch_history_from_db(conv_uuid: str, limit: Optional[int] = None) -> List[Dict[str, str]]:
-    # Ensure conversation exists and is active (uses your ActiveManager)
+    # Ensure conversation exists and is active
     Conversation.active.get(uuid=conv_uuid)
 
     qs = (
@@ -93,38 +93,24 @@ def fetch_history_from_db(conv_uuid: str, limit: Optional[int] = None) -> List[D
         qs = qs[:limit]
 
     history: List[Dict[str, str]] = []
-    # for r in qs:
-    #     sender = (r["sender"] or "").lower()
-    #     if sender == "user":
-    #         content = (r["text"] or "").strip()
-    #         role = "user"
-    #     else:
-    #         content = (r["ai_model_response"] or r["text"] or "").strip()
-    #         role = "assistant"
-    #     if content:
-    #         history.append({"role": role, "content": content})
     for r in qs:
         sender = (r["sender"] or "").lower()
         if sender == "user":
             content = (r["text"] or "").strip()
+            # (optional) also trim if a pasted reply contained BI:
+            content = _trim_after_business_insight(content)
+            role = "user"
         else:
             # prefer ai_model_response; then trim after Business Insight(s)
             content = (r["ai_model_response"] or r["text"] or "").strip()
             content = _trim_after_business_insight(content)
+            role = "assistant"
 
         if content:
-            role = "user" if sender == "user" else "assistant"
             history.append({"role": role, "content": content})
-    # for r in qs:
-    #     sender = (r["sender"] or "").lower()
-    #     if sender == "user":
-    #         content = (r["text"] or "").strip()
-    #         history.append({"role": "user", "content": content})
-    #     else:
-    #         content = (r["ai_model_response"] or r["text"] or "").strip()
-    #         content = _trim_before_business_insights(content)  # <-- keep only the summary part
-    #         history.append({"role": "assistant", "content": content})
+
     return history
+
 
 def fetch_history(conv_uuid: Optional[str], use_cache: bool = True) -> List[Dict[str, str]]:
     if not conv_uuid:
@@ -213,12 +199,14 @@ def _trim_after_business_insight(text: str) -> str:
 # --- 2) Build synonyms from your FIELD_MAPPINGS (no hard-coded columns)
 def _synonyms_by_col() -> Dict[str, List[str]]:
     syns = defaultdict(set)
-    for k, v in MAPPING_STR.items():
+    # Use the DICT, not MAPPING_STR:
+    for k, v in FIELD_MAPPINGS.items():
         syns[v].add(k.lower())
     # add the column names themselves as synonyms
     for col in list(syns.keys()):
         syns[col].add(col.lower())
     return {c: sorted(list(names)) for c, names in syns.items()}
+
 
 # --- 3) Extract carry-forward values from trimmed history
 _DATE_RE = re.compile(r'\bfrom\s+(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})\b', re.I)
@@ -376,3 +364,43 @@ def build_applied_context_block(meta: Dict[str, Any]) -> str:
             lines.append(f"- {label}: {joined}")
 
     return ("APPLIED CONTEXT (from KQL):\n" + "\n".join(lines)) if lines else ""
+
+def get_messages_before_business_insights(conv_uuid: str, limit: Optional[int] = None) -> List[Dict[str, str]]:
+    """
+    Returns [{role, content}, ...] for a conversation, trimming everything
+    after the first 'Business Insight'/'Business Insights' heading in each message.
+    Oldest → newest. Respects `limit`.
+    """
+    return fetch_history_from_db(conv_uuid, limit=limit)
+
+# conversation_history.py
+
+def get_last_n_history(conv_uuid: Optional[str], n: int = 20) -> List[Dict[str, str]]:
+    """
+    Returns the last N messages for a conversation (already trimmed of heavy blocks
+    and assistant 'Business Insights' tails via fetch_history_from_db).
+    Oldest → newest.
+    """
+    if not conv_uuid:
+        return []
+    # Use cached full history, then slice safely
+    full = fetch_history(conv_uuid, use_cache=True)  # oldest → newest
+    if not full:
+        return []
+    return full[-n:]
+
+def build_context_decision_rules() -> str:
+    """
+    A small, consistent instruction block that tells the LLM how to treat history:
+    reuse when missing, override when present, or start fresh when clearly new.
+    """
+    return (
+        "CONTEXT DECISION RULES:\n"
+        "- Treat this like ChatGPT follow-ups.\n"
+        "- If the current request omits filters (division, brand, dealer, area, date), "
+        "you MAY reuse the latest values from history when they make sense.\n"
+        "- If the current request specifies any value, it OVERRIDES history.\n"
+        "- If the current request clearly starts a new topic (e.g., different metric/dimension), "
+        "ignore unrelated historic filters.\n"
+        "- Always reflect what you actually applied in the first-line META JSON.\n"
+    )

@@ -15,7 +15,7 @@ import calendar
 from user_auth.models import UserDepoMap, UserZoneMap, UserTerritoryMap
 from typing import List, Dict
 from dataclasses import dataclass
-from agent.utils.conversation_history import fetch_history,pack_history_by_chars,build_history_prompt_block,_build_carryover_block,build_applied_context_block
+from agent.utils.conversation_history import fetch_history,pack_history_by_chars,build_history_prompt_block,_build_carryover_block,build_applied_context_block,get_last_n_history, build_context_decision_rules
 import logging
 
 logger = logging.getLogger(__name__)
@@ -428,21 +428,23 @@ def generate_kql(user_req: str,conversation_uuid: Optional[str] = None, strict=F
 
 
 
-    # NEW: Fetch + pack history (ORM/Redis; char-budget) and give the model usage rules
+    # --- NEW: strictly “last 20” messages, with a soft char budget to avoid overruns ---
     try:
-        full_hist   = fetch_history(conversation_uuid, use_cache=True)   # oldest→newest
-        packed_hist = pack_history_by_chars(full_hist)                  # trims heavy blocks / caps chars
-        hist_block  = build_history_prompt_block(packed_hist)           # adds usage policy
+        last20      = get_last_n_history(conversation_uuid, n=20)   # oldest → newest
+        # optional: still respect a char budget (e.g., 10k) to be safe
+        packed_hist = pack_history_by_chars(last20)                 # trims code/json blocks
+        hist_block  = build_history_prompt_block(packed_hist)       # adds usage policy header
         if hist_block:
             prompt += "\n\n" + hist_block
-        
-        carry_block = _build_carryover_block(packed_hist, user_req)
+            prompt += "\n\n" + build_context_decision_rules()
+
+        carry_block = _build_carryover_block(packed_hist, user_req) # JSON of only-missing bits
         if carry_block:
             prompt += "\n\n" + carry_block
     except Exception:
         pass
 
-    print("-------------------------------------", prompt)
+    print("-------------------------------dasdsasadsadsadsad------", prompt)
     
     # types = get_schema_types_from_static()
     # STRING_COLUMNS, NUMERIC_COLUMNS, DATETIME_COLUMNS = split_types(types)
