@@ -15,7 +15,7 @@ import calendar
 from user_auth.models import UserDepoMap, UserZoneMap, UserTerritoryMap
 from typing import List, Dict
 from dataclasses import dataclass
-from agent.utils.conversation_history import fetch_history,pack_history_by_chars,build_history_prompt_block,_build_carryover_block,build_applied_context_block,get_last_n_history, build_context_decision_rules
+from agent.utils.conversation_history import fetch_history,pack_history_by_chars,build_history_prompt_block,_build_carryover_block,build_applied_context_block,get_last_n_history, build_context_decision_rules,get_latest_meta,save_meta,get_latest_message_id
 import logging
 
 logger = logging.getLogger(__name__)
@@ -409,9 +409,52 @@ def cleanup_kql(kql: str) -> str:
     kql = re.sub(r'TimePeriod', '', kql)
     return kql
 
+# agent.py
+
+# Helper method to build the LLM prompt with metadata
+def build_llm_prompt(user_req: str, conversation_id: str):
+    """
+    Build the LLM prompt dynamically, including metadata from previous conversation turns.
+    """
+    prompt = SYSTEM_PROMPT_KQL
+    
+    # Fetch the latest 20 meta data
+    meta_data = get_latest_meta(conversation_id)
+    meta_block = ""
+    for meta in meta_data:
+        if meta.meta_json:
+            meta_block += f"\n\n{json.dumps(meta.meta_json)}"
+
+    if meta_block:
+        prompt += f"\n\nPrevious Context: {meta_block}"
+
+    # Add the user request to the prompt
+    prompt += f"\n\nUser request: {user_req}"
+
+    # Add more logic here if necessary for specific user query types
+
+    return prompt
+
+
+# Helper method to save the metadata for the current conversation turn
+def save_metadata_for_current_turn(conversation_id, message_id, new_meta):
+    """
+    Save the metadata for the current conversation turn.
+    """
+    save_meta(conversation_id, message_id, new_meta)
+
+
 def generate_kql(user_req: str,conversation_uuid: Optional[str] = None, strict=False) -> str:
     # Start with the base prompt for LLM
     prompt = SYSTEM_PROMPT_KQL
+    meta_data = get_latest_meta(conversation_uuid)
+    meta_block = ""
+    for meta in meta_data:
+        if meta.meta_json:
+            meta_block += f"\n\n{json.dumps(meta.meta_json)}"
+
+    if meta_block:
+        prompt += f"\n\nPrevious Context: {meta_block}"
     if strict:
         prompt += "\n\nSTRICT MODE: previous query failed. Return corrected KQL only."
 
@@ -922,7 +965,12 @@ def generate_kql(user_req: str,conversation_uuid: Optional[str] = None, strict=F
     LAST_KQL_META = meta  # now  have {"dates": {...}, "filters": {...}}
     #  do cleanups on kql_body 
     print("-------------------------------  LAST_KQL_META    ------------------------",LAST_KQL_META)
+    print("conversation_uuid  ",conversation_uuid)
+    message_id = get_latest_message_id(conversation_uuid)
+    print("--------------message_id---------------",message_id)
+    save_meta(conversation_uuid, message_id, meta)
     kql_clean = kql_body.replace("bin(fkdat, 1mo)", "startofmonth(fkdat)")
+    
 
     if "summarize" in kql_clean and "by ," in kql_clean:
         kql_clean = kql_clean.replace("by ,", "by TimePeriod")
@@ -1102,21 +1150,25 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
     # —————————————————————————
     # Resume  original LLM-prompting logic
     # —————————————————————————
-    result_prompt = (
-        f"User asked: {user_prompt}\n\n"
-        f"Context Data:\n{result_json}\n\n"
-        + "META_DATA :" + (from_agent_meta + "\n\n" if from_agent_meta else "") 
-        +  "RENDERING RULES for META_DATA:\n"
-        +"- Use META_DATA to understand which dates/filters were applied.\n"
-        +"- SHOW ONLY the subset of META_DATA that the user explicitly asked for in this prompt, "
-        +"or that is clearly implied by the prompt (e.g., “same division” implies the division in META). "
-        "Hide unrelated filters.\n"
-        +"Based on the query results, format the output in bulleted format. "
-        + "if you found gsber, then it's human readable name is Depo/Sales Office.so if you find gsber use Depo/Sales Office"
-        +"If the result is numerical or comparative, bullet points for proper indication. If it's categorical or simple, use bullet points. "
-        +"After formatting, provide a concise business insight related to the data, such as trends, patterns, or key takeaways. Amount is in BDT."
-        +"If Needed, Based on the Context Data give meaningful business-related suggestions such as increasing sales, revenue."
-    )
+    # result_prompt = (
+    #     f"User asked: {user_prompt}\n\n"
+    #     f"Context Data:\n{result_json}\n\n"
+    #     + "META_DATA :" + (from_agent_meta + "\n\n" if from_agent_meta else "") 
+    #     +  "RENDERING RULES for META_DATA:\n"
+    #     +"- Use META_DATA to understand which dates/filters were applied.\n"
+    #     +"- SHOW ONLY the subset of META_DATA that the user explicitly asked for in this prompt, "
+    #     +"or that is clearly implied by the prompt (e.g., “same division” implies the division in META). "
+    #     "Hide unrelated filters.\n"
+    #     +"Based on the query results, format the output in bulleted format. "
+    #     + "if you found gsber, then it's human readable name is Depo/Sales Office.so if you find gsber use Depo/Sales Office"
+    #     +"If the result is numerical or comparative, bullet points for proper indication. If it's categorical or simple, use bullet points. "
+    #     +"After formatting, provide a concise business insight related to the data, such as trends, patterns, or key takeaways. Amount is in BDT."
+    #     +"If Needed, Based on the Context Data give meaningful business-related suggestions such as increasing sales, revenue."
+    # )
+
+    result_prompt = build_llm_prompt(user_prompt, conversation_id)  # Get the LLM prompt
+    result_prompt += f"\n\nContext Data:\n{result_json}\n\n{from_agent_meta}"
+    
     print("final prompt",result_prompt)
     formatted_result = llm.invoke([{"role": "user", "content": result_prompt}]).content
     return formatted_result

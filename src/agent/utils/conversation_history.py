@@ -6,9 +6,13 @@ from django.conf import settings
 # Import your models
 from conversation.models.conversation import Conversation
 from conversation.models.message import Message
+from conversation.models.message_meta import MessageMeta
 from collections import defaultdict
 import re, json
 import calendar
+import logging
+
+logger = logging.getLogger(__name__)
 # from agent.agent import MAPPING_STR
 # Tunables (override in Django settings if you want)
 HISTORY_CACHE_TTL         = getattr(settings, "HISTORY_CACHE_TTL", 300)       # seconds
@@ -404,3 +408,76 @@ def build_context_decision_rules() -> str:
         "ignore unrelated historic filters.\n"
         "- Always reflect what you actually applied in the first-line META JSON.\n"
     )
+
+
+# Helper functions to store and retrieve metadata
+
+
+    
+# Function to save metadata to the database
+def save_meta(conversation_id: str, message_id: str, meta_json: dict):
+    # Check if new metadata differs from the last stored metadata
+    print("----------------conversation_id from save meta ",conversation_id)
+    print("----------------message_id from save meta ",message_id)
+    get_conversation_id=  Conversation.objects.filter(uuid=conversation_id).order_by('-created_at').first()
+    print("----------------get_conversation_id from save meta ",get_conversation_id)
+    if should_insert_meta(meta_json, get_conversation_id):
+        MessageMeta.objects.create(
+            conversation_id=get_conversation_id.id,
+            message_id=495,
+            meta_json=meta_json,
+            role="bot"  # Assuming this meta is always from the bot, adjust if needed
+        )
+
+def get_latest_message_id(conversation_uuid: str) -> Optional[int]:
+    """
+    Fetch the ID of the most recent message in the specified conversation.
+
+    :param conversation_uuid: The unique identifier for the conversation.
+    :return: The ID of the most recent message in the conversation, or None if no messages exist.
+    """
+    try:
+        # Assuming 'Message' is the model where messages are stored, and 'conversation' is the foreign key to Conversation
+        latest_message = Message.objects.filter(conversation__uuid=conversation_uuid).order_by('-created_at').first()
+        
+        # If there's a message, return its ID
+        if latest_message:
+            return latest_message.id
+        else:
+            return None
+    except Exception as e:
+        # Handle any potential errors (e.g., database issues)
+        logger.error(f"Error fetching latest message ID for conversation {conversation_uuid}: {str(e)}")
+        return None
+
+
+def should_insert_meta(new_meta, conversation_id):
+    """
+    Check if the new metadata should be inserted based on the latest metadata in the conversation.
+    """
+    last_meta = MessageMeta.objects.filter(conversation_id=conversation_id).order_by('-created_at').first()
+
+    if not last_meta:
+        return True  # No previous metadata, insert this one
+
+    # Compare new meta with last meta
+    if json.dumps(last_meta.meta_json) != json.dumps(new_meta):
+        return True  # New meta, insert this one
+    
+    return False  # No change in metadata
+
+
+def get_latest_meta(conversation_uuid: str, limit: int = 20) -> list:
+    """
+    Retrieve the latest metadata for a specific conversation identified by `conversation_uuid`.
+    Assumes `conversation_uuid` is a GUID (string).
+    """
+    if conversation_uuid:
+        try:
+            # Assuming the 'conversation' field in MessageMeta is a ForeignKey to the Conversation model
+            conversation = Conversation.objects.get(uuid=conversation_uuid)
+            return MessageMeta.objects.filter(conversation=conversation).order_by('-created_at')[:20]
+        except Conversation.DoesNotExist:
+            return []
+    return []
+
