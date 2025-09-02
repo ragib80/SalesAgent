@@ -476,7 +476,7 @@ def get_latest_meta(conversation_uuid: str, limit: int = 20) -> list:
         try:
             # Assuming the 'conversation' field in MessageMeta is a ForeignKey to the Conversation model
             conversation = Conversation.objects.get(uuid=conversation_uuid)
-            return MessageMeta.objects.filter(conversation=conversation).order_by('-created_at')[:20]
+            return MessageMeta.objects.filter(conversation=conversation).order_by('created_at')[:20]
         except Conversation.DoesNotExist:
             return []
     return []
