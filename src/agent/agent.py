@@ -1,4 +1,4 @@
-# agent.py ─ Simplified SAP Sales bot for Azure ADX (SAPSalesInfos)
+# agent.py
 from __future__ import annotations
 import os, re, json
 from functools import lru_cache
