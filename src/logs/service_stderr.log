@@ -1,0 +1,68 @@
+﻿[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on https://127.0.0.1:9000
+ * Running on https://172.16.0.5:9000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 258-321-226
+127.0.0.1 - - [10/Sep/2025 15:17:39] "GET /login/ HTTP/1.1" 200 -
+172.16.0.5 - - [10/Sep/2025 15:17:39] "GET / HTTP/1.1" 200 -
+192.168.22.139 - - [10/Sep/2025 15:17:39] "GET / HTTP/1.1" 200 -
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+192.168.22.139 - - [10/Sep/2025 15:17:39] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+192.168.22.139 - - [10/Sep/2025 15:17:42] "GET /login/ HTTP/1.1" 200 -
+172.16.0.5 - - [10/Sep/2025 15:17:49] "GET / HTTP/1.1" 200 -
+172.16.0.5 - - [10/Sep/2025 15:17:52] "GET /login/ HTTP/1.1" 200 -
+Skipping NTLM (disable_ntlm=True, md4_ok=False)
+Skipping NTLM (disable_ntlm=True, md4_ok=False)
+127.0.0.1 - - [10/Sep/2025 15:18:23] "GET /login/ HTTP/1.1" 200 -
+127.0.0.1 - - [10/Sep/2025 15:18:25] "GET /login/ HTTP/1.1" 200 -
+127.0.0.1 - - [10/Sep/2025 15:18:25] "GET /login/ HTTP/1.1" 200 -
+127.0.0.1 - - [10/Sep/2025 15:18:25] "GET /login/ HTTP/1.1" 200 -
+172.16.0.5 - - [10/Sep/2025 15:18:29] "GET /login/ HTTP/1.1" 200 -
+192.168.22.139 - - [10/Sep/2025 15:18:31] "POST /api/user/token/ HTTP/1.1" 200 -
+192.168.22.139 - - [10/Sep/2025 15:18:31] "GET /api/sales/index/ HTTP/1.1" 200 -
+192.168.22.139 - - [10/Sep/2025 15:18:32] "GET /api/conversations/?page=1 HTTP/1.1" 200 -
+172.16.0.5 - - [10/Sep/2025 15:18:42] "GET /login/ HTTP/1.1" 200 -
+172.16.0.5 - - [10/Sep/2025 15:18:45] "GET /login/ HTTP/1.1" 200 -
+192.168.22.139 - - [10/Sep/2025 15:18:46] "GET /api/conversations/6723564e-0ed4-483d-bfa0-901b5ed8574c/messages/?page=1 HTTP/1.1" 200 -
+192.168.22.139 - - [10/Sep/2025 15:18:48] "GET /api/conversations/e54ba235-1b55-485c-8234-2af4b5aa9a65/messages/?page=1 HTTP/1.1" 200 -
+192.168.22.139 - - [10/Sep/2025 15:18:48] "GET /api/conversations/6723564e-0ed4-483d-bfa0-901b5ed8574c/messages/?page=1 HTTP/1.1" 200 -
+192.168.22.139 - - [10/Sep/2025 15:20:02] "GET / HTTP/1.1" 200 -
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+192.168.22.139 - - [10/Sep/2025 15:20:03] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+192.168.22.139 - - [10/Sep/2025 15:20:05] "GET /login/ HTTP/1.1" 200 -
+192.168.22.139 - - [10/Sep/2025 15:24:19] "GET /login/ HTTP/1.1" 200 -
+192.168.22.139 - - [10/Sep/2025 15:27:11] "GET /login/ HTTP/1.1" 200 -
+Skipping NTLM (disable_ntlm=True, md4_ok=False)
+Skipping NTLM (disable_ntlm=True, md4_ok=False)
+192.168.22.139 - - [10/Sep/2025 15:34:56] "POST /api/user/token/ HTTP/1.1" 200 -
+192.168.22.139 - - [10/Sep/2025 15:34:57] "GET /api/sales/index/ HTTP/1.1" 200 -
+192.168.22.139 - - [10/Sep/2025 15:34:57] "GET /api/conversations/?page=1 HTTP/1.1" 200 -
+192.168.22.139 - - [10/Sep/2025 17:39:54] "GET /api/sales/index/ HTTP/1.1" 200 -
+192.168.22.139 - - [10/Sep/2025 17:39:55] "GET /api/conversations/?page=1 HTTP/1.1" 200 -
+192.168.22.139 - - [10/Sep/2025 17:44:39] "GET /api/conversations/6723564e-0ed4-483d-bfa0-901b5ed8574c/messages/?page=1 HTTP/1.1" 200 -
+192.168.22.139 - - [10/Sep/2025 17:50:08] "GET /api/sales/index/ HTTP/1.1" 200 -
+192.168.22.139 - - [10/Sep/2025 17:50:08] "GET /api/conversations/?page=1 HTTP/1.1" 200 -
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+AzureCliCredential.get_token failed: Failed to invoke the Azure CLI
+192.168.22.139 - - [10/Sep/2025 18:14:16] "POST /api/sales/query/existing/6723564e-0ed4-483d-bfa0-901b5ed8574c/ HTTP/1.1" 200 -
+192.168.22.139 - - [10/Sep/2025 18:14:16] "GET /api/conversations/6723564e-0ed4-483d-bfa0-901b5ed8574c/messages/?page=1 HTTP/1.1" 200 -
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+AzureCliCredential.get_token failed: Please run 'az login' to set up an account
+192.168.22.139 - - [10/Sep/2025 18:15:37] "POST /api/sales/query/existing/6723564e-0ed4-483d-bfa0-901b5ed8574c/ HTTP/1.1" 200 -
+192.168.22.139 - - [10/Sep/2025 18:15:37] "GET /api/conversations/6723564e-0ed4-483d-bfa0-901b5ed8574c/messages/?page=1 HTTP/1.1" 200 -
+192.168.22.139 - - [10/Sep/2025 18:16:42] "GET /api/sales/index/ HTTP/1.1" 200 -
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+AzureCliCredential.get_token failed: Please run 'az login' to set up an account
+192.168.22.139 - - [10/Sep/2025 18:17:02] "POST /api/sales/query/existing/6723564e-0ed4-483d-bfa0-901b5ed8574c/ HTTP/1.1" 200 -
+192.168.22.139 - - [10/Sep/2025 18:17:03] "GET /api/conversations/6723564e-0ed4-483d-bfa0-901b5ed8574c/messages/?page=1 HTTP/1.1" 200 -

@@ -36,7 +36,7 @@ AUTH_DEV_BYPASS_AD = False
 
 ALLOWED_HOSTS = ['172.16.0.5',
                  '127.0.0.1']
-
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Application definition
 
@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'user_auth',
     'rest_framework_simplejwt.token_blacklist',
     'django_python3_ldap',
+    'django_extensions',
 ]
 
 MIDDLEWARE = [

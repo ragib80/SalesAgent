@@ -7,10 +7,7 @@ from conversation.models import Conversation, Message, MessageMeta
 from django.db.models import Q
 from typing import List, Dict, Any
 import json, re
-# (you already have these)
-# from django.shortcuts import get_object_or_404
-# from conversation.models import Conversation, Message, MessageMeta
-# from .your_existing_imports import ...
+
 def get_conversation_id_from_uuid(conversation_uuid: uuid.UUID) -> int:
     # Fetch the conversation using the UUID
     conversation = get_object_or_404(Conversation, uuid=conversation_uuid)
@@ -23,9 +20,9 @@ def get_last_20_messages(conversation_id: int):
     qs = (Message.objects
           .filter(conversation_id=conversation_id, is_deleted=False)
           .order_by('-created_at')[:20])
-    # turn into a list (so we can reverse safely)
+    # turn into a list 
     messages = list(qs)
-    messages.reverse()  # now oldest→newest
+    messages.reverse()  #  oldest→newest
     return messages
 
 
@@ -36,7 +33,7 @@ def format_messages_for_llm(conversation_id: int, new_user_message: str = None,
     Format conversation messages for LLM API (OpenAI/Anthropic format)
     Returns list of messages in the format: [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]
     """
-    # Get the last 20 messages (or adjust number as needed)
+    # Get the last 20 messages 
     messages = get_last_20_messages(conversation_id)
     
     formatted_messages = []
@@ -64,7 +61,7 @@ def format_messages_for_llm(conversation_id: int, new_user_message: str = None,
             "content": content
         })
     
-    # Add the new user message if provided
+    # Add the new user message 
     if new_user_message:
         if new_user_image_url and new_user_message:
             # New message with both text and image
@@ -95,9 +92,9 @@ def get_last_20_message_metas(conversation_id: int):
     metas = list(qs)
     metas.reverse()
     return metas
-# -------------------------------------------------------------------
+
 # 1) Strip everything from “Business Insights” downward (case-insensitive)
-# -------------------------------------------------------------------
+
 def strip_business_insights(text: str) -> str:
     """
     Return only the content ABOVE the first 'Business Insights' marker.
@@ -122,9 +119,9 @@ def strip_business_insights(text: str) -> str:
     return text
 
 
-# -------------------------------------------------------------------
+
 # 2) Build a compact, oldest→newest snapshot for the LLM (JSONL-like)
-# -------------------------------------------------------------------
+
 def serialize_context_for_llm(conversation_id: int) -> str:
     """
     Returns a JSONL-like snapshot:
@@ -165,9 +162,9 @@ def serialize_context_for_llm(conversation_id: int) -> str:
     return "\n".join(lines)
 
 
-# -------------------------------------------------------------------
+
 # 3) Tiny helper used by agent.py to embed a snapshot in the prompt
-# -------------------------------------------------------------------
+
 def build_conversation_snapshot_block(conversation_uuid: Optional[str]) -> str:
     if not conversation_uuid:
         return "### MESSAGES_JSONL (none)\n### METAS_JSONL (none)"
@@ -178,9 +175,8 @@ def build_conversation_snapshot_block(conversation_uuid: Optional[str]) -> str:
         return f"### MESSAGES_JSONL (error: {e})\n### METAS_JSONL (none)"
 
 
-# -------------------------------------------------------------------
 # 4) “Context Memory Contract” — tells the LLM how to behave like ChatGPT memory
-# -------------------------------------------------------------------
+
 def build_context_memory_contract() -> str:
     return (
         "CONTEXT MEMORY CONTRACT:\n"

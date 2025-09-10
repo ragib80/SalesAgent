@@ -1,0 +1,791 @@
+Terminate batch job (Y/N)? Terminate batch job (Y/N)? Terminate batch job (Y/N)? Terminate batch job (Y/N)? Performing system checks...
+
+System check identified no issues (0 silenced).
+
+Django version 5.0.14, using settings 'core.settings'
+Development server is running at https://0.0.0.0:9000/
+Using the Werkzeug debugger (https://werkzeug.palletsprojects.com/)
+Quit the server with CTRL-BREAK.
+user_prompt: 7.	Show me the top 10 customer list who have OS over 90 days industrial Division
+from detect_date_filter_using_llm prompt 7.	Show me the top 10 customer list who have OS over 90 days industrial Division
+from detect_date_filter_using_llm response To determine the date range from the query, we need to analyze the user's request. The query mentions "OS over 90 days," which implies a reference to overdue payments or outstanding balances that are more than 90 days old. However, the query does not explicitly specify a date range or a specific time period.
+
+Given the lack of explicit date information in the query, **no date range can be extracted**.
+
+### Final Output:
+```
+None
+```
+>>> agent current_user: SalesAuthUser (ragib.shahriar : df1ef08c-6185-4dbd-9414-d92309ab0771) | id: 4
+SalesAuthUser (ragib.shahriar : df1ef08c-6185-4dbd-9414-d92309ab0771)
+>>> get_user_area_scope user: SalesAuthUser (ragib.shahriar : df1ef08c-6185-4dbd-9414-d92309ab0771) | is_authenticated: True
+>>> user is admin/superadmin; unrestricted scope
+>>> generate_kql scope: UserAreaScope(depots=[], zones=[], territories=[], restricted=False)
+_extract_kql------------- You are an expert Kusto (ADX) analyst for SAP sales data.
+Output **only raw KQL**, no markdown or commentary.
+Rules:
+• Use the table SAPSalesInfos and columns below.
+• If a date range is optional  , declare:
+      let StartDate = datetime(YYYY-MM-DD);
+      let EndDate   = datetime(YYYY-MM-DD);
+• End every statement with a semicolon.
+• Provide real line-breaks (no \n literals).
+
+Business → column mapping:
+"revenue": "Revenue"
+"quantity": "fkimg"
+"volume": "volum"
+"Dealer": "cname"
+"brand": "wgbez"
+"product name": "arktx"
+"product": "arktx"
+"category": "matkl"
+"division": "spart_text"
+"company code": "bukrs"
+"sales org": "vkorg"
+"dist channel": "vtweg"
+"distribution channel": "vtweg"
+"business area": "gsber"
+"depo": "gsber"
+"credit control area": "kkber"
+"Dealer group": "kukla"
+"account group": "ktokd"
+"sales group": "vkgrp_c"
+"sales office": "vkbur_c"
+"payer id": "Payer_DL"
+"product code": "matnr"
+"material code": "meins"
+"volume unit": "voleh"
+"business group": "GK"
+"territory": "Territory"
+"sales zone": "Szone"
+"date": "fkdat"
+"Dealer Code": "kunrg"
+"dealer code": "kunrg"
+"fkdat": "fkdat"
+"invoice number": "vbeln"
+"sales organization": "vkorg"
+
+Depo/Business Area (gsber) → column Value mapping:
+"Dhaka Factory": "1000"
+"Chittagong Factory": "1100"
+"Mirsarai Factory": "1200"
+"Dhaka Sales": "4000"
+"Chittagong Sales": "4010"
+"Sylhet Sales": "4020"
+"Comilla Sales": "4030"
+"Rajshahi Sales": "4040"
+"Bogra Sales": "4050"
+"Khulna Sales": "4060"
+"Mymensing Sales": "4070"
+"Barishal Sales": "4080"
+"Rangpur Sales": "4090"
+"Feni Sales": "4100"
+"Dhaka South": "4110"
+"Brahmanbaria Sales": "4120"
+"Dhaka North": "4130"
+"Test Business Area": "4500"
+"PPHD": "5000"
+"Berger Design Studio": "5010"
+"Berger Training Institute": "5020"
+"Berger Tech Consulting Ltd": "5100"
+"Jenson & Nicholson BD Ltd": "6000"
+"JNBL 2nd Unit Dhaka": "6100"
+"Berger Becker Bangladesh": "7000"
+"Berger Fosroc Limited": "8000"
+"Corporate": "9000"
+
+Table schema:
+
+.create table SAPSalesInfos (
+    Id: long, CreatedTime: datetime, ModifiedTime: datetime, bukrs: long,
+    spart: string, matkl: string, wgbez: string, matnr: string, vkorg: long,
+    kunrg: long, kunnr_sh: long, Payer_DL: long, vbeln: long, vkbur_c: long,
+    vkgrp_c: string, kukla: long, fkdat: datetime, posnr: long, arktx: string,
+    meins: string, voleh: string, Territory: string, Szone: string, cname: string,
+    spart_text: string, Revenue: real, gsber: long, fkimg: long, volum: real,
+    ktokd: string, vtweg: string, erzet_T: string, kkber: long, FKDAT_TEMP: string,
+    GK: string
+)
+
+
+TABLE SCHEMA (from code):
+- Id: long
+- CreatedTime: datetime
+- ModifiedTime: datetime
+- bukrs: long
+- spart: string
+- matkl: string
+- wgbez: string
+- matnr: string
+- vkorg: long
+- kunrg: long
+- kunnr_sh: long
+- Payer_DL: long
+- vbeln: long
+- vkbur_c: long
+- vkgrp_c: string
+- kukla: long
+- fkdat: datetime
+- posnr: long
+- arktx: string
+- meins: string
+- voleh: string
+- Territory: string
+- Szone: string
+- cname: string
+- spart_text: string
+- Revenue: real
+- gsber: long
+- fkimg: long
+- volum: real
+- ktokd: string
+- vtweg: string
+- erzet_T: string
+- kkber: long
+- FKDAT_TEMP: string
+- GK: string
+
+FILTER RULES:
+- For STRING columns, use case-insensitive operators: `=~` for equality and `in~` for lists.
+- For NUMERIC columns, use `==` / `in` (no quotes for numbers).
+- Do NOT use tolower()/toupper(); prefer =~ / in~ for strings.
+- Do NOT use `bin(fkdat, 1mo)`; use `startofmonth(fkdat)` etc. when grouping.
+
+SPECIAL COLUMN RULES:
+- `spart_text` must be matched by case-insensitive substring: use `spart_text contains "<text>"`.
+  If multiple values are provided, expand to `(spart_text contains "A" or spart_text contains "B" ...)`.
+
+DERIVED TYPE GROUPS:
+- STRING columns: FKDAT_TEMP, GK, Szone, Territory, arktx, cname, erzet_T, ktokd, matkl, matnr, meins, spart, spart_text, vkgrp_c, voleh, vtweg, wgbez
+- NUMERIC columns: Id, Payer_DL, Revenue, bukrs, fkimg, gsber, kkber, kukla, kunnr_sh, kunrg, posnr, vbeln, vkbur_c, vkorg, volum
+- DATETIME columns: CreatedTime, ModifiedTime, fkdat
+
+
+CONTEXT MEMORY CONTRACT:
+- You are continuing a multi-turn conversation that generates **KQL** for SAPSalesInfos.
+- You will receive:
+  • A chronological snapshot of the last 20 messages and last 20 METAs.
+  • The user's new message.
+
+Your tasks:
+1) INFER ACTIVE CONTEXT (no hard-coded rules):
+   - From the snapshot, infer currently active dates, filters, dimensions, and scope.
+   - Resolve conflicts by priority:
+     latest explicit user instruction > latest explicit assistant META > earlier context.
+   - If the new message contradicts previous context, the new one overrides.
+   - If unspecified but stable recently, reuse it.
+2) OUTPUT FORMAT (strict):
+   a) First line: `// META {json}` — compact JSON of what you actually applied
+      e.g. // META {"dates":{"start":"YYYY-MM-DD","end":"YYYY-MM-DD"},"filters":{"gsber":[4110],"spart_text":["Decorative"]}}
+   b) Then **RAW KQL ONLY**, no markdown, no commentary.
+3) TECHNICAL KQL RULES:
+   - Use SAPSalesInfos and the provided schema.
+   - Prefer `startofmonth(fkdat)` over `bin(fkdat, 1mo)`.
+   - Strings: =~ / in~ (case-insensitive). Numeric: == / in (no quotes).
+   - End every KQL statement with a semicolon.
+   - If defining dates, use:
+       let StartDate = datetime(YYYY-MM-DD);
+       let EndDate   = datetime(YYYY-MM-DD);
+   - If the user requests an area outside allowed scope (see USER_AREA_SCOPE), output only:
+       print ErrorMessage = 'sorry you have no authorized to view this data.';
+     (Still produce a META line describing the authorization miss.)
+4) CONSISTENCY:
+   - Keep columns/filters consistent across turns unless told otherwise.
+5) AMBIGUITY:
+   - Prefer the most recent coherent context; avoid inventing filters.
+
+
+### SNAPSHOT (use to infer current context)
+### MESSAGES_JSONL (oldest→newest)
+{"role": "user", "text": "revenue in August 2024", "image_url": null, "created_at": "2025-09-09T07:06:09.116459+00:00"}
+{"role": "assistant", "text": "### Revenue in August 2024\n\n- **Total Revenue for August 2024**: 2,363,654,306.05 BDT  \n\n### Business Insight:\n- The revenue for the period from **August 1, 2024, to August 31, 2024**, is **2.36 billion BDT**, indicating a significant level of sales or revenue generation during this month.\n\n### Suggestions:\n- **Sustain Growth**: Analyze the factors contributing to this high revenue and replicate successful strategies in future months.\n- **Identify Key Drivers**: Break down the revenue by product, region, or sales office to identify top-performing areas.\n- **Optimize Performance**: Focus on underperforming segments (if any) to further boost overall revenue.", "image_url": null, "created_at": "2025-09-09T07:06:09.137725+00:00"}
+{"role": "user", "text": "revenue in October 2024", "image_url": null, "created_at": "2025-09-09T07:08:18.202332+00:00"}
+{"role": "assistant", "text": "### Revenue in October 2024\n\n- **Total Revenue for October 2024**: 3,352,233,190.62 BDT  \n\n### Business Insight:\n- The revenue for the period from **October 1, 2024, to October 31, 2024**, is **3.35 billion BDT**, indicating strong sales or revenue generation during this month.\n- Compared to August 2024 (2.36 billion BDT), October shows a significant increase in revenue, suggesting improved business performance or seasonal factors driving higher sales.\n\n### Suggestions:\n- **Analyze October Trends**: Investigate the factors contributing to the revenue spike in October, such as promotions, product launches, or seasonal demand.\n- **Replicate Success**: Identify strategies or campaigns from October that can be applied to other months to sustain or boost revenue.\n- **Monitor Performance**: Compare October's performance with other months to identify consistent growth patterns or anomalies.", "image_url": null, "created_at": "2025-09-09T07:08:18.208338+00:00"}
+{"role": "user", "text": "revenue in September 2024", "image_url": null, "created_at": "2025-09-09T07:11:13.919642+00:00"}
+{"role": "assistant", "text": "### Revenue in September 2024\n\n- **Total Revenue for September 2024**: 3,075,127,664.35 BDT  \n\n### Business Insight:\n- The revenue for the period from **September 1, 2024, to September 30, 2024**, is **3.08 billion BDT**, reflecting a strong performance during this month.\n- Compared to **August 2024** (2.36 billion BDT), revenue in September increased significantly, indicating improved sales or operational efficiency.\n- However, compared to **October 2024** (3.35 billion BDT), September's revenue is slightly lower, suggesting a potential upward trend heading into October.\n\n### Suggestions:\n- Analyze the factors contributing to the revenue growth from August to September and leverage these strategies for sustained growth.\n- Investigate the slight dip in revenue from September to October to identify areas for improvement or opportunities to maximize revenue in future months.", "image_url": null, "created_at": "2025-09-09T07:11:13.930362+00:00"}
+{"role": "user", "text": "revenue in july 2025", "image_url": null, "created_at": "2025-09-09T09:34:04.761314+00:00"}
+{"role": "assistant", "text": "### Revenue in July 2025\n\n- **Total Revenue for July 2025**: 0.0 BDT  \n\n### Business Insight:\n- The revenue for the period from **July 1, 2025, to July 31, 2025**, is **0.0 BDT**, indicating no recorded revenue during this month.\n- This could suggest a lack of sales activity, data entry issues, or other operational challenges during this period.\n\n### Suggestions:\n- **Investigate Data Accuracy**: Verify if the data for July 2025 has been fully recorded or if there are any reporting delays.\n- **Review Operational Activities**: Assess whether there were any disruptions in sales, production, or distribution during this period.\n- **Plan for Recovery**: If this reflects actual performance, consider strategies to boost revenue, such as promotions, targeted marketing, or operational improvements.", "image_url": null, "created_at": "2025-09-09T09:34:04.776991+00:00"}
+{"role": "assistant", "text": "### Revenue in July 2024\n\n- **Total Revenue for July 2024**: 2,887,503,249.59 BDT  \n\n### Business Insight:\n- The revenue for the period from **July 1, 2024, to July 31, 2024**, is **2.89 billion BDT**, reflecting a solid performance during this month.\n- This data indicates consistent revenue generation, which could be analyzed further to identify key contributors such as high-performing products, regions, or campaigns.\n- To sustain or improve this performance, consider strategies like targeted marketing, optimizing supply chain efficiency, or introducing promotional offers during peak demand periods.", "image_url": null, "created_at": "2025-09-09T09:36:01.274402+00:00"}
+{"role": "user", "text": "revenue in july 2024", "image_url": null, "created_at": "2025-09-09T09:36:01.274402+00:00"}
+{"role": "user", "text": "revenue in June 2024", "image_url": null, "created_at": "2025-09-09T09:39:31.416196+00:00"}
+{"role": "assistant", "text": "### Revenue in June 2024\n\n- **Total Revenue for June 2024**: 3,140,707,331.25 BDT  \n\n### Business Insight:\n- The revenue for the period from **June 1, 2024, to June 30, 2024**, is **3.14 billion BDT**, showcasing strong performance during this month.\n- This indicates a significant contribution to the overall revenue, suggesting effective sales strategies or high demand during this period.\n\n### Suggestions:\n- Analyze the factors driving high revenue in June 2024, such as seasonal trends, promotional campaigns, or product launches.\n- Consider replicating successful strategies from June in other months to sustain or increase revenue.\n- Evaluate customer behavior and market conditions to identify opportunities for further growth.", "image_url": null, "created_at": "2025-09-09T09:39:31.422343+00:00"}
+{"role": "user", "text": "top 5 brnads", "image_url": null, "created_at": "2025-09-09T09:40:07.116731+00:00"}
+{"role": "assistant", "text": "Hi there! It looks like you're asking about the **top 5 brands**, but just to clarify, I specialize in **SAP sales data analysis**. I can help you identify the top-performing brands based on sales revenue, growth trends, or other key metrics if you provide me with the relevant time period or criteria you'd like to analyze.\n\nFor example, I can assist with:\n- Ranking brands by revenue for a specific month (e.g., June 2024 or July 2024).\n- Analyzing which brands contributed the most to your overall sales growth.\n- Identifying trends or patterns in brand performance over time.\n\nFeel free to share more details about what you're looking for, and I'll be happy to help! 😊", "image_url": null, "created_at": "2025-09-09T09:40:07.127731+00:00"}
+{"role": "user", "text": "top 5 brands of june 2025", "image_url": null, "created_at": "2025-09-09T09:40:37.264846+00:00"}
+{"role": "assistant", "text": "No data found matching your criteria. Please refine your query for more specific results.", "image_url": null, "created_at": "2025-09-09T09:40:37.272849+00:00"}
+{"role": "user", "text": "revenue in June 2025", "image_url": null, "created_at": "2025-09-09T09:41:30.368182+00:00"}
+{"role": "assistant", "text": "### Revenue in June 2025 (Period: 2025-06-01 to 2025-06-30)\n\n- **Total Revenue**: 0.0 BDT\n\n### Business Insight:\n- The data indicates that there was **no recorded revenue** for the specified period in June 2025. This could be due to several factors, such as:\n  - Lack of sales transactions during this time.\n  - Data entry or reporting issues.\n  - Seasonal or operational factors affecting sales.\n\n### Suggestions:\n1. **Investigate Data Accuracy**: Ensure that all sales transactions for June 2025 have been properly recorded in the system.\n2. **Analyze Market Trends**: If June is typically a low-performing month, consider implementing promotional campaigns or discounts to boost sales.\n3. **Operational Review**: Check for any disruptions in supply chain, inventory, or sales operations that may have impacted revenue generation.\n4. **Customer Engagement**: Strengthen customer outreach and marketing efforts to drive sales during this period in future years.", "image_url": null, "created_at": "2025-09-09T09:41:30.375183+00:00"}
+{"role": "user", "text": "revenue in may 2025", "image_url": null, "created_at": "2025-09-09T09:41:54.116341+00:00"}
+{"role": "assistant", "text": "### Revenue in May 2025 (Period: 2025-05-01 to 2025-05-31)\n\n- **Total Revenue**: 4,323,472,652.26 BDT\n\n### Business Insight:\n- The total revenue for May 2025 was **4.32 billion BDT**, indicating a significant level of sales activity during this period.\n- This performance could reflect strong market demand, effective sales strategies, or seasonal factors contributing to higher revenue.\n\n### Suggestions:\n- Analyze the key drivers behind this revenue performance to replicate or enhance these strategies in future months.\n- Compare this revenue with other months (e.g., June 2025) to identify trends or anomalies.\n- Consider focusing on high-performing products, regions, or customer segments to sustain or grow revenue further.", "image_url": null, "created_at": "2025-09-09T09:41:54.127340+00:00"}
+### METAS_JSONL (oldest→newest)
+{"meta": {"dates": {"start": "2025-05-01", "end": "2025-05-31"}, "filters": {}}, "created_at": "2025-09-09T06:02:42.123762+00:00"}
+{"meta": {"dates": {"start": "2025-05-01", "end": "2025-05-31"}, "filters": {"cname": ["delwar paint"]}}, "created_at": "2025-09-09T06:05:40.797523+00:00"}
+{"meta": {"dates": {"start": "2025-05-01", "end": "2025-05-31"}, "filters": {}}, "created_at": "2025-09-09T06:06:18.016726+00:00"}
+{"meta": {"dates": {"start": "2025-03-01", "end": "2025-03-31"}, "filters": {}}, "created_at": "2025-09-09T06:22:26.236822+00:00"}
+{"meta": {"dates": {"start": "2025-05-01", "end": "2025-05-31"}, "filters": {}}, "created_at": "2025-09-09T06:57:28.137842+00:00"}
+{"meta": {"dates": {"start": ["2025-03-01", "2025-05-01"], "end": ["2025-03-31", "2025-05-31"]}, "filters": {}}, "created_at": "2025-09-09T06:58:09.463769+00:00"}
+{"meta": {"dates": {"start": "2025-10-01", "end": "2025-10-31"}, "filters": {}}, "created_at": "2025-09-09T07:05:14.393241+00:00"}
+{"meta": {"dates": {"start": "2024-10-01", "end": "2024-10-31"}, "filters": {}}, "created_at": "2025-09-09T07:05:28.111225+00:00"}
+{"meta": {"dates": {"start": "2024-08-01", "end": "2024-08-31"}, "filters": {}}, "created_at": "2025-09-09T07:06:05.582467+00:00"}
+{"meta": {"dates": {"start": "2024-10-01", "end": "2024-10-31"}, "filters": {}}, "created_at": "2025-09-09T07:08:14.170552+00:00"}
+{"meta": {"dates": {"start": "2024-09-01", "end": "2024-09-30"}, "filters": {}}, "created_at": "2025-09-09T07:11:09.211558+00:00"}
+{"meta": {"dates": {"start": "2025-07-01", "end": "2025-07-31"}, "filters": {}}, "created_at": "2025-09-09T09:33:56.701518+00:00"}
+{"meta": {"dates": {"start": "2024-07-01", "end": "2024-07-31"}, "filters": {}}, "created_at": "2025-09-09T09:35:57.344732+00:00"}
+{"meta": {"dates": {"start": "2024-06-01", "end": "2024-06-30"}, "filters": {}}, "created_at": "2025-09-09T09:39:25.978543+00:00"}
+{"meta": {"dates": {"start": "2025-06-01", "end": "2025-06-30"}, "filters": {}}, "created_at": "2025-09-09T09:40:35.105904+00:00"}
+{"meta": {"dates": {"start": "2025-05-01", "end": "2025-05-31"}, "filters": {}}, "created_at": "2025-09-09T09:41:50.268588+00:00"}
+
+### NEW USER MESSAGE
+7.	Show me the top 10 customer list who have OS over 90 days industrial Division
+
+
+USER_AREA_SCOPE (JSON): {"restricted": false}
+If restricted=false, do NOT add any area filters.
+
+        Instruction: 
+        - Do not use the `bin(fkdat, 1mo)` operator for time-based grouping.
+        -If not data limit is given on the prompt take top 500 row.
+        - Instead, use `startofmonth(fkdat)` for monthly grouping (or other appropriate time functions based on the query).
+        - Ensure the query does not use `bin` and directly uses time-based functions for grouping.
+        - Group by the result of the time-based function using an `extend` statement, for example: `extend TimePeriod = startofmonth(fkdat)`
+        - Always use the named columns in the `summarize` statement.
+        
+
+OUTPUT FORMAT (strict):
+- First line: // META {compact-json-of-actually-applied dates, filters}
+- Then: RAW KQL ONLY (no markdown, no commentary).
+-------------------------------  LAST_KQL_META    ------------------------ {'dates': {}, 'filters': {'spart_text': ['Industrial'], 'OS_days': '>90'}}
+----------------conversation_id from save meta  6723564e-0ed4-483d-bfa0-901b5ed8574c
+----------------message_id from save meta  879
+----------------get_conversation_id from save meta  SalesAuthUser (ragib.shahriar : df1ef08c-6185-4dbd-9414-d92309ab0771) (Chat - 2025-09-09 12:02:00)
+response from generate kql  SAPSalesInfos
+| where spart_text contains "Industrial" and fkdat <= ago(90d)
+| extend TimePeriod = startofmonth(fkdat)
+| summarize OutstandingAmount = sum(Revenue) by cname
+| top 10 by OutstandingAmount desc;
+user_prompt: 7.	Show me the top 10 customer list who have OS over 90 days industrial Division
+from detect_date_filter_using_llm prompt 7.	Show me the top 10 customer list who have OS over 90 days industrial Division
+from detect_date_filter_using_llm response To extract a date range from the query, we need to determine if the query specifies any time-related information. In this case, the query mentions "OS over 90 days," which implies a reference to a time period of 90 days prior to the current date.
+
+Given that the current date is September 10, 2025, we can calculate the start date as 90 days before this date. However, the query does not specify an end date explicitly, so we assume the end date is the current date.
+
+### Calculation:
+- Current date: September 10, 2025
+- Subtract 90 days: June 12, 2025 (calculated as 90 days prior to September 10, 2025)
+
+### Result:
+The date range extracted from the query is:
+
+```python
+StartDate = datetime(2025-06-12); EndDate = datetime(2025-09-10);
+```
+from date_range_match  start_date 2025-06-12 00:00:00
+from date_range_match  end_date 2025-09-10 00:00:00
+>>> agent current_user: SalesAuthUser (ragib.shahriar : df1ef08c-6185-4dbd-9414-d92309ab0771) | id: 4
+SalesAuthUser (ragib.shahriar : df1ef08c-6185-4dbd-9414-d92309ab0771)
+>>> get_user_area_scope user: SalesAuthUser (ragib.shahriar : df1ef08c-6185-4dbd-9414-d92309ab0771) | is_authenticated: True
+>>> user is admin/superadmin; unrestricted scope
+>>> generate_kql scope: UserAreaScope(depots=[], zones=[], territories=[], restricted=False)
+_extract_kql------------- You are an expert Kusto (ADX) analyst for SAP sales data.
+Output **only raw KQL**, no markdown or commentary.
+Rules:
+• Use the table SAPSalesInfos and columns below.
+• If a date range is optional  , declare:
+      let StartDate = datetime(YYYY-MM-DD);
+      let EndDate   = datetime(YYYY-MM-DD);
+• End every statement with a semicolon.
+• Provide real line-breaks (no \n literals).
+
+Business → column mapping:
+"revenue": "Revenue"
+"quantity": "fkimg"
+"volume": "volum"
+"Dealer": "cname"
+"brand": "wgbez"
+"product name": "arktx"
+"product": "arktx"
+"category": "matkl"
+"division": "spart_text"
+"company code": "bukrs"
+"sales org": "vkorg"
+"dist channel": "vtweg"
+"distribution channel": "vtweg"
+"business area": "gsber"
+"depo": "gsber"
+"credit control area": "kkber"
+"Dealer group": "kukla"
+"account group": "ktokd"
+"sales group": "vkgrp_c"
+"sales office": "vkbur_c"
+"payer id": "Payer_DL"
+"product code": "matnr"
+"material code": "meins"
+"volume unit": "voleh"
+"business group": "GK"
+"territory": "Territory"
+"sales zone": "Szone"
+"date": "fkdat"
+"Dealer Code": "kunrg"
+"dealer code": "kunrg"
+"fkdat": "fkdat"
+"invoice number": "vbeln"
+"sales organization": "vkorg"
+
+Depo/Business Area (gsber) → column Value mapping:
+"Dhaka Factory": "1000"
+"Chittagong Factory": "1100"
+"Mirsarai Factory": "1200"
+"Dhaka Sales": "4000"
+"Chittagong Sales": "4010"
+"Sylhet Sales": "4020"
+"Comilla Sales": "4030"
+"Rajshahi Sales": "4040"
+"Bogra Sales": "4050"
+"Khulna Sales": "4060"
+"Mymensing Sales": "4070"
+"Barishal Sales": "4080"
+"Rangpur Sales": "4090"
+"Feni Sales": "4100"
+"Dhaka South": "4110"
+"Brahmanbaria Sales": "4120"
+"Dhaka North": "4130"
+"Test Business Area": "4500"
+"PPHD": "5000"
+"Berger Design Studio": "5010"
+"Berger Training Institute": "5020"
+"Berger Tech Consulting Ltd": "5100"
+"Jenson & Nicholson BD Ltd": "6000"
+"JNBL 2nd Unit Dhaka": "6100"
+"Berger Becker Bangladesh": "7000"
+"Berger Fosroc Limited": "8000"
+"Corporate": "9000"
+
+Table schema:
+
+.create table SAPSalesInfos (
+    Id: long, CreatedTime: datetime, ModifiedTime: datetime, bukrs: long,
+    spart: string, matkl: string, wgbez: string, matnr: string, vkorg: long,
+    kunrg: long, kunnr_sh: long, Payer_DL: long, vbeln: long, vkbur_c: long,
+    vkgrp_c: string, kukla: long, fkdat: datetime, posnr: long, arktx: string,
+    meins: string, voleh: string, Territory: string, Szone: string, cname: string,
+    spart_text: string, Revenue: real, gsber: long, fkimg: long, volum: real,
+    ktokd: string, vtweg: string, erzet_T: string, kkber: long, FKDAT_TEMP: string,
+    GK: string
+)
+
+
+TABLE SCHEMA (from code):
+- Id: long
+- CreatedTime: datetime
+- ModifiedTime: datetime
+- bukrs: long
+- spart: string
+- matkl: string
+- wgbez: string
+- matnr: string
+- vkorg: long
+- kunrg: long
+- kunnr_sh: long
+- Payer_DL: long
+- vbeln: long
+- vkbur_c: long
+- vkgrp_c: string
+- kukla: long
+- fkdat: datetime
+- posnr: long
+- arktx: string
+- meins: string
+- voleh: string
+- Territory: string
+- Szone: string
+- cname: string
+- spart_text: string
+- Revenue: real
+- gsber: long
+- fkimg: long
+- volum: real
+- ktokd: string
+- vtweg: string
+- erzet_T: string
+- kkber: long
+- FKDAT_TEMP: string
+- GK: string
+
+FILTER RULES:
+- For STRING columns, use case-insensitive operators: `=~` for equality and `in~` for lists.
+- For NUMERIC columns, use `==` / `in` (no quotes for numbers).
+- Do NOT use tolower()/toupper(); prefer =~ / in~ for strings.
+- Do NOT use `bin(fkdat, 1mo)`; use `startofmonth(fkdat)` etc. when grouping.
+
+SPECIAL COLUMN RULES:
+- `spart_text` must be matched by case-insensitive substring: use `spart_text contains "<text>"`.
+  If multiple values are provided, expand to `(spart_text contains "A" or spart_text contains "B" ...)`.
+
+DERIVED TYPE GROUPS:
+- STRING columns: FKDAT_TEMP, GK, Szone, Territory, arktx, cname, erzet_T, ktokd, matkl, matnr, meins, spart, spart_text, vkgrp_c, voleh, vtweg, wgbez
+- NUMERIC columns: Id, Payer_DL, Revenue, bukrs, fkimg, gsber, kkber, kukla, kunnr_sh, kunrg, posnr, vbeln, vkbur_c, vkorg, volum
+- DATETIME columns: CreatedTime, ModifiedTime, fkdat
+
+
+CONTEXT MEMORY CONTRACT:
+- You are continuing a multi-turn conversation that generates **KQL** for SAPSalesInfos.
+- You will receive:
+  • A chronological snapshot of the last 20 messages and last 20 METAs.
+  • The user's new message.
+
+Your tasks:
+1) INFER ACTIVE CONTEXT (no hard-coded rules):
+   - From the snapshot, infer currently active dates, filters, dimensions, and scope.
+   - Resolve conflicts by priority:
+     latest explicit user instruction > latest explicit assistant META > earlier context.
+   - If the new message contradicts previous context, the new one overrides.
+   - If unspecified but stable recently, reuse it.
+2) OUTPUT FORMAT (strict):
+   a) First line: `// META {json}` — compact JSON of what you actually applied
+      e.g. // META {"dates":{"start":"YYYY-MM-DD","end":"YYYY-MM-DD"},"filters":{"gsber":[4110],"spart_text":["Decorative"]}}
+   b) Then **RAW KQL ONLY**, no markdown, no commentary.
+3) TECHNICAL KQL RULES:
+   - Use SAPSalesInfos and the provided schema.
+   - Prefer `startofmonth(fkdat)` over `bin(fkdat, 1mo)`.
+   - Strings: =~ / in~ (case-insensitive). Numeric: == / in (no quotes).
+   - End every KQL statement with a semicolon.
+   - If defining dates, use:
+       let StartDate = datetime(YYYY-MM-DD);
+       let EndDate   = datetime(YYYY-MM-DD);
+   - If the user requests an area outside allowed scope (see USER_AREA_SCOPE), output only:
+       print ErrorMessage = 'sorry you have no authorized to view this data.';
+     (Still produce a META line describing the authorization miss.)
+4) CONSISTENCY:
+   - Keep columns/filters consistent across turns unless told otherwise.
+5) AMBIGUITY:
+   - Prefer the most recent coherent context; avoid inventing filters.
+
+
+### SNAPSHOT (use to infer current context)
+### MESSAGES_JSONL (oldest→newest)
+{"role": "user", "text": "revenue in August 2024", "image_url": null, "created_at": "2025-09-09T07:06:09.116459+00:00"}
+{"role": "assistant", "text": "### Revenue in August 2024\n\n- **Total Revenue for August 2024**: 2,363,654,306.05 BDT  \n\n### Business Insight:\n- The revenue for the period from **August 1, 2024, to August 31, 2024**, is **2.36 billion BDT**, indicating a significant level of sales or revenue generation during this month.\n\n### Suggestions:\n- **Sustain Growth**: Analyze the factors contributing to this high revenue and replicate successful strategies in future months.\n- **Identify Key Drivers**: Break down the revenue by product, region, or sales office to identify top-performing areas.\n- **Optimize Performance**: Focus on underperforming segments (if any) to further boost overall revenue.", "image_url": null, "created_at": "2025-09-09T07:06:09.137725+00:00"}
+{"role": "user", "text": "revenue in October 2024", "image_url": null, "created_at": "2025-09-09T07:08:18.202332+00:00"}
+{"role": "assistant", "text": "### Revenue in October 2024\n\n- **Total Revenue for October 2024**: 3,352,233,190.62 BDT  \n\n### Business Insight:\n- The revenue for the period from **October 1, 2024, to October 31, 2024**, is **3.35 billion BDT**, indicating strong sales or revenue generation during this month.\n- Compared to August 2024 (2.36 billion BDT), October shows a significant increase in revenue, suggesting improved business performance or seasonal factors driving higher sales.\n\n### Suggestions:\n- **Analyze October Trends**: Investigate the factors contributing to the revenue spike in October, such as promotions, product launches, or seasonal demand.\n- **Replicate Success**: Identify strategies or campaigns from October that can be applied to other months to sustain or boost revenue.\n- **Monitor Performance**: Compare October's performance with other months to identify consistent growth patterns or anomalies.", "image_url": null, "created_at": "2025-09-09T07:08:18.208338+00:00"}
+{"role": "user", "text": "revenue in September 2024", "image_url": null, "created_at": "2025-09-09T07:11:13.919642+00:00"}
+{"role": "assistant", "text": "### Revenue in September 2024\n\n- **Total Revenue for September 2024**: 3,075,127,664.35 BDT  \n\n### Business Insight:\n- The revenue for the period from **September 1, 2024, to September 30, 2024**, is **3.08 billion BDT**, reflecting a strong performance during this month.\n- Compared to **August 2024** (2.36 billion BDT), revenue in September increased significantly, indicating improved sales or operational efficiency.\n- However, compared to **October 2024** (3.35 billion BDT), September's revenue is slightly lower, suggesting a potential upward trend heading into October.\n\n### Suggestions:\n- Analyze the factors contributing to the revenue growth from August to September and leverage these strategies for sustained growth.\n- Investigate the slight dip in revenue from September to October to identify areas for improvement or opportunities to maximize revenue in future months.", "image_url": null, "created_at": "2025-09-09T07:11:13.930362+00:00"}
+{"role": "user", "text": "revenue in july 2025", "image_url": null, "created_at": "2025-09-09T09:34:04.761314+00:00"}
+{"role": "assistant", "text": "### Revenue in July 2025\n\n- **Total Revenue for July 2025**: 0.0 BDT  \n\n### Business Insight:\n- The revenue for the period from **July 1, 2025, to July 31, 2025**, is **0.0 BDT**, indicating no recorded revenue during this month.\n- This could suggest a lack of sales activity, data entry issues, or other operational challenges during this period.\n\n### Suggestions:\n- **Investigate Data Accuracy**: Verify if the data for July 2025 has been fully recorded or if there are any reporting delays.\n- **Review Operational Activities**: Assess whether there were any disruptions in sales, production, or distribution during this period.\n- **Plan for Recovery**: If this reflects actual performance, consider strategies to boost revenue, such as promotions, targeted marketing, or operational improvements.", "image_url": null, "created_at": "2025-09-09T09:34:04.776991+00:00"}
+{"role": "assistant", "text": "### Revenue in July 2024\n\n- **Total Revenue for July 2024**: 2,887,503,249.59 BDT  \n\n### Business Insight:\n- The revenue for the period from **July 1, 2024, to July 31, 2024**, is **2.89 billion BDT**, reflecting a solid performance during this month.\n- This data indicates consistent revenue generation, which could be analyzed further to identify key contributors such as high-performing products, regions, or campaigns.\n- To sustain or improve this performance, consider strategies like targeted marketing, optimizing supply chain efficiency, or introducing promotional offers during peak demand periods.", "image_url": null, "created_at": "2025-09-09T09:36:01.274402+00:00"}
+{"role": "user", "text": "revenue in july 2024", "image_url": null, "created_at": "2025-09-09T09:36:01.274402+00:00"}
+{"role": "user", "text": "revenue in June 2024", "image_url": null, "created_at": "2025-09-09T09:39:31.416196+00:00"}
+{"role": "assistant", "text": "### Revenue in June 2024\n\n- **Total Revenue for June 2024**: 3,140,707,331.25 BDT  \n\n### Business Insight:\n- The revenue for the period from **June 1, 2024, to June 30, 2024**, is **3.14 billion BDT**, showcasing strong performance during this month.\n- This indicates a significant contribution to the overall revenue, suggesting effective sales strategies or high demand during this period.\n\n### Suggestions:\n- Analyze the factors driving high revenue in June 2024, such as seasonal trends, promotional campaigns, or product launches.\n- Consider replicating successful strategies from June in other months to sustain or increase revenue.\n- Evaluate customer behavior and market conditions to identify opportunities for further growth.", "image_url": null, "created_at": "2025-09-09T09:39:31.422343+00:00"}
+{"role": "user", "text": "top 5 brnads", "image_url": null, "created_at": "2025-09-09T09:40:07.116731+00:00"}
+{"role": "assistant", "text": "Hi there! It looks like you're asking about the **top 5 brands**, but just to clarify, I specialize in **SAP sales data analysis**. I can help you identify the top-performing brands based on sales revenue, growth trends, or other key metrics if you provide me with the relevant time period or criteria you'd like to analyze.\n\nFor example, I can assist with:\n- Ranking brands by revenue for a specific month (e.g., June 2024 or July 2024).\n- Analyzing which brands contributed the most to your overall sales growth.\n- Identifying trends or patterns in brand performance over time.\n\nFeel free to share more details about what you're looking for, and I'll be happy to help! 😊", "image_url": null, "created_at": "2025-09-09T09:40:07.127731+00:00"}
+{"role": "user", "text": "top 5 brands of june 2025", "image_url": null, "created_at": "2025-09-09T09:40:37.264846+00:00"}
+{"role": "assistant", "text": "No data found matching your criteria. Please refine your query for more specific results.", "image_url": null, "created_at": "2025-09-09T09:40:37.272849+00:00"}
+{"role": "user", "text": "revenue in June 2025", "image_url": null, "created_at": "2025-09-09T09:41:30.368182+00:00"}
+{"role": "assistant", "text": "### Revenue in June 2025 (Period: 2025-06-01 to 2025-06-30)\n\n- **Total Revenue**: 0.0 BDT\n\n### Business Insight:\n- The data indicates that there was **no recorded revenue** for the specified period in June 2025. This could be due to several factors, such as:\n  - Lack of sales transactions during this time.\n  - Data entry or reporting issues.\n  - Seasonal or operational factors affecting sales.\n\n### Suggestions:\n1. **Investigate Data Accuracy**: Ensure that all sales transactions for June 2025 have been properly recorded in the system.\n2. **Analyze Market Trends**: If June is typically a low-performing month, consider implementing promotional campaigns or discounts to boost sales.\n3. **Operational Review**: Check for any disruptions in supply chain, inventory, or sales operations that may have impacted revenue generation.\n4. **Customer Engagement**: Strengthen customer outreach and marketing efforts to drive sales during this period in future years.", "image_url": null, "created_at": "2025-09-09T09:41:30.375183+00:00"}
+{"role": "user", "text": "revenue in may 2025", "image_url": null, "created_at": "2025-09-09T09:41:54.116341+00:00"}
+{"role": "assistant", "text": "### Revenue in May 2025 (Period: 2025-05-01 to 2025-05-31)\n\n- **Total Revenue**: 4,323,472,652.26 BDT\n\n### Business Insight:\n- The total revenue for May 2025 was **4.32 billion BDT**, indicating a significant level of sales activity during this period.\n- This performance could reflect strong market demand, effective sales strategies, or seasonal factors contributing to higher revenue.\n\n### Suggestions:\n- Analyze the key drivers behind this revenue performance to replicate or enhance these strategies in future months.\n- Compare this revenue with other months (e.g., June 2025) to identify trends or anomalies.\n- Consider focusing on high-performing products, regions, or customer segments to sustain or grow revenue further.", "image_url": null, "created_at": "2025-09-09T09:41:54.127340+00:00"}
+### METAS_JSONL (oldest→newest)
+{"meta": {"dates": {"start": "2025-05-01", "end": "2025-05-31"}, "filters": {}}, "created_at": "2025-09-09T06:02:42.123762+00:00"}
+{"meta": {"dates": {"start": "2025-05-01", "end": "2025-05-31"}, "filters": {"cname": ["delwar paint"]}}, "created_at": "2025-09-09T06:05:40.797523+00:00"}
+{"meta": {"dates": {"start": "2025-05-01", "end": "2025-05-31"}, "filters": {}}, "created_at": "2025-09-09T06:06:18.016726+00:00"}
+{"meta": {"dates": {"start": "2025-03-01", "end": "2025-03-31"}, "filters": {}}, "created_at": "2025-09-09T06:22:26.236822+00:00"}
+{"meta": {"dates": {"start": "2025-05-01", "end": "2025-05-31"}, "filters": {}}, "created_at": "2025-09-09T06:57:28.137842+00:00"}
+{"meta": {"dates": {"start": ["2025-03-01", "2025-05-01"], "end": ["2025-03-31", "2025-05-31"]}, "filters": {}}, "created_at": "2025-09-09T06:58:09.463769+00:00"}
+{"meta": {"dates": {"start": "2025-10-01", "end": "2025-10-31"}, "filters": {}}, "created_at": "2025-09-09T07:05:14.393241+00:00"}
+{"meta": {"dates": {"start": "2024-10-01", "end": "2024-10-31"}, "filters": {}}, "created_at": "2025-09-09T07:05:28.111225+00:00"}
+{"meta": {"dates": {"start": "2024-08-01", "end": "2024-08-31"}, "filters": {}}, "created_at": "2025-09-09T07:06:05.582467+00:00"}
+{"meta": {"dates": {"start": "2024-10-01", "end": "2024-10-31"}, "filters": {}}, "created_at": "2025-09-09T07:08:14.170552+00:00"}
+{"meta": {"dates": {"start": "2024-09-01", "end": "2024-09-30"}, "filters": {}}, "created_at": "2025-09-09T07:11:09.211558+00:00"}
+{"meta": {"dates": {"start": "2025-07-01", "end": "2025-07-31"}, "filters": {}}, "created_at": "2025-09-09T09:33:56.701518+00:00"}
+{"meta": {"dates": {"start": "2024-07-01", "end": "2024-07-31"}, "filters": {}}, "created_at": "2025-09-09T09:35:57.344732+00:00"}
+{"meta": {"dates": {"start": "2024-06-01", "end": "2024-06-30"}, "filters": {}}, "created_at": "2025-09-09T09:39:25.978543+00:00"}
+{"meta": {"dates": {"start": "2025-06-01", "end": "2025-06-30"}, "filters": {}}, "created_at": "2025-09-09T09:40:35.105904+00:00"}
+{"meta": {"dates": {"start": "2025-05-01", "end": "2025-05-31"}, "filters": {}}, "created_at": "2025-09-09T09:41:50.268588+00:00"}
+{"meta": {"dates": {}, "filters": {"spart_text": ["Industrial"], "OS_days": ">90"}}, "created_at": "2025-09-10T12:14:05.593551+00:00"}
+
+### NEW USER MESSAGE
+7.	Show me the top 10 customer list who have OS over 90 days industrial Division from 2025-06-12 to 2025-09-10
+
+
+USER_AREA_SCOPE (JSON): {"restricted": false}
+If restricted=false, do NOT add any area filters.
+
+        Instruction: 
+        - Do not use the `bin(fkdat, 1mo)` operator for time-based grouping.
+        -If not data limit is given on the prompt take top 500 row.
+        - Instead, use `startofmonth(fkdat)` for monthly grouping (or other appropriate time functions based on the query).
+        - Ensure the query does not use `bin` and directly uses time-based functions for grouping.
+        - Group by the result of the time-based function using an `extend` statement, for example: `extend TimePeriod = startofmonth(fkdat)`
+        - Always use the named columns in the `summarize` statement.
+        
+
+OUTPUT FORMAT (strict):
+- First line: // META {compact-json-of-actually-applied dates, filters}
+- Then: RAW KQL ONLY (no markdown, no commentary).
+-------------------------------  LAST_KQL_META    ------------------------ {'dates': {'start': '2025-06-12', 'end': '2025-09-10'}, 'filters': {'spart_text': ['Industrial'], 'OS_days': '>90'}}
+----------------conversation_id from save meta  6723564e-0ed4-483d-bfa0-901b5ed8574c
+----------------message_id from save meta  879
+----------------get_conversation_id from save meta  SalesAuthUser (ragib.shahriar : df1ef08c-6185-4dbd-9414-d92309ab0771) (Chat - 2025-09-09 12:02:00)
+response from generate kql  let StartDate = datetime(2025-06-12);
+let EndDate = datetime(2025-09-10);
+SAPSalesInfos
+| where fkdat between (StartDate .. EndDate)
+| where spart_text contains "Industrial"
+| extend OS_days = datetime_diff("day", now(), fkdat)
+| where OS_days > 90
+| extend TimePeriod = startofmonth(fkdat)
+| summarize TotalRevenue = sum(Revenue) by cname
+| top 10 by TotalRevenue desc;
+user_prompt: 7.	Show me the top 10 customer list who have OS over 90 days industrial Div 1100
+from detect_date_filter_using_llm prompt 7.	Show me the top 10 customer list who have OS over 90 days industrial Div 1100
+from detect_date_filter_using_llm response To determine if there is a date range in the query, we need to analyze the user request. The query mentions "OS over 90 days," which implies a reference to overdue amounts that are more than 90 days old. However, the query does not explicitly specify a date range or a specific time frame.
+
+Given the context, we can infer that "over 90 days" refers to a period starting 90 days before the current date (September 10, 2025). This would give us a start date of **90 days prior to September 10, 2025**, which is **June 12, 2025**. The end date would be the current date, **September 10, 2025**.
+
+### Result:
+```
+StartDate = datetime(2025-06-12); EndDate = datetime(2025-09-10);
+```
+from date_range_match  start_date 2025-06-12 00:00:00
+from date_range_match  end_date 2025-09-10 00:00:00
+>>> agent current_user: SalesAuthUser (ragib.shahriar : df1ef08c-6185-4dbd-9414-d92309ab0771) | id: 4
+SalesAuthUser (ragib.shahriar : df1ef08c-6185-4dbd-9414-d92309ab0771)
+>>> get_user_area_scope user: SalesAuthUser (ragib.shahriar : df1ef08c-6185-4dbd-9414-d92309ab0771) | is_authenticated: True
+>>> user is admin/superadmin; unrestricted scope
+>>> generate_kql scope: UserAreaScope(depots=[], zones=[], territories=[], restricted=False)
+_extract_kql------------- You are an expert Kusto (ADX) analyst for SAP sales data.
+Output **only raw KQL**, no markdown or commentary.
+Rules:
+• Use the table SAPSalesInfos and columns below.
+• If a date range is optional  , declare:
+      let StartDate = datetime(YYYY-MM-DD);
+      let EndDate   = datetime(YYYY-MM-DD);
+• End every statement with a semicolon.
+• Provide real line-breaks (no \n literals).
+
+Business → column mapping:
+"revenue": "Revenue"
+"quantity": "fkimg"
+"volume": "volum"
+"Dealer": "cname"
+"brand": "wgbez"
+"product name": "arktx"
+"product": "arktx"
+"category": "matkl"
+"division": "spart_text"
+"company code": "bukrs"
+"sales org": "vkorg"
+"dist channel": "vtweg"
+"distribution channel": "vtweg"
+"business area": "gsber"
+"depo": "gsber"
+"credit control area": "kkber"
+"Dealer group": "kukla"
+"account group": "ktokd"
+"sales group": "vkgrp_c"
+"sales office": "vkbur_c"
+"payer id": "Payer_DL"
+"product code": "matnr"
+"material code": "meins"
+"volume unit": "voleh"
+"business group": "GK"
+"territory": "Territory"
+"sales zone": "Szone"
+"date": "fkdat"
+"Dealer Code": "kunrg"
+"dealer code": "kunrg"
+"fkdat": "fkdat"
+"invoice number": "vbeln"
+"sales organization": "vkorg"
+
+Depo/Business Area (gsber) → column Value mapping:
+"Dhaka Factory": "1000"
+"Chittagong Factory": "1100"
+"Mirsarai Factory": "1200"
+"Dhaka Sales": "4000"
+"Chittagong Sales": "4010"
+"Sylhet Sales": "4020"
+"Comilla Sales": "4030"
+"Rajshahi Sales": "4040"
+"Bogra Sales": "4050"
+"Khulna Sales": "4060"
+"Mymensing Sales": "4070"
+"Barishal Sales": "4080"
+"Rangpur Sales": "4090"
+"Feni Sales": "4100"
+"Dhaka South": "4110"
+"Brahmanbaria Sales": "4120"
+"Dhaka North": "4130"
+"Test Business Area": "4500"
+"PPHD": "5000"
+"Berger Design Studio": "5010"
+"Berger Training Institute": "5020"
+"Berger Tech Consulting Ltd": "5100"
+"Jenson & Nicholson BD Ltd": "6000"
+"JNBL 2nd Unit Dhaka": "6100"
+"Berger Becker Bangladesh": "7000"
+"Berger Fosroc Limited": "8000"
+"Corporate": "9000"
+
+Table schema:
+
+.create table SAPSalesInfos (
+    Id: long, CreatedTime: datetime, ModifiedTime: datetime, bukrs: long,
+    spart: string, matkl: string, wgbez: string, matnr: string, vkorg: long,
+    kunrg: long, kunnr_sh: long, Payer_DL: long, vbeln: long, vkbur_c: long,
+    vkgrp_c: string, kukla: long, fkdat: datetime, posnr: long, arktx: string,
+    meins: string, voleh: string, Territory: string, Szone: string, cname: string,
+    spart_text: string, Revenue: real, gsber: long, fkimg: long, volum: real,
+    ktokd: string, vtweg: string, erzet_T: string, kkber: long, FKDAT_TEMP: string,
+    GK: string
+)
+
+
+TABLE SCHEMA (from code):
+- Id: long
+- CreatedTime: datetime
+- ModifiedTime: datetime
+- bukrs: long
+- spart: string
+- matkl: string
+- wgbez: string
+- matnr: string
+- vkorg: long
+- kunrg: long
+- kunnr_sh: long
+- Payer_DL: long
+- vbeln: long
+- vkbur_c: long
+- vkgrp_c: string
+- kukla: long
+- fkdat: datetime
+- posnr: long
+- arktx: string
+- meins: string
+- voleh: string
+- Territory: string
+- Szone: string
+- cname: string
+- spart_text: string
+- Revenue: real
+- gsber: long
+- fkimg: long
+- volum: real
+- ktokd: string
+- vtweg: string
+- erzet_T: string
+- kkber: long
+- FKDAT_TEMP: string
+- GK: string
+
+FILTER RULES:
+- For STRING columns, use case-insensitive operators: `=~` for equality and `in~` for lists.
+- For NUMERIC columns, use `==` / `in` (no quotes for numbers).
+- Do NOT use tolower()/toupper(); prefer =~ / in~ for strings.
+- Do NOT use `bin(fkdat, 1mo)`; use `startofmonth(fkdat)` etc. when grouping.
+
+SPECIAL COLUMN RULES:
+- `spart_text` must be matched by case-insensitive substring: use `spart_text contains "<text>"`.
+  If multiple values are provided, expand to `(spart_text contains "A" or spart_text contains "B" ...)`.
+
+DERIVED TYPE GROUPS:
+- STRING columns: FKDAT_TEMP, GK, Szone, Territory, arktx, cname, erzet_T, ktokd, matkl, matnr, meins, spart, spart_text, vkgrp_c, voleh, vtweg, wgbez
+- NUMERIC columns: Id, Payer_DL, Revenue, bukrs, fkimg, gsber, kkber, kukla, kunnr_sh, kunrg, posnr, vbeln, vkbur_c, vkorg, volum
+- DATETIME columns: CreatedTime, ModifiedTime, fkdat
+
+
+CONTEXT MEMORY CONTRACT:
+- You are continuing a multi-turn conversation that generates **KQL** for SAPSalesInfos.
+- You will receive:
+  • A chronological snapshot of the last 20 messages and last 20 METAs.
+  • The user's new message.
+
+Your tasks:
+1) INFER ACTIVE CONTEXT (no hard-coded rules):
+   - From the snapshot, infer currently active dates, filters, dimensions, and scope.
+   - Resolve conflicts by priority:
+     latest explicit user instruction > latest explicit assistant META > earlier context.
+   - If the new message contradicts previous context, the new one overrides.
+   - If unspecified but stable recently, reuse it.
+2) OUTPUT FORMAT (strict):
+   a) First line: `// META {json}` — compact JSON of what you actually applied
+      e.g. // META {"dates":{"start":"YYYY-MM-DD","end":"YYYY-MM-DD"},"filters":{"gsber":[4110],"spart_text":["Decorative"]}}
+   b) Then **RAW KQL ONLY**, no markdown, no commentary.
+3) TECHNICAL KQL RULES:
+   - Use SAPSalesInfos and the provided schema.
+   - Prefer `startofmonth(fkdat)` over `bin(fkdat, 1mo)`.
+   - Strings: =~ / in~ (case-insensitive). Numeric: == / in (no quotes).
+   - End every KQL statement with a semicolon.
+   - If defining dates, use:
+       let StartDate = datetime(YYYY-MM-DD);
+       let EndDate   = datetime(YYYY-MM-DD);
+   - If the user requests an area outside allowed scope (see USER_AREA_SCOPE), output only:
+       print ErrorMessage = 'sorry you have no authorized to view this data.';
+     (Still produce a META line describing the authorization miss.)
+4) CONSISTENCY:
+   - Keep columns/filters consistent across turns unless told otherwise.
+5) AMBIGUITY:
+   - Prefer the most recent coherent context; avoid inventing filters.
+
+
+### SNAPSHOT (use to infer current context)
+### MESSAGES_JSONL (oldest→newest)
+{"role": "user", "text": "revenue in August 2024", "image_url": null, "created_at": "2025-09-09T07:06:09.116459+00:00"}
+{"role": "assistant", "text": "### Revenue in August 2024\n\n- **Total Revenue for August 2024**: 2,363,654,306.05 BDT  \n\n### Business Insight:\n- The revenue for the period from **August 1, 2024, to August 31, 2024**, is **2.36 billion BDT**, indicating a significant level of sales or revenue generation during this month.\n\n### Suggestions:\n- **Sustain Growth**: Analyze the factors contributing to this high revenue and replicate successful strategies in future months.\n- **Identify Key Drivers**: Break down the revenue by product, region, or sales office to identify top-performing areas.\n- **Optimize Performance**: Focus on underperforming segments (if any) to further boost overall revenue.", "image_url": null, "created_at": "2025-09-09T07:06:09.137725+00:00"}
+{"role": "user", "text": "revenue in October 2024", "image_url": null, "created_at": "2025-09-09T07:08:18.202332+00:00"}
+{"role": "assistant", "text": "### Revenue in October 2024\n\n- **Total Revenue for October 2024**: 3,352,233,190.62 BDT  \n\n### Business Insight:\n- The revenue for the period from **October 1, 2024, to October 31, 2024**, is **3.35 billion BDT**, indicating strong sales or revenue generation during this month.\n- Compared to August 2024 (2.36 billion BDT), October shows a significant increase in revenue, suggesting improved business performance or seasonal factors driving higher sales.\n\n### Suggestions:\n- **Analyze October Trends**: Investigate the factors contributing to the revenue spike in October, such as promotions, product launches, or seasonal demand.\n- **Replicate Success**: Identify strategies or campaigns from October that can be applied to other months to sustain or boost revenue.\n- **Monitor Performance**: Compare October's performance with other months to identify consistent growth patterns or anomalies.", "image_url": null, "created_at": "2025-09-09T07:08:18.208338+00:00"}
+{"role": "user", "text": "revenue in September 2024", "image_url": null, "created_at": "2025-09-09T07:11:13.919642+00:00"}
+{"role": "assistant", "text": "### Revenue in September 2024\n\n- **Total Revenue for September 2024**: 3,075,127,664.35 BDT  \n\n### Business Insight:\n- The revenue for the period from **September 1, 2024, to September 30, 2024**, is **3.08 billion BDT**, reflecting a strong performance during this month.\n- Compared to **August 2024** (2.36 billion BDT), revenue in September increased significantly, indicating improved sales or operational efficiency.\n- However, compared to **October 2024** (3.35 billion BDT), September's revenue is slightly lower, suggesting a potential upward trend heading into October.\n\n### Suggestions:\n- Analyze the factors contributing to the revenue growth from August to September and leverage these strategies for sustained growth.\n- Investigate the slight dip in revenue from September to October to identify areas for improvement or opportunities to maximize revenue in future months.", "image_url": null, "created_at": "2025-09-09T07:11:13.930362+00:00"}
+{"role": "user", "text": "revenue in july 2025", "image_url": null, "created_at": "2025-09-09T09:34:04.761314+00:00"}
+{"role": "assistant", "text": "### Revenue in July 2025\n\n- **Total Revenue for July 2025**: 0.0 BDT  \n\n### Business Insight:\n- The revenue for the period from **July 1, 2025, to July 31, 2025**, is **0.0 BDT**, indicating no recorded revenue during this month.\n- This could suggest a lack of sales activity, data entry issues, or other operational challenges during this period.\n\n### Suggestions:\n- **Investigate Data Accuracy**: Verify if the data for July 2025 has been fully recorded or if there are any reporting delays.\n- **Review Operational Activities**: Assess whether there were any disruptions in sales, production, or distribution during this period.\n- **Plan for Recovery**: If this reflects actual performance, consider strategies to boost revenue, such as promotions, targeted marketing, or operational improvements.", "image_url": null, "created_at": "2025-09-09T09:34:04.776991+00:00"}
+{"role": "assistant", "text": "### Revenue in July 2024\n\n- **Total Revenue for July 2024**: 2,887,503,249.59 BDT  \n\n### Business Insight:\n- The revenue for the period from **July 1, 2024, to July 31, 2024**, is **2.89 billion BDT**, reflecting a solid performance during this month.\n- This data indicates consistent revenue generation, which could be analyzed further to identify key contributors such as high-performing products, regions, or campaigns.\n- To sustain or improve this performance, consider strategies like targeted marketing, optimizing supply chain efficiency, or introducing promotional offers during peak demand periods.", "image_url": null, "created_at": "2025-09-09T09:36:01.274402+00:00"}
+{"role": "user", "text": "revenue in july 2024", "image_url": null, "created_at": "2025-09-09T09:36:01.274402+00:00"}
+{"role": "user", "text": "revenue in June 2024", "image_url": null, "created_at": "2025-09-09T09:39:31.416196+00:00"}
+{"role": "assistant", "text": "### Revenue in June 2024\n\n- **Total Revenue for June 2024**: 3,140,707,331.25 BDT  \n\n### Business Insight:\n- The revenue for the period from **June 1, 2024, to June 30, 2024**, is **3.14 billion BDT**, showcasing strong performance during this month.\n- This indicates a significant contribution to the overall revenue, suggesting effective sales strategies or high demand during this period.\n\n### Suggestions:\n- Analyze the factors driving high revenue in June 2024, such as seasonal trends, promotional campaigns, or product launches.\n- Consider replicating successful strategies from June in other months to sustain or increase revenue.\n- Evaluate customer behavior and market conditions to identify opportunities for further growth.", "image_url": null, "created_at": "2025-09-09T09:39:31.422343+00:00"}
+{"role": "user", "text": "top 5 brnads", "image_url": null, "created_at": "2025-09-09T09:40:07.116731+00:00"}
+{"role": "assistant", "text": "Hi there! It looks like you're asking about the **top 5 brands**, but just to clarify, I specialize in **SAP sales data analysis**. I can help you identify the top-performing brands based on sales revenue, growth trends, or other key metrics if you provide me with the relevant time period or criteria you'd like to analyze.\n\nFor example, I can assist with:\n- Ranking brands by revenue for a specific month (e.g., June 2024 or July 2024).\n- Analyzing which brands contributed the most to your overall sales growth.\n- Identifying trends or patterns in brand performance over time.\n\nFeel free to share more details about what you're looking for, and I'll be happy to help! 😊", "image_url": null, "created_at": "2025-09-09T09:40:07.127731+00:00"}
+{"role": "user", "text": "top 5 brands of june 2025", "image_url": null, "created_at": "2025-09-09T09:40:37.264846+00:00"}
+{"role": "assistant", "text": "No data found matching your criteria. Please refine your query for more specific results.", "image_url": null, "created_at": "2025-09-09T09:40:37.272849+00:00"}
+{"role": "user", "text": "revenue in June 2025", "image_url": null, "created_at": "2025-09-09T09:41:30.368182+00:00"}
+{"role": "assistant", "text": "### Revenue in June 2025 (Period: 2025-06-01 to 2025-06-30)\n\n- **Total Revenue**: 0.0 BDT\n\n### Business Insight:\n- The data indicates that there was **no recorded revenue** for the specified period in June 2025. This could be due to several factors, such as:\n  - Lack of sales transactions during this time.\n  - Data entry or reporting issues.\n  - Seasonal or operational factors affecting sales.\n\n### Suggestions:\n1. **Investigate Data Accuracy**: Ensure that all sales transactions for June 2025 have been properly recorded in the system.\n2. **Analyze Market Trends**: If June is typically a low-performing month, consider implementing promotional campaigns or discounts to boost sales.\n3. **Operational Review**: Check for any disruptions in supply chain, inventory, or sales operations that may have impacted revenue generation.\n4. **Customer Engagement**: Strengthen customer outreach and marketing efforts to drive sales during this period in future years.", "image_url": null, "created_at": "2025-09-09T09:41:30.375183+00:00"}
+{"role": "user", "text": "revenue in may 2025", "image_url": null, "created_at": "2025-09-09T09:41:54.116341+00:00"}
+{"role": "assistant", "text": "### Revenue in May 2025 (Period: 2025-05-01 to 2025-05-31)\n\n- **Total Revenue**: 4,323,472,652.26 BDT\n\n### Business Insight:\n- The total revenue for May 2025 was **4.32 billion BDT**, indicating a significant level of sales activity during this period.\n- This performance could reflect strong market demand, effective sales strategies, or seasonal factors contributing to higher revenue.\n\n### Suggestions:\n- Analyze the key drivers behind this revenue performance to replicate or enhance these strategies in future months.\n- Compare this revenue with other months (e.g., June 2025) to identify trends or anomalies.\n- Consider focusing on high-performing products, regions, or customer segments to sustain or grow revenue further.", "image_url": null, "created_at": "2025-09-09T09:41:54.127340+00:00"}
+### METAS_JSONL (oldest→newest)
+{"meta": {"dates": {"start": "2025-05-01", "end": "2025-05-31"}, "filters": {}}, "created_at": "2025-09-09T06:02:42.123762+00:00"}
+{"meta": {"dates": {"start": "2025-05-01", "end": "2025-05-31"}, "filters": {"cname": ["delwar paint"]}}, "created_at": "2025-09-09T06:05:40.797523+00:00"}
+{"meta": {"dates": {"start": "2025-05-01", "end": "2025-05-31"}, "filters": {}}, "created_at": "2025-09-09T06:06:18.016726+00:00"}
+{"meta": {"dates": {"start": "2025-03-01", "end": "2025-03-31"}, "filters": {}}, "created_at": "2025-09-09T06:22:26.236822+00:00"}
+{"meta": {"dates": {"start": "2025-05-01", "end": "2025-05-31"}, "filters": {}}, "created_at": "2025-09-09T06:57:28.137842+00:00"}
+{"meta": {"dates": {"start": ["2025-03-01", "2025-05-01"], "end": ["2025-03-31", "2025-05-31"]}, "filters": {}}, "created_at": "2025-09-09T06:58:09.463769+00:00"}
+{"meta": {"dates": {"start": "2025-10-01", "end": "2025-10-31"}, "filters": {}}, "created_at": "2025-09-09T07:05:14.393241+00:00"}
+{"meta": {"dates": {"start": "2024-10-01", "end": "2024-10-31"}, "filters": {}}, "created_at": "2025-09-09T07:05:28.111225+00:00"}
+{"meta": {"dates": {"start": "2024-08-01", "end": "2024-08-31"}, "filters": {}}, "created_at": "2025-09-09T07:06:05.582467+00:00"}
+{"meta": {"dates": {"start": "2024-10-01", "end": "2024-10-31"}, "filters": {}}, "created_at": "2025-09-09T07:08:14.170552+00:00"}
+{"meta": {"dates": {"start": "2024-09-01", "end": "2024-09-30"}, "filters": {}}, "created_at": "2025-09-09T07:11:09.211558+00:00"}
+{"meta": {"dates": {"start": "2025-07-01", "end": "2025-07-31"}, "filters": {}}, "created_at": "2025-09-09T09:33:56.701518+00:00"}
+{"meta": {"dates": {"start": "2024-07-01", "end": "2024-07-31"}, "filters": {}}, "created_at": "2025-09-09T09:35:57.344732+00:00"}
+{"meta": {"dates": {"start": "2024-06-01", "end": "2024-06-30"}, "filters": {}}, "created_at": "2025-09-09T09:39:25.978543+00:00"}
+{"meta": {"dates": {"start": "2025-06-01", "end": "2025-06-30"}, "filters": {}}, "created_at": "2025-09-09T09:40:35.105904+00:00"}
+{"meta": {"dates": {"start": "2025-05-01", "end": "2025-05-31"}, "filters": {}}, "created_at": "2025-09-09T09:41:50.268588+00:00"}
+{"meta": {"dates": {}, "filters": {"spart_text": ["Industrial"], "OS_days": ">90"}}, "created_at": "2025-09-10T12:14:05.593551+00:00"}
+{"meta": {"dates": {"start": "2025-06-12", "end": "2025-09-10"}, "filters": {"spart_text": ["Industrial"], "OS_days": ">90"}}, "created_at": "2025-09-10T12:15:35.692804+00:00"}
+
+### NEW USER MESSAGE
+7.	Show me the top 10 customer list who have OS over 90 days industrial Div 1100 from 2025-06-12 to 2025-09-10
+
+
+USER_AREA_SCOPE (JSON): {"restricted": false}
+If restricted=false, do NOT add any area filters.
+
+        Instruction: 
+        - Do not use the `bin(fkdat, 1mo)` operator for time-based grouping.
+        -If not data limit is given on the prompt take top 500 row.
+        - Instead, use `startofmonth(fkdat)` for monthly grouping (or other appropriate time functions based on the query).
+        - Ensure the query does not use `bin` and directly uses time-based functions for grouping.
+        - Group by the result of the time-based function using an `extend` statement, for example: `extend TimePeriod = startofmonth(fkdat)`
+        - Always use the named columns in the `summarize` statement.
+        
+
+OUTPUT FORMAT (strict):
+- First line: // META {compact-json-of-actually-applied dates, filters}
+- Then: RAW KQL ONLY (no markdown, no commentary).
