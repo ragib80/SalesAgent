@@ -72,8 +72,8 @@ def adx() -> ADXTool:
 TABLE_NAME = "SAPSalesInfos"
 
 FIELD_MAPPINGS = {
-    "revenue":"Revenue","quantity":"fkimg","volume":"volum","Dealer":"cname",
-    "brand":"wgbez","product name":"arktx","product":"arktx","category":"matkl",
+    "revenue":"Revenue","sale":"Revenue","quantity":"fkimg","volume":"volum","Dealer":"cname",
+    "brand":"wgbez","product name":"arktx","product":"arktx","category":"matkl","Material Group":"matkl",
     "division":"spart_text","division code":"spart","company code":"bukrs","sales org":"vkorg",
     "dist channel":"vtweg","distribution channel":"vtweg","business area":"gsber","depo":"gsber",
     "credit control area":"kkber","Dealer group":"kukla","account group":"ktokd",
