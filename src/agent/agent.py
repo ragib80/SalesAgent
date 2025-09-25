@@ -74,7 +74,7 @@ TABLE_NAME = "SAPSalesInfos"
 FIELD_MAPPINGS = {
     "revenue":"Revenue","quantity":"fkimg","volume":"volum","Dealer":"cname",
     "brand":"wgbez","product name":"arktx","product":"arktx","category":"matkl",
-    "division":"spart_text","company code":"bukrs","sales org":"vkorg",
+    "division":"spart_text","division code":"spart","company code":"bukrs","sales org":"vkorg",
     "dist channel":"vtweg","distribution channel":"vtweg","business area":"gsber","depo":"gsber",
     "credit control area":"kkber","Dealer group":"kukla","account group":"ktokd",
     "sales group":"vkgrp_c","sales office":"vkbur_c","payer id":"Payer_DL",
@@ -87,7 +87,7 @@ MAPPING_STR = "\n".join(f'"{k}": "{v}"' for k, v in FIELD_MAPPINGS.items())
 KUSTO_SCHEMA = """
 .create table SAPSalesInfos (
     Id: long, CreatedTime: datetime, ModifiedTime: datetime, bukrs: long,
-    spart: string, matkl: string, wgbez: string, matnr: string, vkorg: long,
+    spart: long, matkl: string, wgbez: string, matnr: string, vkorg: long,
     kunrg: long, kunnr_sh: long, Payer_DL: long, vbeln: long, vkbur_c: long,
     vkgrp_c: string, kukla: long, fkdat: datetime, posnr: long, arktx: string,
     meins: string, voleh: string, Territory: string, Szone: string, cname: string,
@@ -189,7 +189,7 @@ Handle ALL types of business questions: trends, comparisons, rankings, filtering
 - **Customers**: cname (names), kunrg (codes), kukla (groups), ktokd (account types)
 - **Products**: arktx (names), matnr (codes), wgbez (brands), matkl (categories)
 - **Geography**: Territory, Szone (zones), gsber (business areas/depots)
-- **Organization**: spart_text (divisions), bukrs (company), vkorg (sales org), vkgrp_c (sales groups)
+- **Organization**: spart_text (divisions),spart (division code), bukrs (company), vkorg (sales org), vkgrp_c (sales groups)
 - **Documents**: vbeln (invoice numbers), posnr (line items)
 
 ### BUSINESS TERM TRANSLATION:
@@ -1693,12 +1693,26 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
         except Exception as e:
             print(f"Failed to add conversation context to result prompt: {e}")
     
+    # result_prompt += (
+    #     "Based on the query results, format the output in bulleted format.Amount is in BDT and Volume is in gallon. "
+    #     + "if you found gsber, then it's human readable name is Depo/Sales Office.so if you find gsber use Depo/Sales Office"
+    #     +"If the result is numerical or comparative, bullet points for proper indication. If it's categorical or simple, use bullet points. "
+    #     +"After formatting, Insights on [context] → Highlight key trends, patterns, anomalies, risks, and opportunities based on the dataset.Strategic Recommendations for [context] → Provide actionable business suggestions tailored to the insights.Ensure section titles adapt dynamically (e.g., if data is about customers → Insights on Customer Sales Distribution, if about products → Insights on Product Sales Mix)."
+    #     +"If Needed, Based on the Context Data give meaningful business-related suggestions such as increasing sales, revenue."
+    # )
     result_prompt += (
         "Based on the query results, format the output in bulleted format. "
-        + "if you found gsber, then it's human readable name is Depo/Sales Office.so if you find gsber use Depo/Sales Office"
-        +"If the result is numerical or comparative, bullet points for proper indication. If it's categorical or simple, use bullet points. "
-        +"After formatting, provide a concise business insight related to the data, such as trends, patterns, or key takeaways. Amount is in BDT."
-        +"If Needed, Based on the Context Data give meaningful business-related suggestions such as increasing sales, revenue."
+        "Amount is in BDT and Volume is in gallons. "
+        "If you find 'gsber', replace it with the human-readable name 'Depo/Sales Office'. "
+        "If the result is numerical or comparative, use bullet points for clarity. "
+        "If it's categorical or descriptive, also use bullet points for consistency. "
+        "After formatting, generate dynamic analysis with context-aware section titles: "
+        "1. Insights on [context] → Highlight key trends, patterns, anomalies, risks, and opportunities in the dataset. "
+        "2. Strategic Recommendations for [context] → Provide actionable business suggestions tailored to the insights. "
+        "Ensure section titles adapt dynamically (e.g., if data is about customers → 'Insights on Customer Sales Distribution', "
+        "if about products → 'Insights on Product Sales Mix'). "
+        "If relevant, provide meaningful business-related suggestions such as improving sales, increasing revenue, "
+        "enhancing customer retention, or reducing risks etc."
     )
     
     print("****************************************final prompt", result_prompt)
