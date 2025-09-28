@@ -45,16 +45,26 @@ $(function () {
   });
 
   // Render value dropdowns below
-  $("#availableColumns").on("change", function () {
-    const selectedCols = $(this).val() || [];
-    const container = $("#selectedFiltersContainer");
-    container.empty();
+// Render value dropdowns below
+$("#availableColumns").on("change", function () {
+  const selectedCols = $(this).val() || [];
+  const container = $("#selectedFiltersContainer");
 
-    selectedCols.forEach((col) => {
+  // 1. Remove filter blocks that are not selected anymore
+  container.children(".filter-block").each(function () {
+    const col = $(this).data("col");
+    if (!selectedCols.includes(col)) {
+      $(this).remove();
+    }
+  });
+
+  // 2. Add new filter blocks for newly selected columns
+  selectedCols.forEach((col) => {
+    if (container.find(`.filter-block[data-col="${col}"]`).length === 0) {
       const label = $(`#availableColumns option[value="${col}"]`).text();
 
       container.append(`
-        <div class="mb-3 p-3 border rounded bg-light shadow-sm">
+        <div class="filter-block mb-3 p-3 border rounded bg-light shadow-sm" data-col="${col}">
           <label class="form-label fw-semibold mb-2">${label}</label>
           <select id="select-${col}" class="form-select" multiple></select>
         </div>
@@ -85,8 +95,10 @@ $(function () {
           },
         },
       });
-    });
+    }
   });
+});
+
 
   // Apply Filters
   $("#applyFiltersBtn").on("click", function () {
