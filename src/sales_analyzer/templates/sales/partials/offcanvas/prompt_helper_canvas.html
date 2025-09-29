@@ -11,9 +11,9 @@
     <div class="mb-4">
       <label for="availableColumns" class="form-label fw-semibold">Choose filter columns</label>
       <select id="availableColumns" class="form-select" multiple>
-         <option value="revenue">Revenue</option>
-    <option value="fkimg">Quantity</option>
-    <option value="volum">Volume</option>
+         {% comment %} <option value="revenue">Revenue</option> {% endcomment %}
+    {% comment %} <option value="fkimg">Quantity</option> {% endcomment %}
+    {% comment %} <option value="volum">Volume</option> {% endcomment %}
     <option value="cname">Dealer</option>
     <option value="wgbez">Brand</option>
     <option value="arktx">Product Name</option>
@@ -21,7 +21,7 @@
     <option value="matkl">Material Group</option>
     
     <option value="spart_text">Division</option>
-    <option value="spart">Division Code</option>
+    {% comment %} <option value="spart">Division Code</option> {% endcomment %}
     <option value="bukrs">Company Code</option>
     <option value="vkorg">Sales Org</option>
     <option value="vtweg">Distribution Channel</option>
@@ -56,7 +56,7 @@
     
     <!-- Apply Button -->
     <div class="offcanvas-footer mt-3 pt-3 border-top">
-      <button type="button" class="btn btn-success w-100" id="applyFiltersBtn">Apply Filters</button>
+      <button type="button" class="btn btn-success w-100" id="applyFiltersBtn">Generate Prompt</button>
     </div>
   </div>
 </div>
