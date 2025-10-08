@@ -151,16 +151,16 @@ def serialize_context_for_llm(conversation_id: int) -> str:
         }, ensure_ascii=False))
 
     # Metas
-    lines.append("### METAS_JSONL (oldest→newest)")
-    for meta in metas:
-        payload = meta.meta_json if getattr(meta, "meta_json", None) else None
-        # Some older rows might have 'content' instead of meta_json
-        if payload is None and hasattr(meta, "content"):
-            payload = {"content": meta.content}
-        lines.append(json.dumps({
-            "meta": payload,
-            "created_at": meta.created_at.isoformat()
-        }, ensure_ascii=False))
+    # lines.append("### METAS_JSONL (oldest→newest)")
+    # for meta in metas:
+    #     payload = meta.meta_json if getattr(meta, "meta_json", None) else None
+    #     # Some older rows might have 'content' instead of meta_json
+    #     if payload is None and hasattr(meta, "content"):
+    #         payload = {"content": meta.content}
+    #     lines.append(json.dumps({
+    #         "meta": payload,
+    #         "created_at": meta.created_at.isoformat()
+    #     }, ensure_ascii=False))
 
     return "\n".join(lines)
 
@@ -170,12 +170,12 @@ def serialize_context_for_llm(conversation_id: int) -> str:
 # -------------------------------------------------------------------
 def build_conversation_snapshot_block(conversation_uuid: Optional[str]) -> str:
     if not conversation_uuid:
-        return "### MESSAGES_JSONL (none)\n### METAS_JSONL (none)"
+        return "### MESSAGES_JSONL (none)"
     try:
         conv_id = get_conversation_id_from_uuid(conversation_uuid)
         return serialize_context_for_llm(conv_id)
     except Exception as e:
-        return f"### MESSAGES_JSONL (error: {e})\n### METAS_JSONL (none)"
+        return f"### MESSAGES_JSONL (error: {e})"
 
 
 # -------------------------------------------------------------------
@@ -186,15 +186,16 @@ def build_context_memory_contract() -> str:
         "CONTEXT MEMORY CONTRACT:\n"
         "- You are continuing a multi-turn conversation that generates **KQL** for SAPSalesInfos.\n"
         "- You will receive:\n"
-        "  • A chronological snapshot of the last 20 messages and last 20 METAs.\n"
+        "  • A chronological snapshot of the last 20 messages.\n"
         "  • The user's new message.\n\n"
         "Your tasks:\n"
         "1) INFER ACTIVE CONTEXT (no hard-coded rules):\n"
-        "   - From the snapshot, infer currently active dates, filters, dimensions, and scope.\n"
+        "   - From the message history, infer currently active dates, filters, dimensions, and scope.\n"
         "   - Resolve conflicts by priority:\n"
-        "     latest explicit user instruction > latest explicit assistant META > earlier context.\n"
+        "     latest explicit user instruction > earlier assistant reply > earlier user instruction.\n"
         "   - If the new message contradicts previous context, the new one overrides.\n"
         "   - If unspecified but stable recently, reuse it.\n"
+        "   - Ignore any prior `// META {}` lines in the conversation — they are annotations only.\n"
         "2) OUTPUT FORMAT (strict):\n"
         "   a) First line: `// META {json}` — compact JSON of what you actually applied\n"
         "      e.g. // META {\"dates\":{\"start\":\"YYYY-MM-DD\",\"end\":\"YYYY-MM-DD\"},\"filters\":{\"gsber\":[4110],\"spart_text\":[\"Decorative\"]}}\n"
@@ -215,3 +216,4 @@ def build_context_memory_contract() -> str:
         "5) AMBIGUITY:\n"
         "   - Prefer the most recent coherent context; avoid inventing filters.\n"
     )
+
