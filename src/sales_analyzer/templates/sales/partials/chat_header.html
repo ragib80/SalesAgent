@@ -1,0 +1,27 @@
+ <!-- Chat Header -->
+            <div class="chat-header">
+                <div class="chat-title">
+                    <div class="dropdown">
+                        <button class="btn btn-link dropdown-toggle p-0 text-decoration-none"
+                                type="button" id="modelDropdown" data-bs-toggle="dropdown"
+                                aria-expanded="false" style="color:#2d333a;font-size:16px;font-weight:600;">
+                            <span id="current-model">Y Sales</span>
+                        </button>
+
+                        <ul class="dropdown-menu" aria-labelledby="modelDropdown" id="modelMenu">
+                            <li><button class="dropdown-item" type="button" data-selector=".y-sales">Y Sales</button></li>
+                            <li><button class="dropdown-item" type="button" disabled>Coming soon</button></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="chat-actions d-flex">
+                    <!-- Prompt Helper Button -->
+                    <button class="btn btn-outline-primary btn-sm" type="button"
+                            data-bs-toggle="offcanvas" data-bs-target="#promptHelperCanvas"
+                            aria-controls="promptHelperCanvas">
+                    Prompt Helper
+                    </button>
+                </div>
+                <div class="chat-actions">
+                </div>
+            </div>

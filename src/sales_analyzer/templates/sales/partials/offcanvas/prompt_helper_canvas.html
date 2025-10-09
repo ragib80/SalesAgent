@@ -1,0 +1,75 @@
+<div class="offcanvas offcanvas-end" tabindex="-1" id="promptHelperCanvas">
+  <div class="offcanvas-header border-bottom">
+    <h5 class="offcanvas-title">Prompt Helper</h5>
+    <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas"></button>
+  </div>
+
+  <div class="offcanvas-body d-flex flex-column">
+    <p class="text-muted mb-3">Select filter columns and refine values</p>
+
+    <!-- Column Selector -->
+    <div class="mb-4">
+      <label for="availableColumns" class="form-label fw-semibold">Choose filter columns</label>
+      <div class="mb-4">
+      <label for="metricSelect" class="form-label fw-semibold">Select Metric</label>
+      <select id="metricSelect" class="form-select">
+        <option value="" disable>-- Select Metric --</option>
+        <option value="Revenue">Sales</option>
+        <option value="fkimg">Quantity</option>
+        <option value="volum">Volume</option>
+        <!-- Metrics will be dynamically populated from backend (Revenue, Quantity, Volume etc.) -->
+      </select>
+    </div>
+      <select id="availableColumns" class="form-select" multiple>
+         {% comment %} <option value="revenue">Revenue</option> {% endcomment %}
+        {% comment %} <option value="fkimg">Quantity</option> {% endcomment %}
+        {% comment %} <option value="volum">Volume</option> {% endcomment %}
+        <option value="cname">Dealer</option>
+        <option value="wgbez">Brand</option>
+        <option value="arktx">Product Name</option>
+        {% comment %} <option value="matkl">Category</option> {% endcomment %}
+        <option value="matkl">Material Group</option>
+        
+        <option value="spart_text">Division</option>
+        {% comment %} <option value="spart">Division Code</option> {% endcomment %}
+        <option value="bukrs">Company Code</option>
+        <option value="vkorg">Sales Org</option>
+        <option value="vtweg">Distribution Channel</option>
+        <option value="gsber">Business Area / Depo</option>
+        <option value="kkber">Credit Control Area</option>
+        <option value="kukla">Dealer Group</option>
+        <option value="ktokd">Account Group</option>
+        <option value="vkgrp_c">Sales Group</option>
+        <option value="vkbur_c">Sales Office</option>
+        <option value="Payer_DL">Payer ID</option>
+        <option value="matnr">Product Code / Material Code</option>
+        <option value="meins">Material UoM</option>
+        <option value="voleh">Volume Unit</option>
+        <option value="GK">Business Group</option>
+        <option value="Territory">Territory</option>
+        <option value="Szone">Sales Zone</option>
+        <option value="fkdat">Date</option>
+        <option value="kunrg">Dealer Code</option>
+        <option value="vbeln">Invoice Number</option>
+      </select>
+    </div>
+
+    <!-- Dynamic Filters -->
+    <div id="selectedFiltersContainer" class="flex-grow-1"></div>
+
+    <!-- Generated Prompts Section -->
+    <div id="generatedPromptsWrapper" class="mt-3" style="display:none;">
+      <h6 class="fw-bold">Generated Prompts</h6>
+      <div id="generatedPromptsContainer" class="mt-2"></div>
+    </div>
+
+    
+    <!-- Apply Button -->
+    <div class="offcanvas-footer mt-3 pt-3 border-top">
+      <button type="button" class="btn btn-success w-100" id="applyFiltersBtn">Generate Prompt</button>
+    </div>
+  </div>
+</div>
+
+        
+      

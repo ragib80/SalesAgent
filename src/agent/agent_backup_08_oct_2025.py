@@ -1473,7 +1473,7 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
     # -----------------------------
     # 1) Non-sales queries → general assistant
     # -----------------------------
-    if not is_sales_analysis_query(user_prompt, conversation_id=conversation_id):
+    if not is_sales_analysis_query(user_prompt,conversation_id=conversation_id):
         general_prompt = """
         You are a SAP Sales Analysis Assistant. The user has asked a general question not related to sales data analysis or KQL.
 
@@ -1485,30 +1485,21 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
         Do not generate KQL for general questions.
         """.strip()
 
-        # Show previous data in USER/ASSISTANT mode, then the current ask
         if conversation_id:
             try:
                 conv_id = get_conversation_id_from_uuid(conversation_id)
                 last_msgs = get_last_20_messages(conv_id)
                 if last_msgs:
-                    history_block = "Previous Conversation (for context only):\n"
+                    general_prompt += "\n\nCONVERSATION CONTEXT:\n"
                     for m in last_msgs[-20:]:
-                        role = "USER" if m.sender == "user" else "ASSISTANT"
-                        history_block += f"{role}: {m.text or ''}\n"
-                    general_prompt += "\n\n" + history_block
+                        sender = "USER" if m.sender == "user" else "ASSISTANT"
+                        general_prompt += f"{sender}: {m.text}\n"
+                    general_prompt += "\nBase your answer on the above context."
             except Exception:
                 pass
 
-        general_prompt += f"\n\nNow, CURRENT USER MESSAGE:\nUSER: {user_prompt}"
-
-        general_messages = [
-            {
-                "role": "system",
-                "content": "Do not reuse numbers or conclusions from Previous Conversation; answer the current question directly. Do not generate KQL for general questions."
-            },
-            {"role": "user", "content": general_prompt},
-        ]
-        return llm.invoke(general_messages).content
+        general_prompt += f"\n\nCurrent user message: {user_prompt}"
+        return llm.invoke([{"role": "user", "content": general_prompt}]).content
 
     # -----------------------------
     # 2) Sales queries → generate KQL
@@ -1581,53 +1572,39 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
     # -----------------------------
     # 7) Build narrative prompt
     # -----------------------------
-    # Build a history block in USER/ASSISTANT mode (previous data)
-    history_block = ""
+    result_prompt = (
+        f"User asked: {user_prompt}\n\n"
+        f"Context Data:\n{result_json}\n\n"
+        "Format the output in bulleted format.\n"
+        "- Amount is in BDT and Volume is in gallons.\n"
+        "- Replace 'gsber' with 'Depo/Sales Office'.\n"
+        "- Use bullet points for both numerical and categorical results.\n\n"
+        "Then generate two sections:\n"
+        "1. Insights on [context] → trends, patterns, anomalies, risks, opportunities.\n"
+        "2. Strategic Recommendations for [context] → actionable suggestions.\n"
+        "Section titles should adapt dynamically (e.g. 'Insights on Customer Sales Distribution').\n"
+        "Provide meaningful, business-related recommendations if possible."
+    )
+
     if conversation_id:
         try:
             conv_id = get_conversation_id_from_uuid(conversation_id)
             last_msgs = get_last_20_messages(conv_id)
             if last_msgs:
-                history_block = "Previous Conversation (for context only):\n"
+                result_prompt += "\n\nRecent conversation for context:\n"
                 for m in last_msgs[-20:]:
-                    role = "USER" if m.sender == "user" else "ASSISTANT"
-                    history_block += f"{role}: {m.text or ''}\n"
+                    sender = "user" if m.sender == "user" else "assistant"
+                    # msg_text = m.text[:300] + "..." if len(m.text) > 300 else m.text
+                    msg_text = m.text or ""
+                    result_prompt += f"{sender}: {msg_text}\n"
         except Exception:
             pass
-
-    result_prompt = (
-        (history_block + "\n" if history_block else "")
-        + "Now, CURRENT USER MESSAGE:\n"
-        + f"USER: {user_prompt}\n\n"
-        + "Context Data (use ONLY this JSON for any numbers):\n"
-        + f"{result_json}\n\n"
-        + "Format the output in bulleted format.\n"
-        + "- Amount is in BDT and Volume is in gallons.\n"
-        + "- Replace 'gsber' with 'Depo/Sales Office'.\n"
-        + "- Use bullet points for both numerical and categorical results.\n\n"
-        + "Then generate two sections:\n"
-        + "1. Insights on [context] → trends, patterns, anomalies, risks, opportunities.\n"
-        + "2. Strategic Recommendations for [context] → actionable suggestions.\n"
-        + "Section titles should adapt dynamically (e.g. 'Insights on Customer Sales Distribution').\n"
-        + "Provide meaningful, business-related recommendations if possible."
-    )
 
     # -----------------------------
     # 8) Generate narrative output
     # -----------------------------
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "You are a SAP Sales Data Analyst. For ALL numeric facts, use ONLY the JSON under 'Context Data'. "
-                "If any part of Previous Conversation conflicts with 'Context Data', ignore it. "
-                "Do not reuse headings or numbers from earlier assistant messages."
-            ),
-        },
-        {"role": "user", "content": result_prompt},
-    ]
-    return llm.invoke(messages).content
-
+    # print("dsadsadasd   final result promt           ",result_prompt)
+    return llm.invoke([{"role": "user", "content": result_prompt}]).content
     # try:
     #     return analysis_llm.invoke([{"role": "user", "content": result_prompt}]).content
     # except BadRequestError as e:
@@ -1637,4 +1614,275 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
     #     except Exception:
     #         err_json = {"message": str(e)}
     #     return f"Azure OpenAI 400 Bad Request.\nDetails: {err_json}"
+
+# Enhance handle_user_query to use dynamic date range detection
+# def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -> str:
+#     """
+#     Dynamically handle SAP Sales prompts with multi-turn conversation support,
+#     ensuring correct KQL generation, and mapping business area/territory to the correct 'gsber' code.
+#     """
+#     if not is_sales_analysis_query(user_prompt):
+#         # If it's a general query, return the response from LLM with conversation context
+#         general_prompt = """
+#         You are a SAP Sales Analysis Assistant. The user has asked a general question that is not related to sales data analysis or KQL generation.
+        
+#         Please respond as a friendly and helpful SAP Sales Analysis Assistant. Let the user know:
+#         - You are specialized in SAP sales data analysis
+#         - You can help with sales reports, revenue analysis, growth calculations, trends, etc.
+#         - Invite them to ask about sales-related queries
+        
+#         Keep the response conversational, helpful, and focused on your role as a sales analysis assistant.
+#         Do not generate any KQL code for general conversation.
+#         """
+        
+#         # Add conversation context for general queries if available
+#         if conversation_id:
+#             try:
+#                 conv_id = get_conversation_id_from_uuid(conversation_id)
+#                 last_20_messages = get_last_20_messages(conv_id)
+                
+#                 if last_20_messages:
+#                     general_prompt += "\n\nCONVERSATION CONTEXT:\n"
+#                     for message in last_20_messages[-5:]:  # Show last 5 messages for context
+#                         sender_label = "USER" if message.sender == "user" else "ASSISTANT"
+#                         general_prompt += f"{sender_label}: {message.text}\n"
+#                     general_prompt += "\nBased on our conversation history above, provide a contextual response."
+#             except Exception:
+#                 pass
+        
+#         general_prompt += f"\n\nCurrent user message: {user_prompt}"
+        
+#         # Get response from LLM for general conversation
+#         response = llm.invoke([{"role": "user", "content": general_prompt}]).content
+#         return response
+
+#     # -- [unchanged] detect or ask for dates
+#     print("user_prompt:", user_prompt)
+#     logger.debug("This is a debug message")
+#     start_date, end_date = detect_date_filter_using_llm(user_prompt)
+  
+#     if start_date and end_date:
+#         start_date_str = start_date.strftime("%Y-%m-%d")
+#         end_date_str   = end_date.strftime("%Y-%m-%d")
+#         user_prompt   += f" from {start_date_str} to {end_date_str}"
+
+#     # -- UPDATED: KQL generation with multi-turn conversation support
+#     kql = generate_kql(user_prompt, conversation_id)
+#     kql = format_dates(kql)
+#     kql = re.sub(r'ago\(3mo\)', 'ago(90d)', kql, flags=re.I)
+#     kql = re.sub(r'startofquarter\((.*?)\)', r'startofmonth(\1)', kql, flags=re.I)
+
+#     # -- [unchanged] territory → gsber mapping
+#     for territory, gsber_value in GSBER_MAPPING.items():
+#         if territory.lower() in user_prompt.lower():
+#             kql = re.sub(r"where Territory == .+?", f"where gsber == '{gsber_value}'", kql)
+#             break
+
+#     # -- [unchanged] trend detection
+#     trend = detect_trend(user_prompt)
+#     if trend == "declining":
+#         kql = kql.replace("RevenueChange < 0", "RevenueChange < 0")
+#     elif trend == "increasing":
+#         kql = kql.replace("RevenueChange < 0", "RevenueChange > 0")
+#     else:
+#         kql = kql.replace("RevenueChange < 0", "RevenueChange == 0")
+
+#     # -- [unchanged] execute with retry
+#     for attempt in (1, 2):
+#         try:
+#             cols, rows = adx().run(kql)
+#             break
+#         except KustoApiError:
+#             if attempt == 1:
+#                 kql = generate_kql(user_prompt, conversation_id, strict=True)
+#                 print("*********************** kql******************", kql)
+#                 continue
+
+#             # If KQL still fails after retry, check if it's a sales-related query at all
+#             if not is_sales_analysis_query(user_prompt):
+#                 # Not a sales query → return general assistant response with context
+#                 general_prompt = """
+#                 You are a SAP Sales Analysis Assistant. The user has asked a general question that is not related to sales data analysis or KQL generation.
+
+#                 Please respond as a friendly and helpful SAP Sales Analysis Assistant. Let the user know:
+#                 - You are specialized in SAP sales data analysis
+#                 - You can help with sales reports, revenue analysis, growth calculations, trends, etc.
+#                 - Invite them to ask about sales-related queries
+
+#                 Keep the response conversational, helpful, and focused on your role as a sales analysis assistant.
+#                 Do not generate any KQL code for general conversation.
+#                 """
+                
+#                 # Add conversation context for failed queries
+#                 if conversation_id:
+#                     try:
+#                         conv_id = get_conversation_id_from_uuid(conversation_id)
+#                         last_20_messages = get_last_20_messages(conv_id)
+                        
+#                         if last_20_messages:
+#                             general_prompt += "\n\nCONVERSATION CONTEXT:\n"
+#                             for message in last_20_messages[-3:]:  # Show last 3 messages for context
+#                                 sender_label = "USER" if message.sender == "user" else "ASSISTANT"
+#                                 general_prompt += f"{sender_label}: {message.text[:200]}...\n"  # Truncate long messages
+#                             general_prompt += "\nI see we've been having a conversation, but I had trouble processing your latest request."
+#                     except Exception:
+#                         pass
+
+#                 general_prompt += f"\n\nUser message: {user_prompt}"
+
+#                 response = llm.invoke([{"role": "user", "content": general_prompt}]).content
+#                 return response
+
+#             return "Please refine your query for better results. I'm learning day by day and will help you improve your query."
+
+#     if not rows:
+#         return "No data found matching your criteria. Please refine your query for more specific results."
+
+#     # —————————————————————————
+#     # ↓ [unchanged] fully dynamic datetime formatting ↓
+#     # —————————————————————————
+
+#     # 1) Limit to top N rows
+#     rows_to_show = rows[:30]
+#     print("rows_to_show = rows[:30]:", rows_to_show)
+#     # 2) Build result_data, converting any datetime to "YYYY-MM-DD"
+#     result_data = []
+#     for row in rows_to_show:
+#         row_dict = dict(zip(cols, row))
+#         for col_name, value in row_dict.items():
+#             if isinstance(value, datetime.datetime):
+#                 row_dict[col_name] = value.strftime("%Y-%m-%d")
+#         result_data.append(row_dict)
+
+#     # 3) Optionally sort by detected date-like column
+#     date_cols = [c for c in cols if c.lower() in ("timeperiod", "week", "month", "date")]
+#     if date_cols:
+#         key = date_cols[0]
+#         result_data.sort(key=lambda x: x[key])
+
+#     # 4) Safe JSON serialization
+#     result_json = json.dumps(result_data, default=str, indent=2)
+#     print("json.dumps result_data:", result_json)
+#     # from_agent_meta = ""
+#     # if isinstance(LAST_KQL_META, (list, dict)):
+#     #     from_agent_meta = build_applied_context_block(LAST_KQL_META)
+
+#     # meta_data_block = ""
+#     # if from_agent_meta:
+#     #     meta_data_block = from_agent_meta
+#     if conversation_id:
+#         # If current meta data is null, try to get previous meta data from conversation
+#         try:
+#             conv_id = get_conversation_id_from_uuid(conversation_id)
+#             last_20_message_metas = get_last_20_message_metas(conv_id)
+            
+#             if last_20_message_metas:
+#                 # Get the most recent non-empty meta data
+#                 for meta in reversed(last_20_message_metas):  # Start from latest
+#                     if hasattr(meta, 'meta_json') and meta.meta_json:
+#                         previous_meta = json.dumps(meta.meta_json)
+                        
+#                         # Add intelligence prompt to decide if previous meta should be used
+#                         # Determine context relevance for decision guidance
+#                         decision_guidance = "USED if any context seems relevant else IGNORED"
+                        
+#                         meta_decision_prompt = f"""
+#                         PREVIOUS META DATA ANALYSIS:
+#                         Previous metadata: {previous_meta}
+#                         Current user prompt: "{user_prompt}"
+                        
+#                         Analyze if the previous metadata context should be applied to the current query:
+                        
+#                         DECISION CRITERIA:
+#                         - If user mentions "same", "similar", "like before", "previous", "last time" → USE previous meta
+#                         - If user asks about same business area/territory/product without specifying new filters → USE previous meta
+#                         - If user specifies completely new filters/dates/criteria → DO NOT use previous meta
+#                         - If user asks comparative questions ("compare with", "vs last") → USE previous meta for context
+#                         - If user asks for different time period without other specifications → USE previous meta filters but update dates
+                        
+#                         Based on the analysis above, the previous metadata should be {decision_guidance}.
+#                         """
+                        
+#                         meta_data_block = f"PREVIOUS_META_DATA: {previous_meta}\n\nMETA_DECISION_CONTEXT: {meta_decision_prompt}"
+#                         break
+#                     elif hasattr(meta, 'content') and meta.content:
+#                         previous_meta = meta.content
+                        
+#                         meta_decision_prompt = f"""
+#                         PREVIOUS META DATA ANALYSIS:
+#                         Previous metadata: {previous_meta}
+#                         Current user prompt: "{user_prompt}"
+                        
+#                         Analyze if the previous metadata context should be applied to the current query based on the decision criteria above.
+#                         The previous metadata should be used intelligently based on user intent and query similarity.
+#                         """
+                        
+#                         meta_data_block = f"PREVIOUS_META_DATA: {previous_meta}\n\nMETA_DECISION_CONTEXT: {meta_decision_prompt}"
+#                         break
+#         except Exception as e:
+#             print(f"Failed to retrieve previous meta data: {e}")
+    
+#     result_prompt = (
+#         f"User asked: {user_prompt}\n\n"
+#         f"Context Data:\n{result_json}\n\n"
+#         + "META_DATA :" + (meta_data_block + "\n\n" if meta_data_block else "") + 
+#         "RENDERING RULES for META_DATA:\n"
+#         + "- Use META_DATA to understand which dates/filters were applied.\n"
+#         + "- If PREVIOUS_META_DATA is provided, intelligently decide whether to reference it based on the META_DECISION_CONTEXT.\n"
+#         + "- SHOW ONLY the subset of META_DATA that the user explicitly asked for in this prompt, "
+#         + "or that is clearly implied by the prompt (e.g., 'same division' implies the division in META). "
+#         + "Hide unrelated filters.\n"
+#         + "- When using PREVIOUS_META_DATA, clearly indicate in your response what context from previous queries is being applied.\n"
+#     )
+    
+#     # Add conversation context to the result prompt for better multi-turn responses
+#     if conversation_id:
+#         try:
+#             conv_id = get_conversation_id_from_uuid(conversation_id)
+#             last_20_messages = get_last_20_messages(conv_id)
+            
+#             if last_20_messages:
+#                 result_prompt += "\nCONVERSATION CONTEXT (for reference):\n"
+#                 # Show only the last few relevant messages to avoid prompt bloat
+#                 for message in last_20_messages[-3:]:
+#                     sender_label = "USER" if message.sender == "user" else "ASSISTANT"
+#                     # Truncate very long messages but keep important context
+#                     message_text = message.text[:300] + "..." if len(message.text) > 300 else message.text
+#                     result_prompt += f"{sender_label}: {message_text}\n"
+                
+#                 result_prompt += (
+#                     "\nCONTEXT USAGE INSTRUCTIONS:\n"
+#                     "- Consider the conversation flow and user's previous questions\n"
+#                     "- If the user references 'previous results', 'last query', 'same as before', etc., acknowledge this context\n"
+#                     "- Provide comparative insights if the user is building on previous analysis\n"
+#                     "- Maintain consistency in terminology and analysis approach\n\n"
+#                 )
+#         except Exception as e:
+#             print(f"Failed to add conversation context to result prompt: {e}")
+    
+#     # result_prompt += (
+#     #     "Based on the query results, format the output in bulleted format.Amount is in BDT and Volume is in gallon. "
+#     #     + "if you found gsber, then it's human readable name is Depo/Sales Office.so if you find gsber use Depo/Sales Office"
+#     #     +"If the result is numerical or comparative, bullet points for proper indication. If it's categorical or simple, use bullet points. "
+#     #     +"After formatting, Insights on [context] → Highlight key trends, patterns, anomalies, risks, and opportunities based on the dataset.Strategic Recommendations for [context] → Provide actionable business suggestions tailored to the insights.Ensure section titles adapt dynamically (e.g., if data is about customers → Insights on Customer Sales Distribution, if about products → Insights on Product Sales Mix)."
+#     #     +"If Needed, Based on the Context Data give meaningful business-related suggestions such as increasing sales, revenue."
+#     # )
+#     result_prompt += (
+#         "Based on the query results, format the output in bulleted format. "
+#         "Amount is in BDT and Volume is in gallons. "
+#         "If you find 'gsber', replace it with the human-readable name 'Depo/Sales Office'. "
+#         "If the result is numerical or comparative, use bullet points for clarity. "
+#         "If it's categorical or descriptive, also use bullet points for consistency. "
+#         "After formatting, generate dynamic analysis with context-aware section titles: "
+#         "1. Insights on [context] → Highlight key trends, patterns, anomalies, risks, and opportunities in the dataset. "
+#         "2. Strategic Recommendations for [context] → Provide actionable business suggestions tailored to the insights. "
+#         "Ensure section titles adapt dynamically (e.g., if data is about customers → 'Insights on Customer Sales Distribution', "
+#         "if about products → 'Insights on Product Sales Mix'). "
+#         "If relevant, provide meaningful business-related suggestions such as improving sales, increasing revenue, "
+#         "enhancing customer retention, or reducing risks etc."
+#     )
+    
+#     print("****************************************final prompt", result_prompt)
+#     formatted_result = llm.invoke([{"role": "user", "content": result_prompt}]).content
+#     return formatted_result
 

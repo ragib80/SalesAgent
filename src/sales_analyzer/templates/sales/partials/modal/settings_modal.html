@@ -1,0 +1,86 @@
+ <!-- Settings Modal -->
+    <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="settingsModalLabel">Settings</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="nav flex-column nav-pills" id="v-pills-tab" role="tablist" aria-orientation="vertical">
+                                <button class="nav-link active" id="v-pills-general-tab" data-bs-toggle="pill" data-bs-target="#v-pills-general" type="button" role="tab" aria-controls="v-pills-general" aria-selected="true">General</button>
+                                <button class="nav-link" id="v-pills-personalization-tab" data-bs-toggle="pill" data-bs-target="#v-pills-personalization" type="button" role="tab" aria-controls="v-pills-personalization" aria-selected="false">Personalization</button>
+                                <button class="nav-link" id="v-pills-data-tab" data-bs-toggle="pill" data-bs-target="#v-pills-data" type="button" role="tab" aria-controls="v-pills-data" aria-selected="false">Data controls</button>
+                            </div>
+                        </div>
+                        <div class="col-md-9">
+                            <div class="tab-content" id="v-pills-tabContent">
+                                <div class="tab-pane fade show active" id="v-pills-general" role="tabpanel" aria-labelledby="v-pills-general-tab">
+                                    <h6>Theme</h6>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="theme" id="themeAuto" value="auto" checked>
+                                        <label class="form-check-label" for="themeAuto">Auto</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="theme" id="themeLight" value="light">
+                                        <label class="form-check-label" for="themeLight">Light</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="theme" id="themeDark" value="dark">
+                                        <label class="form-check-label" for="themeDark">Dark</label>
+                                    </div>
+                                    <hr>
+                                    <h6>Language</h6>
+                                    <select class="form-select" aria-label="Language selection">
+                                        <option selected>English</option>
+                                        <option value="es">Spanish</option>
+                                        <option value="fr">French</option>
+                                        <option value="de">German</option>
+                                    </select>
+                                </div>
+                                <div class="tab-pane fade" id="v-pills-personalization" role="tabpanel" aria-labelledby="v-pills-personalization-tab">
+                                    <h6>Custom instructions</h6>
+                                    <p class="text-muted">Customize how ChatGPT responds to you</p>
+                                    <div class="mb-3">
+                                        <label for="customInstructions" class="form-label">What would you like ChatGPT to know about you?</label>
+                                        <textarea class="form-control" id="customInstructions" rows="3" placeholder="Tell ChatGPT about yourself..."></textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="responseStyle" class="form-label">How would you like ChatGPT to respond?</label>
+                                        <textarea class="form-control" id="responseStyle" rows="3" placeholder="Tell ChatGPT how to respond..."></textarea>
+                                    </div>
+                                </div>
+                                <div class="tab-pane fade" id="v-pills-data" role="tabpanel" aria-labelledby="v-pills-data-tab">
+                                    <h6>Chat history & training</h6>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="chatHistory" checked>
+                                        <label class="form-check-label" for="chatHistory">
+                                            Save chat history
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="improveModel" checked>
+                                        <label class="form-check-label" for="improveModel">
+                                            Improve the model for everyone
+                                        </label>
+                                    </div>
+                                    <hr>
+                                    <h6>Export data</h6>
+                                    <button class="btn btn-outline-primary">Export conversations</button>
+                                    <hr>
+                                    <h6>Delete account</h6>
+                                    <button class="btn btn-outline-danger">Delete account</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="saveSettings()">Save changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
