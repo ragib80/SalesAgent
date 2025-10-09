@@ -1,333 +1,5 @@
 ﻿================================================== 
-[SERVICE START Wed 09/10/2025 15:09:38.27] Django Service Starting 
-USERNAME=ragib 
-COMPUTERNAME=BPBLAIDev 
-PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
-VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
-PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
-SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
-SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
-================================================== 
-Activating virtual environment... 
-Testing Python and virtual environment... 
-Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
-Django version: 5.0.14
-Traceback (most recent call last):
-  File "<string>", line 1, in <module>
-ModuleNotFoundError: No module named 'OpenSSL'
-ERROR: pyOpenSSL not available in venv. 
-================================================== 
-[SERVICE START Wed 09/10/2025 15:09:42.06] Django Service Starting 
-USERNAME=ragib 
-COMPUTERNAME=BPBLAIDev 
-PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
-VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
-PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
-SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
-SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
-================================================== 
-Activating virtual environment... 
-Testing Python and virtual environment... 
-Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
-Django version: 5.0.14
-Traceback (most recent call last):
-  File "<string>", line 1, in <module>
-ModuleNotFoundError: No module named 'OpenSSL'
-ERROR: pyOpenSSL not available in venv. 
-================================================== 
-[SERVICE START Wed 09/10/2025 15:09:45.93] Django Service Starting 
-USERNAME=ragib 
-COMPUTERNAME=BPBLAIDev 
-PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
-VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
-PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
-SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
-SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
-================================================== 
-Activating virtual environment... 
-Testing Python and virtual environment... 
-Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
-Django version: 5.0.14
-Traceback (most recent call last):
-  File "<string>", line 1, in <module>
-ModuleNotFoundError: No module named 'OpenSSL'
-ERROR: pyOpenSSL not available in venv. 
-================================================== 
-[SERVICE START Wed 09/10/2025 15:09:49.78] Django Service Starting 
-USERNAME=ragib 
-COMPUTERNAME=BPBLAIDev 
-PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
-VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
-PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
-SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
-SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
-================================================== 
-Activating virtual environment... 
-================================================== 
-[SERVICE START Wed 09/10/2025 15:10:02.81] Django Service Starting 
-USERNAME=ragib 
-COMPUTERNAME=BPBLAIDev 
-PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
-VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
-PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
-SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
-SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
-================================================== 
-Activating virtual environment... 
-Testing Python and virtual environment... 
-Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
-Django version: 5.0.14
-Traceback (most recent call last):
-  File "<string>", line 1, in <module>
-ModuleNotFoundError: No module named 'OpenSSL'
-ERROR: pyOpenSSL not available in venv. 
-================================================== 
-[SERVICE START Wed 09/10/2025 15:10:06.75] Django Service Starting 
-USERNAME=ragib 
-COMPUTERNAME=BPBLAIDev 
-PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
-VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
-PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
-SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
-SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
-================================================== 
-Activating virtual environment... 
-Testing Python and virtual environment... 
-Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
-Django version: 5.0.14
-Traceback (most recent call last):
-  File "<string>", line 1, in <module>
-ModuleNotFoundError: No module named 'OpenSSL'
-ERROR: pyOpenSSL not available in venv. 
-================================================== 
-[SERVICE START Wed 09/10/2025 15:10:10.62] Django Service Starting 
-USERNAME=ragib 
-COMPUTERNAME=BPBLAIDev 
-PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
-VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
-PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
-SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
-SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
-================================================== 
-Activating virtual environment... 
-Testing Python and virtual environment... 
-Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
-Django version: 5.0.14
-Traceback (most recent call last):
-  File "<string>", line 1, in <module>
-ModuleNotFoundError: No module named 'OpenSSL'
-ERROR: pyOpenSSL not available in venv. 
-================================================== 
-[SERVICE START Wed 09/10/2025 15:10:14.55] Django Service Starting 
-USERNAME=ragib 
-COMPUTERNAME=BPBLAIDev 
-PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
-VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
-PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
-SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
-SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
-================================================== 
-Activating virtual environment... 
-Testing Python and virtual environment... 
-Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
-Django version: 5.0.14
-Traceback (most recent call last):
-  File "<string>", line 1, in <module>
-ModuleNotFoundError: No module named 'OpenSSL'
-ERROR: pyOpenSSL not available in venv. 
-================================================== 
-[SERVICE START Wed 09/10/2025 15:10:18.47] Django Service Starting 
-USERNAME=ragib 
-COMPUTERNAME=BPBLAIDev 
-PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
-VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
-PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
-SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
-SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
-================================================== 
-Activating virtual environment... 
-Testing Python and virtual environment... 
-Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
-Django version: 5.0.14
-Traceback (most recent call last):
-  File "<string>", line 1, in <module>
-ModuleNotFoundError: No module named 'OpenSSL'
-ERROR: pyOpenSSL not available in venv. 
-================================================== 
-[SERVICE START Wed 09/10/2025 15:10:22.42] Django Service Starting 
-USERNAME=ragib 
-COMPUTERNAME=BPBLAIDev 
-PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
-VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
-PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
-SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
-SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
-================================================== 
-Activating virtual environment... 
-Testing Python and virtual environment... 
-Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
-Django version: 5.0.14
-Traceback (most recent call last):
-  File "<string>", line 1, in <module>
-ModuleNotFoundError: No module named 'OpenSSL'
-ERROR: pyOpenSSL not available in venv. 
-================================================== 
-[SERVICE START Wed 09/10/2025 15:10:26.35] Django Service Starting 
-USERNAME=ragib 
-COMPUTERNAME=BPBLAIDev 
-PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
-VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
-PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
-SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
-SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
-================================================== 
-Activating virtual environment... 
-Testing Python and virtual environment... 
-Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
-Django version: 5.0.14
-Traceback (most recent call last):
-  File "<string>", line 1, in <module>
-ModuleNotFoundError: No module named 'OpenSSL'
-ERROR: pyOpenSSL not available in venv. 
-================================================== 
-[SERVICE START Wed 09/10/2025 15:10:30.27] Django Service Starting 
-USERNAME=ragib 
-COMPUTERNAME=BPBLAIDev 
-PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
-VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
-PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
-SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
-SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
-================================================== 
-Activating virtual environment... 
-Testing Python and virtual environment... 
-Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
-Django version: 5.0.14
-Traceback (most recent call last):
-  File "<string>", line 1, in <module>
-ModuleNotFoundError: No module named 'OpenSSL'
-ERROR: pyOpenSSL not available in venv. 
-================================================== 
-[SERVICE START Wed 09/10/2025 15:10:34.16] Django Service Starting 
-USERNAME=ragib 
-COMPUTERNAME=BPBLAIDev 
-PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
-VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
-PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
-SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
-SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
-================================================== 
-Activating virtual environment... 
-Testing Python and virtual environment... 
-Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
-Django version: 5.0.14
-Traceback (most recent call last):
-  File "<string>", line 1, in <module>
-ModuleNotFoundError: No module named 'OpenSSL'
-ERROR: pyOpenSSL not available in venv. 
-================================================== 
-[SERVICE START Wed 09/10/2025 15:10:38.05] Django Service Starting 
-USERNAME=ragib 
-COMPUTERNAME=BPBLAIDev 
-PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
-VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
-PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
-SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
-SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
-================================================== 
-Activating virtual environment... 
-Testing Python and virtual environment... 
-Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
-Django version: 5.0.14
-Traceback (most recent call last):
-  File "<string>", line 1, in <module>
-ModuleNotFoundError: No module named 'OpenSSL'
-ERROR: pyOpenSSL not available in venv. 
-================================================== 
-[SERVICE START Wed 09/10/2025 15:10:41.95] Django Service Starting 
-USERNAME=ragib 
-COMPUTERNAME=BPBLAIDev 
-PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
-VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
-PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
-SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
-SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
-================================================== 
-Activating virtual environment... 
-Testing Python and virtual environment... 
-Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
-Django version: 5.0.14
-Traceback (most recent call last):
-  File "<string>", line 1, in <module>
-ModuleNotFoundError: No module named 'OpenSSL'
-ERROR: pyOpenSSL not available in venv. 
-================================================== 
-[SERVICE START Wed 09/10/2025 15:10:45.90] Django Service Starting 
-USERNAME=ragib 
-COMPUTERNAME=BPBLAIDev 
-PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
-VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
-PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
-SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
-SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
-================================================== 
-Activating virtual environment... 
-Testing Python and virtual environment... 
-Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
-Django version: 5.0.14
-Traceback (most recent call last):
-  File "<string>", line 1, in <module>
-ModuleNotFoundError: No module named 'OpenSSL'
-ERROR: pyOpenSSL not available in venv. 
-================================================== 
-[SERVICE START Wed 09/10/2025 15:10:49.79] Django Service Starting 
-USERNAME=ragib 
-COMPUTERNAME=BPBLAIDev 
-PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
-VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
-PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
-SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
-SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
-================================================== 
-Activating virtual environment... 
-Testing Python and virtual environment... 
-Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
-Django version: 5.0.14
-Traceback (most recent call last):
-  File "<string>", line 1, in <module>
-ModuleNotFoundError: No module named 'OpenSSL'
-ERROR: pyOpenSSL not available in venv. 
-================================================== 
-[SERVICE START Wed 09/10/2025 15:10:53.75] Django Service Starting 
-USERNAME=ragib 
-COMPUTERNAME=BPBLAIDev 
-PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
-VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
-PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
-SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
-SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
-================================================== 
-Activating virtual environment... 
-Testing Python and virtual environment... 
-Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
-Django version: 5.0.14
-Traceback (most recent call last):
-  File "<string>", line 1, in <module>
-ModuleNotFoundError: No module named 'OpenSSL'
-ERROR: pyOpenSSL not available in venv. 
-================================================== 
-[SERVICE START Wed 09/10/2025 15:10:57.66] Django Service Starting 
-USERNAME=ragib 
-COMPUTERNAME=BPBLAIDev 
-PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
-VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
-PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
-SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
-SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
-================================================== 
-Activating virtual environment... 
-================================================== 
-[SERVICE START Wed 09/10/2025 15:16:29.01] Django Service Starting 
+[SERVICE START Wed 09/10/2025 18:23:35.87] Django Service Starting 
 USERNAME=ragib 
 COMPUTERNAME=BPBLAIDev 
 PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
@@ -342,4 +14,412 @@ Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\pytho
 Django version: 5.0.14
 pyOpenSSL OK: 25.1.0
 Starting Django server on 0.0.0.0:9000 with SSL 
-[INFO Wed 09/10/2025 15:16:29.01] Django server starting on 0.0.0.0:9000 with SSL 
+[INFO Wed 09/10/2025 18:23:35.87] Django server starting on 0.0.0.0:9000 with SSL 
+================================================== 
+[SERVICE START Wed 09/10/2025 18:48:49.23] Django Service Starting 
+USERNAME=ragib 
+COMPUTERNAME=BPBLAIDev 
+PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
+VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
+PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
+SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
+SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
+================================================== 
+Activating virtual environment... 
+Testing Python and virtual environment... 
+Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
+Django version: 5.0.14
+pyOpenSSL OK: 25.1.0
+Starting Django server on 0.0.0.0:9000 with SSL 
+[INFO Wed 09/10/2025 18:48:49.23] Django server starting on 0.0.0.0:9000 with SSL 
+================================================== 
+[SERVICE START Thu 09/11/2025 10:51:59.49] Django Service Starting 
+USERNAME=ragib 
+COMPUTERNAME=BPBLAIDev 
+PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
+VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
+PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
+SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
+SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
+================================================== 
+Activating virtual environment... 
+Testing Python and virtual environment... 
+Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
+Django version: 5.0.14
+pyOpenSSL OK: 25.1.0
+Starting Django server on 0.0.0.0:9000 with SSL 
+[INFO Thu 09/11/2025 10:51:59.49] Django server starting on 0.0.0.0:9000 with SSL 
+================================================== 
+[SERVICE START Sun 09/14/2025 15:15:43.90] Django Service Starting 
+USERNAME=ragib 
+COMPUTERNAME=BPBLAIDev 
+PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
+VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
+PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
+SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
+SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
+================================================== 
+Activating virtual environment... 
+Testing Python and virtual environment... 
+Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
+Django version: 5.0.14
+pyOpenSSL OK: 25.1.0
+Starting Django server on 0.0.0.0:9000 with SSL 
+[INFO Sun 09/14/2025 15:15:43.90] Django server starting on 0.0.0.0:9000 with SSL 
+================================================== 
+[SERVICE START Sun 09/14/2025 16:18:32.49] Django Service Starting 
+USERNAME=ragib 
+COMPUTERNAME=BPBLAIDev 
+PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
+VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
+PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
+SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
+SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
+================================================== 
+Activating virtual environment... 
+Testing Python and virtual environment... 
+Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
+Django version: 5.0.14
+pyOpenSSL OK: 25.1.0
+Starting Django server on 0.0.0.0:9000 with SSL 
+[INFO Sun 09/14/2025 16:18:32.49] Django server starting on 0.0.0.0:9000 with SSL 
+================================================== 
+[SERVICE START Sun 09/14/2025 20:50:37.20] Django Service Starting 
+USERNAME=ragib 
+COMPUTERNAME=BPBLAIDev 
+PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
+VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
+PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
+SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
+SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
+================================================== 
+Activating virtual environment... 
+Testing Python and virtual environment... 
+Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
+Django version: 5.0.14
+pyOpenSSL OK: 25.1.0
+Starting Django server on 0.0.0.0:9000 with SSL 
+[INFO Sun 09/14/2025 20:50:37.20] Django server starting on 0.0.0.0:9000 with SSL 
+================================================== 
+[SERVICE START Mon 09/15/2025  9:58:55.54] Django Service Starting 
+USERNAME=ragib 
+COMPUTERNAME=BPBLAIDev 
+PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
+VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
+PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
+SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
+SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
+================================================== 
+Activating virtual environment... 
+Testing Python and virtual environment... 
+Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
+Django version: 5.0.14
+pyOpenSSL OK: 25.1.0
+Starting Django server on 0.0.0.0:9000 with SSL 
+[INFO Mon 09/15/2025  9:58:55.54] Django server starting on 0.0.0.0:9000 with SSL 
+================================================== 
+[SERVICE START Mon 09/15/2025 11:10:47.07] Django Service Starting 
+USERNAME=ragib 
+COMPUTERNAME=BPBLAIDev 
+PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
+VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
+PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
+SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
+SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
+================================================== 
+Activating virtual environment... 
+Testing Python and virtual environment... 
+Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
+Django version: 5.0.14
+pyOpenSSL OK: 25.1.0
+Starting Django server on 0.0.0.0:9000 with SSL 
+[INFO Mon 09/15/2025 11:10:47.07] Django server starting on 0.0.0.0:9000 with SSL 
+================================================== 
+[SERVICE START Mon 09/15/2025 11:38:38.88] Django Service Starting 
+USERNAME=ragib 
+COMPUTERNAME=BPBLAIDev 
+PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
+VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
+PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
+SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
+SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
+================================================== 
+Activating virtual environment... 
+Testing Python and virtual environment... 
+Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
+Django version: 5.0.14
+pyOpenSSL OK: 25.1.0
+Starting Django server on 0.0.0.0:9000 with SSL 
+[INFO Mon 09/15/2025 11:38:38.88] Django server starting on 0.0.0.0:9000 with SSL 
+================================================== 
+[SERVICE START Tue 09/16/2025 10:36:23.21] Django Service Starting 
+USERNAME=ragib 
+COMPUTERNAME=BPBLAIDev 
+PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
+VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
+PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
+SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
+SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
+================================================== 
+Activating virtual environment... 
+Testing Python and virtual environment... 
+Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
+Django version: 5.0.14
+pyOpenSSL OK: 25.1.0
+Starting Django server on 0.0.0.0:9000 with SSL 
+[INFO Tue 09/16/2025 10:36:23.21] Django server starting on 0.0.0.0:9000 with SSL 
+================================================== 
+[SERVICE START Mon 09/22/2025 10:22:38.33] Django Service Starting 
+USERNAME=ragib 
+COMPUTERNAME=BPBLAIDev 
+PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
+VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
+PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
+SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
+SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
+================================================== 
+Activating virtual environment... 
+Testing Python and virtual environment... 
+Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
+Django version: 5.0.14
+pyOpenSSL OK: 25.1.0
+Starting Django server on 0.0.0.0:9000 with SSL 
+[INFO Mon 09/22/2025 10:22:38.33] Django server starting on 0.0.0.0:9000 with SSL 
+================================================== 
+[SERVICE START Tue 09/23/2025 10:41:17.54] Django Service Starting 
+USERNAME=ragib 
+COMPUTERNAME=BPBLAIDev 
+PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
+VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
+PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
+SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
+SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
+================================================== 
+Activating virtual environment... 
+Testing Python and virtual environment... 
+Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
+Django version: 5.0.14
+pyOpenSSL OK: 25.1.0
+Starting Django server on 0.0.0.0:9000 with SSL 
+[INFO Tue 09/23/2025 10:41:17.54] Django server starting on 0.0.0.0:9000 with SSL 
+================================================== 
+[SERVICE START Wed 09/24/2025 15:13:29.66] Django Service Starting 
+USERNAME=ragib 
+COMPUTERNAME=BPBLAIDev 
+PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
+VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
+PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
+SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
+SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
+================================================== 
+Activating virtual environment... 
+Testing Python and virtual environment... 
+Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
+Django version: 5.0.14
+pyOpenSSL OK: 25.1.0
+Starting Django server on 0.0.0.0:9000 with SSL 
+[INFO Wed 09/24/2025 15:13:29.66] Django server starting on 0.0.0.0:9000 with SSL 
+================================================== 
+[SERVICE START Wed 09/24/2025 16:02:56.88] Django Service Starting 
+USERNAME=ragib 
+COMPUTERNAME=BPBLAIDev 
+PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
+VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
+PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
+SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
+SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
+================================================== 
+Activating virtual environment... 
+Testing Python and virtual environment... 
+Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
+Django version: 5.0.14
+pyOpenSSL OK: 25.1.0
+Starting Django server on 0.0.0.0:9000 with SSL 
+[INFO Wed 09/24/2025 16:02:56.88] Django server starting on 0.0.0.0:9000 with SSL 
+================================================== 
+[SERVICE START Wed 09/24/2025 16:04:59.46] Django Service Starting 
+USERNAME=ragib 
+COMPUTERNAME=BPBLAIDev 
+PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
+VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
+PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
+SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
+SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
+================================================== 
+Activating virtual environment... 
+Testing Python and virtual environment... 
+Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
+Django version: 5.0.14
+pyOpenSSL OK: 25.1.0
+Starting Django server on 0.0.0.0:9000 with SSL 
+[INFO Wed 09/24/2025 16:04:59.46] Django server starting on 0.0.0.0:9000 with SSL 
+================================================== 
+[SERVICE START Thu 09/25/2025 10:00:29.68] Django Service Starting 
+USERNAME=ragib 
+COMPUTERNAME=BPBLAIDev 
+PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
+VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
+PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
+SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
+SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
+================================================== 
+Activating virtual environment... 
+Testing Python and virtual environment... 
+Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
+Django version: 5.0.14
+pyOpenSSL OK: 25.1.0
+Starting Django server on 0.0.0.0:9000 with SSL 
+[INFO Thu 09/25/2025 10:00:29.68] Django server starting on 0.0.0.0:9000 with SSL 
+================================================== 
+[SERVICE START Sun 09/28/2025 11:07:09.22] Django Service Starting 
+USERNAME=ragib 
+COMPUTERNAME=BPBLAIDev 
+PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
+VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
+PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
+SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
+SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
+================================================== 
+Activating virtual environment... 
+Testing Python and virtual environment... 
+Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
+Django version: 5.0.14
+pyOpenSSL OK: 25.1.0
+Starting Django server on 0.0.0.0:9000 with SSL 
+[INFO Sun 09/28/2025 11:07:09.22] Django server starting on 0.0.0.0:9000 with SSL 
+================================================== 
+[SERVICE START Mon 09/29/2025 12:32:42.79] Django Service Starting 
+USERNAME=ragib 
+COMPUTERNAME=BPBLAIDev 
+PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
+VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
+PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
+SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
+SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
+================================================== 
+Activating virtual environment... 
+Testing Python and virtual environment... 
+Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
+Django version: 5.0.14
+pyOpenSSL OK: 25.1.0
+Starting Django server on 0.0.0.0:9000 with SSL 
+[INFO Mon 09/29/2025 12:32:42.79] Django server starting on 0.0.0.0:9000 with SSL 
+================================================== 
+[SERVICE START Tue 09/30/2025 11:25:24.13] Django Service Starting 
+USERNAME=ragib 
+COMPUTERNAME=BPBLAIDev 
+PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
+VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
+PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
+SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
+SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
+================================================== 
+Activating virtual environment... 
+Testing Python and virtual environment... 
+Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
+Django version: 5.0.14
+pyOpenSSL OK: 25.1.0
+Starting Django server on 0.0.0.0:9000 with SSL 
+[INFO Tue 09/30/2025 11:25:24.13] Django server starting on 0.0.0.0:9000 with SSL 
+================================================== 
+[SERVICE START Sun 10/05/2025 16:50:17.59] Django Service Starting 
+USERNAME=ragib 
+COMPUTERNAME=BPBLAIDev 
+PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
+VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
+PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
+SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
+SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
+================================================== 
+Activating virtual environment... 
+Testing Python and virtual environment... 
+Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
+Django version: 5.0.14
+pyOpenSSL OK: 25.1.0
+Starting Django server on 0.0.0.0:9000 with SSL 
+[INFO Sun 10/05/2025 16:50:17.59] Django server starting on 0.0.0.0:9000 with SSL 
+================================================== 
+[SERVICE START Sun 10/05/2025 17:04:33.62] Django Service Starting 
+USERNAME=ragib 
+COMPUTERNAME=BPBLAIDev 
+PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
+VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
+PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
+SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
+SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
+================================================== 
+Activating virtual environment... 
+Testing Python and virtual environment... 
+Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
+Django version: 5.0.14
+pyOpenSSL OK: 25.1.0
+Starting Django server on 0.0.0.0:9000 with SSL 
+[INFO Sun 10/05/2025 17:04:33.62] Django server starting on 0.0.0.0:9000 with SSL 
+================================================== 
+[SERVICE START Sun 10/05/2025 20:32:04.88] Django Service Starting 
+USERNAME=ragib 
+COMPUTERNAME=BPBLAIDev 
+PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
+VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
+PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
+SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
+SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
+================================================== 
+Activating virtual environment... 
+Testing Python and virtual environment... 
+Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
+Django version: 5.0.14
+pyOpenSSL OK: 25.1.0
+Starting Django server on 0.0.0.0:9000 with SSL 
+[INFO Sun 10/05/2025 20:32:04.88] Django server starting on 0.0.0.0:9000 with SSL 
+================================================== 
+[SERVICE START Mon 10/06/2025 12:10:33.18] Django Service Starting 
+USERNAME=ragib 
+COMPUTERNAME=BPBLAIDev 
+PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
+VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
+PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
+SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
+SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
+================================================== 
+Activating virtual environment... 
+Testing Python and virtual environment... 
+Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
+Django version: 5.0.14
+pyOpenSSL OK: 25.1.0
+Starting Django server on 0.0.0.0:9000 with SSL 
+[INFO Mon 10/06/2025 12:10:33.18] Django server starting on 0.0.0.0:9000 with SSL 
+================================================== 
+[SERVICE START Wed 10/08/2025  9:26:05.12] Django Service Starting 
+USERNAME=ragib 
+COMPUTERNAME=BPBLAIDev 
+PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
+VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
+PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
+SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
+SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
+================================================== 
+Activating virtual environment... 
+Testing Python and virtual environment... 
+Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
+Django version: 5.0.14
+pyOpenSSL OK: 25.1.0
+Starting Django server on 0.0.0.0:9000 with SSL 
+[INFO Wed 10/08/2025  9:26:05.12] Django server starting on 0.0.0.0:9000 with SSL 
+================================================== 
+[SERVICE START Thu 10/09/2025  9:49:20.82] Django Service Starting 
+USERNAME=ragib 
+COMPUTERNAME=BPBLAIDev 
+PROJECT_DIR=C:\Users\ragib\DeployInternally\SalesAgent\src 
+VENV_DIR=C:\Users\ragib\DeployInternally\SalesAgent\venv 
+PYTHON_EXE=C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe 
+SSL_CERT=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.crt 
+SSL_KEY=C:\Users\ragib\DeployInternally\ssl\BPBL-2025-2026.key 
+================================================== 
+Activating virtual environment... 
+Testing Python and virtual environment... 
+Python executable: C:\Users\ragib\DeployInternally\SalesAgent\venv\Scripts\python.exe
+Django version: 5.0.14
+pyOpenSSL OK: 25.1.0
+Starting Django server on 0.0.0.0:9000 with SSL 
+[INFO Thu 10/09/2025  9:49:20.82] Django server starting on 0.0.0.0:9000 with SSL 

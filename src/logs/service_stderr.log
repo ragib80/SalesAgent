@@ -6,63 +6,1864 @@
  * Restarting with stat
  * Debugger is active!
  * Debugger PIN: 258-321-226
-127.0.0.1 - - [10/Sep/2025 15:17:39] "GET /login/ HTTP/1.1" 200 -
-172.16.0.5 - - [10/Sep/2025 15:17:39] "GET / HTTP/1.1" 200 -
-192.168.22.139 - - [10/Sep/2025 15:17:39] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [10/Sep/2025 18:23:51] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [10/Sep/2025 18:23:51] "GET / HTTP/1.1" 200 -
+172.16.0.5 - - [10/Sep/2025 18:23:51] "GET /login/ HTTP/1.1" 200 -
 Not Found: /favicon.ico
 Not Found: /favicon.ico
-192.168.22.139 - - [10/Sep/2025 15:17:39] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
-192.168.22.139 - - [10/Sep/2025 15:17:42] "GET /login/ HTTP/1.1" 200 -
-172.16.0.5 - - [10/Sep/2025 15:17:49] "GET / HTTP/1.1" 200 -
-172.16.0.5 - - [10/Sep/2025 15:17:52] "GET /login/ HTTP/1.1" 200 -
-Skipping NTLM (disable_ntlm=True, md4_ok=False)
-Skipping NTLM (disable_ntlm=True, md4_ok=False)
-127.0.0.1 - - [10/Sep/2025 15:18:23] "GET /login/ HTTP/1.1" 200 -
-127.0.0.1 - - [10/Sep/2025 15:18:25] "GET /login/ HTTP/1.1" 200 -
-127.0.0.1 - - [10/Sep/2025 15:18:25] "GET /login/ HTTP/1.1" 200 -
-127.0.0.1 - - [10/Sep/2025 15:18:25] "GET /login/ HTTP/1.1" 200 -
-172.16.0.5 - - [10/Sep/2025 15:18:29] "GET /login/ HTTP/1.1" 200 -
-192.168.22.139 - - [10/Sep/2025 15:18:31] "POST /api/user/token/ HTTP/1.1" 200 -
-192.168.22.139 - - [10/Sep/2025 15:18:31] "GET /api/sales/index/ HTTP/1.1" 200 -
-192.168.22.139 - - [10/Sep/2025 15:18:32] "GET /api/conversations/?page=1 HTTP/1.1" 200 -
-172.16.0.5 - - [10/Sep/2025 15:18:42] "GET /login/ HTTP/1.1" 200 -
-172.16.0.5 - - [10/Sep/2025 15:18:45] "GET /login/ HTTP/1.1" 200 -
-192.168.22.139 - - [10/Sep/2025 15:18:46] "GET /api/conversations/6723564e-0ed4-483d-bfa0-901b5ed8574c/messages/?page=1 HTTP/1.1" 200 -
-192.168.22.139 - - [10/Sep/2025 15:18:48] "GET /api/conversations/e54ba235-1b55-485c-8234-2af4b5aa9a65/messages/?page=1 HTTP/1.1" 200 -
-192.168.22.139 - - [10/Sep/2025 15:18:48] "GET /api/conversations/6723564e-0ed4-483d-bfa0-901b5ed8574c/messages/?page=1 HTTP/1.1" 200 -
-192.168.22.139 - - [10/Sep/2025 15:20:02] "GET / HTTP/1.1" 200 -
+Not Found: /favicon.ico
+127.0.0.1 - - [10/Sep/2025 18:23:52] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+Not Found: /favicon.ico
+172.16.0.5 - - [10/Sep/2025 18:23:52] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
 Not Found: /favicon.ico
 Not Found: /favicon.ico
-192.168.22.139 - - [10/Sep/2025 15:20:03] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
-192.168.22.139 - - [10/Sep/2025 15:20:05] "GET /login/ HTTP/1.1" 200 -
-192.168.22.139 - - [10/Sep/2025 15:24:19] "GET /login/ HTTP/1.1" 200 -
-192.168.22.139 - - [10/Sep/2025 15:27:11] "GET /login/ HTTP/1.1" 200 -
+127.0.0.1 - - [10/Sep/2025 18:23:52] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+192.168.22.139 - - [10/Sep/2025 18:24:01] "GET /login/ HTTP/1.1" 200 -
 Skipping NTLM (disable_ntlm=True, md4_ok=False)
 Skipping NTLM (disable_ntlm=True, md4_ok=False)
-192.168.22.139 - - [10/Sep/2025 15:34:56] "POST /api/user/token/ HTTP/1.1" 200 -
-192.168.22.139 - - [10/Sep/2025 15:34:57] "GET /api/sales/index/ HTTP/1.1" 200 -
-192.168.22.139 - - [10/Sep/2025 15:34:57] "GET /api/conversations/?page=1 HTTP/1.1" 200 -
-192.168.22.139 - - [10/Sep/2025 17:39:54] "GET /api/sales/index/ HTTP/1.1" 200 -
-192.168.22.139 - - [10/Sep/2025 17:39:55] "GET /api/conversations/?page=1 HTTP/1.1" 200 -
-192.168.22.139 - - [10/Sep/2025 17:44:39] "GET /api/conversations/6723564e-0ed4-483d-bfa0-901b5ed8574c/messages/?page=1 HTTP/1.1" 200 -
-192.168.22.139 - - [10/Sep/2025 17:50:08] "GET /api/sales/index/ HTTP/1.1" 200 -
-192.168.22.139 - - [10/Sep/2025 17:50:08] "GET /api/conversations/?page=1 HTTP/1.1" 200 -
+192.168.22.139 - - [10/Sep/2025 18:24:39] "POST /api/user/token/ HTTP/1.1" 200 -
+192.168.22.139 - - [10/Sep/2025 18:24:39] "GET /api/sales/index/ HTTP/1.1" 200 -
+192.168.22.139 - - [10/Sep/2025 18:24:39] "GET /api/conversations/?page=1 HTTP/1.1" 200 -
+192.168.22.139 - - [10/Sep/2025 18:41:57] "GET /api/sales/index/ HTTP/1.1" 200 -
+192.168.22.139 - - [10/Sep/2025 18:41:57] "GET /api/conversations/?page=1 HTTP/1.1" 200 -
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on https://127.0.0.1:9000
+ * Running on https://172.16.0.5:9000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 258-321-226
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on https://127.0.0.1:9000
+ * Running on https://172.16.0.5:9000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 258-321-226
+192.168.22.139 - - [11/Sep/2025 11:19:58] "GET /api/sales/index/ HTTP/1.1" 200 -
+192.168.22.139 - - [11/Sep/2025 11:19:58] "GET /api/sales/index/ HTTP/1.1" 200 -
+Unauthorized: /api/conversations/
+Unauthorized: /api/conversations/
+192.168.22.139 - - [11/Sep/2025 11:19:59] "[31m[1mGET /api/conversations/?page=1 HTTP/1.1[0m" 401 -
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+192.168.22.139 - - [11/Sep/2025 11:19:59] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+192.168.22.139 - - [11/Sep/2025 11:19:59] "POST /api/user/token/refresh/ HTTP/1.1" 200 -
+192.168.22.139 - - [11/Sep/2025 11:20:00] "GET /api/conversations/?page=1 HTTP/1.1" 200 -
+192.168.22.139 - - [11/Sep/2025 11:20:01] "GET /api/sales/index/ HTTP/1.1" 200 -
+192.168.22.139 - - [11/Sep/2025 11:20:01] "GET /api/conversations/?page=1 HTTP/1.1" 200 -
+192.168.22.139 - - [11/Sep/2025 17:55:59] "GET /api/sales/index/ HTTP/1.1" 200 -
+Unauthorized: /api/conversations/
+Unauthorized: /api/conversations/
+192.168.22.139 - - [11/Sep/2025 17:55:59] "[31m[1mGET /api/conversations/?page=1 HTTP/1.1[0m" 401 -
+192.168.22.139 - - [11/Sep/2025 17:55:59] "POST /api/user/token/refresh/ HTTP/1.1" 200 -
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on https://127.0.0.1:9000
+ * Running on https://172.16.0.5:9000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 258-321-226
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on https://127.0.0.1:9000
+ * Running on https://172.16.0.5:9000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 258-321-226
+172.16.0.5 - - [14/Sep/2025 16:19:53] "GET / HTTP/1.1" 200 -
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+172.16.0.5 - - [14/Sep/2025 16:19:54] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+127.0.0.1 - - [14/Sep/2025 16:20:05] "GET / HTTP/1.1" 200 -
+192.168.22.140 - - [14/Sep/2025 16:20:05] "GET / HTTP/1.1" 200 -
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+127.0.0.1 - - [14/Sep/2025 16:20:05] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+192.168.22.140 - - [14/Sep/2025 16:20:11] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+192.168.22.140 - - [14/Sep/2025 16:20:13] "GET /login/ HTTP/1.1" 200 -
+Skipping NTLM (disable_ntlm=True, md4_ok=False)
+Skipping NTLM (disable_ntlm=True, md4_ok=False)
+AD bind failed (SIMPLE) for preeta@bergerbd.com: {'result': 49, 'description': 'invalidCredentials', 'dn': '', 'message': '80090308: LdapErr: DSID-0C090457, comment: AcceptSecurityContext error, data 52e, v3839\x00', 'referrals': None, 'saslCreds': None, 'type': 'bindResponse'}
+AD bind failed (SIMPLE) for preeta@bergerbd.com: {'result': 49, 'description': 'invalidCredentials', 'dn': '', 'message': '80090308: LdapErr: DSID-0C090457, comment: AcceptSecurityContext error, data 52e, v3839\x00', 'referrals': None, 'saslCreds': None, 'type': 'bindResponse'}
+AD bind failed (SIMPLE) for CN=Anannya Preeta E40000154,CN=Users,DC=bergerbd,DC=com: {'result': 49, 'description': 'invalidCredentials', 'dn': '', 'message': '80090308: LdapErr: DSID-0C090457, comment: AcceptSecurityContext error, data 52e, v3839\x00', 'referrals': None, 'saslCreds': None, 'type': 'bindResponse'}
+AD bind failed (SIMPLE) for CN=Anannya Preeta E40000154,CN=Users,DC=bergerbd,DC=com: {'result': 49, 'description': 'invalidCredentials', 'dn': '', 'message': '80090308: LdapErr: DSID-0C090457, comment: AcceptSecurityContext error, data 52e, v3839\x00', 'referrals': None, 'saslCreds': None, 'type': 'bindResponse'}
+Unauthorized: /api/user/token/
+Unauthorized: /api/user/token/
+192.168.22.140 - - [14/Sep/2025 16:35:27] "[31m[1mPOST /api/user/token/ HTTP/1.1[0m" 401 -
+Exception in thread Thread-1 (serve_forever):
+Traceback (most recent call last):
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\threading.py", line 1075, in _bootstrap_inner
+    self.run()
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\threading.py", line 1012, in run
+    self._target(*self._args, **self._kwargs)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\werkzeug\serving.py", line 819, in serve_forever
+    super().serve_forever(poll_interval=poll_interval)
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\socketserver.py", line 235, in serve_forever
+    ready = selector.select(poll_interval)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\selectors.py", line 323, in select
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on https://127.0.0.1:9000
+ * Running on https://172.16.0.5:9000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 258-321-226
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on https://127.0.0.1:9000
+ * Running on https://172.16.0.5:9000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 258-321-226
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on https://127.0.0.1:9000
+ * Running on https://172.16.0.5:9000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 258-321-226
+172.16.0.5 - - [15/Sep/2025 11:30:31] "GET / HTTP/1.1" 200 -
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+172.16.0.5 - - [15/Sep/2025 11:30:32] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+192.168.22.136 - - [15/Sep/2025 11:30:43] "GET / HTTP/1.1" 200 -
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+192.168.22.136 - - [15/Sep/2025 11:30:43] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+192.168.22.136 - - [15/Sep/2025 11:30:45] "GET /login/ HTTP/1.1" 200 -
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on https://127.0.0.1:9000
+ * Running on https://172.16.0.5:9000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 258-321-226
+172.16.0.5 - - [15/Sep/2025 11:39:27] "GET / HTTP/1.1" 200 -
+192.168.22.136 - - [15/Sep/2025 11:39:27] "GET /login/ HTTP/1.1" 200 -
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+192.168.22.136 - - [15/Sep/2025 11:39:28] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+172.16.0.5 - - [15/Sep/2025 11:39:54] "GET / HTTP/1.1" 200 -
+172.16.0.5 - - [15/Sep/2025 11:39:58] "GET /login/ HTTP/1.1" 200 -
+192.168.22.136 - - [15/Sep/2025 11:40:10] "GET /login/ HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 11:42:29] "GET /login/ HTTP/1.1" 200 -
+192.168.22.136 - - [15/Sep/2025 11:42:29] "[32mGET /admin HTTP/1.1[0m" 301 -
+192.168.22.136 - - [15/Sep/2025 11:42:29] "GET /login/ HTTP/1.1" 200 -
+192.168.22.136 - - [15/Sep/2025 11:42:30] "[32mGET /admin/ HTTP/1.1[0m" 302 -
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+192.168.19.86 - - [15/Sep/2025 11:42:30] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+192.168.22.136 - - [15/Sep/2025 11:42:30] "GET /admin/login/?next=/admin/ HTTP/1.1" 200 -
+192.168.22.136 - - [15/Sep/2025 11:42:31] "GET /static/vendor/fontawesome-free/css/all.min.css HTTP/1.1" 200 -
+192.168.22.136 - - [15/Sep/2025 11:42:31] "GET /static/jazzmin/css/main.css HTTP/1.1" 200 -
+192.168.22.136 - - [15/Sep/2025 11:42:31] "GET /static/vendor/adminlte/css/adminlte.min.css HTTP/1.1" 200 -
+192.168.22.136 - - [15/Sep/2025 11:42:31] "GET /static/vendor/adminlte/img/AdminLTELogo.png HTTP/1.1" 200 -
+192.168.22.136 - - [15/Sep/2025 11:42:31] "GET /static/admin/js/vendor/jquery/jquery.js HTTP/1.1" 200 -
+192.168.22.136 - - [15/Sep/2025 11:42:31] "GET /static/vendor/bootstrap/js/bootstrap.min.js HTTP/1.1" 200 -
+192.168.22.136 - - [15/Sep/2025 11:42:32] "GET /static/vendor/adminlte/js/adminlte.min.js HTTP/1.1" 200 -
+192.168.22.136 - - [15/Sep/2025 11:42:32] "GET /login/ HTTP/1.1" 200 -
+192.168.22.136 - - [15/Sep/2025 11:42:36] "GET /static/vendor/fontawesome-free/webfonts/fa-solid-900.woff2 HTTP/1.1" 200 -
+192.168.22.136 - - [15/Sep/2025 11:42:37] "GET /static/vendor/adminlte/img/AdminLTELogo.png HTTP/1.1" 200 -
+192.168.22.136 - - [15/Sep/2025 11:42:37] "GET /static/vendor/adminlte/img/AdminLTELogo.png HTTP/1.1" 200 -
+Skipping NTLM (disable_ntlm=True, md4_ok=False)
+Skipping NTLM (disable_ntlm=True, md4_ok=False)
+192.168.19.86 - - [15/Sep/2025 11:43:02] "POST /api/user/token/ HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 11:43:02] "GET /api/sales/index/ HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 11:43:03] "GET /api/conversations/?page=1 HTTP/1.1" 200 -
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+AzureCliCredential.get_token succeeded
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+192.168.19.86 - - [15/Sep/2025 12:20:53] "POST /api/sales/query/ HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 12:20:54] "GET /api/conversations/?page=1 HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 12:20:54] "GET /api/conversations/8a09eba8-f817-4c05-9e51-5407747422fb/messages/?page=1 HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 12:20:54] "GET /api/conversations/8a09eba8-f817-4c05-9e51-5407747422fb/messages/?page=1 HTTP/1.1" 200 -
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+192.168.19.86 - - [15/Sep/2025 12:22:35] "POST /api/sales/query/existing/8a09eba8-f817-4c05-9e51-5407747422fb/ HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 12:22:35] "GET /api/conversations/8a09eba8-f817-4c05-9e51-5407747422fb/messages/?page=1 HTTP/1.1" 200 -
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+192.168.19.86 - - [15/Sep/2025 12:23:28] "POST /api/sales/query/existing/8a09eba8-f817-4c05-9e51-5407747422fb/ HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 12:23:28] "GET /api/conversations/8a09eba8-f817-4c05-9e51-5407747422fb/messages/?page=1 HTTP/1.1" 200 -
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+192.168.19.86 - - [15/Sep/2025 12:24:14] "POST /api/sales/query/existing/8a09eba8-f817-4c05-9e51-5407747422fb/ HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 12:24:14] "GET /api/conversations/8a09eba8-f817-4c05-9e51-5407747422fb/messages/?page=1 HTTP/1.1" 200 -
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+192.168.19.86 - - [15/Sep/2025 12:25:44] "POST /api/sales/query/existing/8a09eba8-f817-4c05-9e51-5407747422fb/ HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 12:25:44] "GET /api/conversations/8a09eba8-f817-4c05-9e51-5407747422fb/messages/?page=1 HTTP/1.1" 200 -
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+192.168.19.86 - - [15/Sep/2025 12:34:40] "POST /api/sales/query/existing/8a09eba8-f817-4c05-9e51-5407747422fb/ HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 12:34:40] "GET /api/conversations/8a09eba8-f817-4c05-9e51-5407747422fb/messages/?page=1 HTTP/1.1" 200 -
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+192.168.19.86 - - [15/Sep/2025 12:59:25] "POST /api/sales/query/existing/8a09eba8-f817-4c05-9e51-5407747422fb/ HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 12:59:25] "GET /api/conversations/8a09eba8-f817-4c05-9e51-5407747422fb/messages/?page=1 HTTP/1.1" 200 -
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+192.168.19.86 - - [15/Sep/2025 12:59:53] "POST /api/sales/query/existing/8a09eba8-f817-4c05-9e51-5407747422fb/ HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 12:59:53] "GET /api/conversations/8a09eba8-f817-4c05-9e51-5407747422fb/messages/?page=1 HTTP/1.1" 200 -
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+192.168.19.86 - - [15/Sep/2025 13:04:55] "POST /api/sales/query/existing/8a09eba8-f817-4c05-9e51-5407747422fb/ HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 13:04:55] "GET /api/conversations/8a09eba8-f817-4c05-9e51-5407747422fb/messages/?page=1 HTTP/1.1" 200 -
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+192.168.19.86 - - [15/Sep/2025 13:05:33] "POST /api/sales/query/existing/8a09eba8-f817-4c05-9e51-5407747422fb/ HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 13:05:33] "GET /api/conversations/8a09eba8-f817-4c05-9e51-5407747422fb/messages/?page=1 HTTP/1.1" 200 -
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+192.168.19.86 - - [15/Sep/2025 13:08:47] "POST /api/sales/query/existing/8a09eba8-f817-4c05-9e51-5407747422fb/ HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 13:08:48] "GET /api/conversations/8a09eba8-f817-4c05-9e51-5407747422fb/messages/?page=1 HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 13:08:58] "GET /api/conversations/8a09eba8-f817-4c05-9e51-5407747422fb/messages/?page=2 HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 13:09:03] "GET /api/conversations/8a09eba8-f817-4c05-9e51-5407747422fb/messages/?page=3 HTTP/1.1" 200 -
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+192.168.19.86 - - [15/Sep/2025 13:11:50] "POST /api/sales/query/existing/8a09eba8-f817-4c05-9e51-5407747422fb/ HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 13:11:50] "GET /api/conversations/8a09eba8-f817-4c05-9e51-5407747422fb/messages/?page=1 HTTP/1.1" 200 -
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+192.168.19.86 - - [15/Sep/2025 13:12:52] "POST /api/sales/query/existing/8a09eba8-f817-4c05-9e51-5407747422fb/ HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 13:12:52] "GET /api/conversations/8a09eba8-f817-4c05-9e51-5407747422fb/messages/?page=1 HTTP/1.1" 200 -
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+AzureCliCredential.get_token succeeded
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+AzureCliCredential.get_token succeeded
+192.168.19.86 - - [15/Sep/2025 13:15:35] "POST /api/sales/query/existing/8a09eba8-f817-4c05-9e51-5407747422fb/ HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 13:15:35] "GET /api/conversations/8a09eba8-f817-4c05-9e51-5407747422fb/messages/?page=1 HTTP/1.1" 200 -
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+AzureCliCredential.get_token failed: Please run 'az login' to set up an account
+192.168.19.86 - - [15/Sep/2025 13:28:56] "POST /api/sales/query/existing/8a09eba8-f817-4c05-9e51-5407747422fb/ HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 13:28:56] "GET /api/conversations/8a09eba8-f817-4c05-9e51-5407747422fb/messages/?page=1 HTTP/1.1" 200 -
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+AzureCliCredential.get_token failed: Please run 'az login' to set up an account
+192.168.19.86 - - [15/Sep/2025 13:35:48] "POST /api/sales/query/existing/8a09eba8-f817-4c05-9e51-5407747422fb/ HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 13:35:48] "GET /api/conversations/8a09eba8-f817-4c05-9e51-5407747422fb/messages/?page=1 HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 13:35:58] "GET /api/conversations/8a09eba8-f817-4c05-9e51-5407747422fb/messages/?page=1 HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 13:36:07] "GET /api/conversations/c9c8b8a4-485e-4e81-9fe7-5f7a960b62bd/messages/?page=1 HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 13:36:11] "GET /api/conversations/8a09eba8-f817-4c05-9e51-5407747422fb/messages/?page=1 HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 13:36:20] "GET /api/conversations/8a09eba8-f817-4c05-9e51-5407747422fb/messages/?page=2 HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 13:36:24] "GET /api/conversations/8a09eba8-f817-4c05-9e51-5407747422fb/messages/?page=3 HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 13:36:28] "GET /api/conversations/8a09eba8-f817-4c05-9e51-5407747422fb/messages/?page=4 HTTP/1.1" 200 -
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+AzureCliCredential.get_token failed: Please run 'az login' to set up an account
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\identity\_credentials\azure_cli.py", line 254, in _run_command
+    return subprocess.check_output(args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\subprocess.py", line 466, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\wbin\\az.CMD', 'account', 'get-access-token', '--output', 'json', '--resource', 'https://kusto.kusto.windows.net']' returned non-zero exit status 1.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\_token_providers.py", line 444, in _get_token_impl
+    self._az_token = self._az_auth_context.get_token(self._scopes[0])
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\identity\_internal\decorators.py", line 23, in wrapper
+    token = fn(*args, **kwargs)
+            ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\identity\_credentials\azure_cli.py", line 120, in get_token
+    token_info = self._get_token_base(*scopes, options=options, **kwargs)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\identity\_credentials\azure_cli.py", line 168, in _get_token_base
+    output = _run_command(command_args, self._process_timeout)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\identity\_credentials\azure_cli.py", line 263, in _run_command
+    raise CredentialUnavailableError(message=NOT_LOGGED_IN) from ex
+azure.identity._exceptions.CredentialUnavailableError: Please run 'az login' to set up an account
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\security.py", line 82, in acquire_authorization_header
+    return _get_header_from_dict(self.token_provider.get_token())
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\_token_providers.py", line 164, in get_token
+    return _get_token()
+           ^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\core\tracing\decorator.py", line 119, in wrapper_use_tracer
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\_token_providers.py", line 161, in _get_token
+    token = MonitoredActivity.invoke(self._get_token_impl, name_of_span=f"{self.name()}.get_token_impl", tracing_attributes=self.context())
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\_telemetry.py", line 116, in invoke
+    return span()
+           ^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\core\tracing\decorator.py", line 119, in wrapper_use_tracer
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\_token_providers.py", line 447, in _get_token_impl
+    raise KustoClientError(
+azure.kusto.data.exceptions.KustoClientError: Failed to obtain Az Cli token for 'https://bpblaiadx.southeastasia.kusto.windows.net'.
+Please be sure AzCli version 2.3.0 and above is intalled.
+Please run 'az login' to set up an account
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\sales_analyzer\views.py", line 66, in post
+    result = handle_user_query(prompt, conversation_id=str(conversation.uuid))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\agent\agent.py", line 1324, in handle_user_query
+    cols, rows = adx().run(kql)
+                 ^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\agent\agent.py", line 59, in run
+    response = self.client.execute(self.database, kql)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\client.py", line 164, in execute
+    return self.execute_query(database, query, properties)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\core\tracing\decorator.py", line 119, in wrapper_use_tracer
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\client.py", line 189, in execute_query
+    return self._execute(self._query_endpoint, request, properties)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\client.py", line 323, in _execute
+    request_headers["Authorization"] = self._aad_helper.acquire_authorization_header()
+                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\security.py", line 86, in acquire_authorization_header
+    raise KustoAuthenticationError(self.token_provider.name(), error, **kwargs)
+azure.kusto.data.exceptions.KustoAuthenticationError: KustoAuthenticationError('AzCliTokenProvider', 'KustoClientError("Failed to obtain Az Cli token for 'https://bpblaiadx.southeastasia.kusto.windows.net'.\nPlease be sure AzCli version 2.3.0 and above is intalled.\nPlease run 'az login' to set up an account")', '{'authority:': 'AzCliTokenProvider', 'kusto_uri': 'https://bpblaiadx.southeastasia.kusto.windows.net'}')
+192.168.19.86 - - [15/Sep/2025 13:45:13] "POST /api/sales/query/ HTTP/1.1" 200 -
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+AzureCliCredential.get_token failed: Please run 'az login' to set up an account
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\identity\_credentials\azure_cli.py", line 254, in _run_command
+    return subprocess.check_output(args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\subprocess.py", line 466, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\wbin\\az.CMD', 'account', 'get-access-token', '--output', 'json', '--resource', 'https://kusto.kusto.windows.net']' returned non-zero exit status 1.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\_token_providers.py", line 444, in _get_token_impl
+    self._az_token = self._az_auth_context.get_token(self._scopes[0])
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\identity\_internal\decorators.py", line 23, in wrapper
+    token = fn(*args, **kwargs)
+            ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\identity\_credentials\azure_cli.py", line 120, in get_token
+    token_info = self._get_token_base(*scopes, options=options, **kwargs)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\identity\_credentials\azure_cli.py", line 168, in _get_token_base
+    output = _run_command(command_args, self._process_timeout)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\identity\_credentials\azure_cli.py", line 263, in _run_command
+    raise CredentialUnavailableError(message=NOT_LOGGED_IN) from ex
+azure.identity._exceptions.CredentialUnavailableError: Please run 'az login' to set up an account
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\security.py", line 82, in acquire_authorization_header
+    return _get_header_from_dict(self.token_provider.get_token())
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\_token_providers.py", line 164, in get_token
+    return _get_token()
+           ^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\core\tracing\decorator.py", line 119, in wrapper_use_tracer
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\_token_providers.py", line 161, in _get_token
+    token = MonitoredActivity.invoke(self._get_token_impl, name_of_span=f"{self.name()}.get_token_impl", tracing_attributes=self.context())
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\_telemetry.py", line 116, in invoke
+    return span()
+           ^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\core\tracing\decorator.py", line 119, in wrapper_use_tracer
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\_token_providers.py", line 447, in _get_token_impl
+    raise KustoClientError(
+azure.kusto.data.exceptions.KustoClientError: Failed to obtain Az Cli token for 'https://bpblaiadx.southeastasia.kusto.windows.net'.
+Please be sure AzCli version 2.3.0 and above is intalled.
+Please run 'az login' to set up an account
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\sales_analyzer\views.py", line 66, in post
+    result = handle_user_query(prompt, conversation_id=str(conversation.uuid))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\agent\agent.py", line 1324, in handle_user_query
+    cols, rows = adx().run(kql)
+                 ^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\agent\agent.py", line 59, in run
+    response = self.client.execute(self.database, kql)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\client.py", line 164, in execute
+    return self.execute_query(database, query, properties)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\core\tracing\decorator.py", line 119, in wrapper_use_tracer
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\client.py", line 189, in execute_query
+    return self._execute(self._query_endpoint, request, properties)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\client.py", line 323, in _execute
+    request_headers["Authorization"] = self._aad_helper.acquire_authorization_header()
+                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\security.py", line 86, in acquire_authorization_header
+    raise KustoAuthenticationError(self.token_provider.name(), error, **kwargs)
+azure.kusto.data.exceptions.KustoAuthenticationError: KustoAuthenticationError('AzCliTokenProvider', 'KustoClientError("Failed to obtain Az Cli token for 'https://bpblaiadx.southeastasia.kusto.windows.net'.\nPlease be sure AzCli version 2.3.0 and above is intalled.\nPlease run 'az login' to set up an account")', '{'authority:': 'AzCliTokenProvider', 'kusto_uri': 'https://bpblaiadx.southeastasia.kusto.windows.net'}')
+192.168.19.86 - - [15/Sep/2025 13:47:24] "POST /api/sales/query/ HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 13:48:23] "GET /api/conversations/8a09eba8-f817-4c05-9e51-5407747422fb/messages/?page=1 HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 13:48:24] "GET /api/conversations/c9c8b8a4-485e-4e81-9fe7-5f7a960b62bd/messages/?page=1 HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 13:48:26] "GET /api/conversations/de86ec8a-4529-449a-a5b9-79729af8bb88/messages/?page=1 HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 13:48:27] "GET /api/conversations/918cd508-9439-4ed8-8d5f-b7322ee4b0f0/messages/?page=1 HTTP/1.1" 200 -
+192.168.19.86 - - [15/Sep/2025 13:48:32] "GET /api/conversations/412192b1-2463-4686-9346-afe84f7c77b6/messages/?page=1 HTTP/1.1" 200 -
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
+AzureCliCredential.get_token failed: Please run 'az login' to set up an account
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\identity\_credentials\azure_cli.py", line 254, in _run_command
+    return subprocess.check_output(args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\subprocess.py", line 466, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\wbin\\az.CMD', 'account', 'get-access-token', '--output', 'json', '--resource', 'https://kusto.kusto.windows.net']' returned non-zero exit status 1.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\_token_providers.py", line 444, in _get_token_impl
+    self._az_token = self._az_auth_context.get_token(self._scopes[0])
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\identity\_internal\decorators.py", line 23, in wrapper
+    token = fn(*args, **kwargs)
+            ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\identity\_credentials\azure_cli.py", line 120, in get_token
+    token_info = self._get_token_base(*scopes, options=options, **kwargs)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\identity\_credentials\azure_cli.py", line 168, in _get_token_base
+    output = _run_command(command_args, self._process_timeout)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\identity\_credentials\azure_cli.py", line 263, in _run_command
+    raise CredentialUnavailableError(message=NOT_LOGGED_IN) from ex
+azure.identity._exceptions.CredentialUnavailableError: Please run 'az login' to set up an account
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\security.py", line 82, in acquire_authorization_header
+    return _get_header_from_dict(self.token_provider.get_token())
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\_token_providers.py", line 164, in get_token
+    return _get_token()
+           ^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\core\tracing\decorator.py", line 119, in wrapper_use_tracer
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\_token_providers.py", line 161, in _get_token
+    token = MonitoredActivity.invoke(self._get_token_impl, name_of_span=f"{self.name()}.get_token_impl", tracing_attributes=self.context())
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\_telemetry.py", line 116, in invoke
+    return span()
+           ^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\core\tracing\decorator.py", line 119, in wrapper_use_tracer
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\_token_providers.py", line 447, in _get_token_impl
+    raise KustoClientError(
+azure.kusto.data.exceptions.KustoClientError: Failed to obtain Az Cli token for 'https://bpblaiadx.southeastasia.kusto.windows.net'.
+Please be sure AzCli version 2.3.0 and above is intalled.
+Please run 'az login' to set up an account
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\sales_analyzer\views.py", line 66, in post
+    result = handle_user_query(prompt, conversation_id=str(conversation.uuid))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\agent\agent.py", line 1324, in handle_user_query
+    cols, rows = adx().run(kql)
+                 ^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\agent\agent.py", line 59, in run
+    response = self.client.execute(self.database, kql)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\client.py", line 164, in execute
+    return self.execute_query(database, query, properties)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\core\tracing\decorator.py", line 119, in wrapper_use_tracer
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\client.py", line 189, in execute_query
+    return self._execute(self._query_endpoint, request, properties)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\client.py", line 323, in _execute
+    request_headers["Authorization"] = self._aad_helper.acquire_authorization_header()
+                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\security.py", line 86, in acquire_authorization_header
+    raise KustoAuthenticationError(self.token_provider.name(), error, **kwargs)
+azure.kusto.data.exceptions.KustoAuthenticationError: KustoAuthenticationError('AzCliTokenProvider', 'KustoClientError("Failed to obtain Az Cli token for 'https://bpblaiadx.southeastasia.kusto.windows.net'.\nPlease be sure AzCli version 2.3.0 and above is intalled.\nPlease run 'az login' to set up an account")', '{'authority:': 'AzCliTokenProvider', 'kusto_uri': 'https://bpblaiadx.southeastasia.kusto.windows.net'}')
+192.168.19.86 - - [15/Sep/2025 13:49:08] "POST /api/sales/query/ HTTP/1.1" 200 -
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on https://127.0.0.1:9000
+ * Running on https://172.16.0.5:9000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 258-321-226
+172.16.0.5 - - [16/Sep/2025 12:33:29] "GET / HTTP/1.1" 200 -
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+172.16.0.5 - - [16/Sep/2025 12:33:29] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+172.16.0.5 - - [16/Sep/2025 12:41:53] "GET / HTTP/1.1" 200 -
+192.168.22.124 - - [16/Sep/2025 14:39:07] "GET /login/ HTTP/1.1" 200 -
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+192.168.22.124 - - [16/Sep/2025 14:39:37] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+192.168.22.124 - - [16/Sep/2025 14:41:48] "GET /login/ HTTP/1.1" 200 -
+192.168.22.124 - - [16/Sep/2025 15:42:10] "GET /login/ HTTP/1.1" 200 -
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on https://127.0.0.1:9000
+ * Running on https://172.16.0.5:9000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 258-321-226
+172.16.0.5 - - [22/Sep/2025 11:01:25] "GET / HTTP/1.1" 200 -
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+172.16.0.5 - - [22/Sep/2025 11:01:25] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+172.16.0.5 - - [22/Sep/2025 18:33:22] "GET / HTTP/1.1" 200 -
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+172.16.0.5 - - [22/Sep/2025 18:33:22] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+172.16.0.5 - - [22/Sep/2025 18:33:25] "GET /login/ HTTP/1.1" 200 -
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on https://127.0.0.1:9000
+ * Running on https://172.16.0.5:9000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 258-321-226
+172.16.0.5 - - [23/Sep/2025 10:47:06] "GET / HTTP/1.1" 200 -
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+172.16.0.5 - - [23/Sep/2025 10:47:07] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+192.168.19.48 - - [23/Sep/2025 15:33:43] "GET /login/ HTTP/1.1" 200 -
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+192.168.19.48 - - [23/Sep/2025 15:33:43] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+AD authenticate failed for anik.aziz
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 284, in _start_tls
+    self.wrap_socket(connection, do_handshake=True)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 204, in wrap_socket
+    wrapped_socket = ssl_context.wrap_socket(connection.socket, server_side=False, do_handshake_on_connect=do_handshake)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1041, in _create
+    self.do_handshake()
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1319, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 108, in __init__
+    self.conn.start_tls()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\connection.py", line 1314, in start_tls
+    if self.server.tls.start_tls(self) and self.strategy.sync:  # for asynchronous connections _start_tls is run by the strategy
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 280, in start_tls
+    return self._start_tls(connection)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 289, in _start_tls
+    raise start_tls_exception_factory(e)(connection.last_error)
+ldap3.core.exceptions.LDAPStartTLSError: ('wrap socket error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)',)
+AD authenticate failed for anik.aziz
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 284, in _start_tls
+    self.wrap_socket(connection, do_handshake=True)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 204, in wrap_socket
+    wrapped_socket = ssl_context.wrap_socket(connection.socket, server_side=False, do_handshake_on_connect=do_handshake)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1041, in _create
+    self.do_handshake()
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1319, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 108, in __init__
+    self.conn.start_tls()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\connection.py", line 1314, in start_tls
+    if self.server.tls.start_tls(self) and self.strategy.sync:  # for asynchronous connections _start_tls is run by the strategy
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 280, in start_tls
+    return self._start_tls(connection)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 289, in _start_tls
+    raise start_tls_exception_factory(e)(connection.last_error)
+ldap3.core.exceptions.LDAPStartTLSError: ('wrap socket error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)',)
+Unauthorized: /api/user/token/
+Unauthorized: /api/user/token/
+192.168.19.48 - - [23/Sep/2025 15:33:52] "[31m[1mPOST /api/user/token/ HTTP/1.1[0m" 401 -
+AD authenticate failed for anik.aziz
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 284, in _start_tls
+    self.wrap_socket(connection, do_handshake=True)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 204, in wrap_socket
+    wrapped_socket = ssl_context.wrap_socket(connection.socket, server_side=False, do_handshake_on_connect=do_handshake)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1041, in _create
+    self.do_handshake()
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1319, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 108, in __init__
+    self.conn.start_tls()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\connection.py", line 1314, in start_tls
+    if self.server.tls.start_tls(self) and self.strategy.sync:  # for asynchronous connections _start_tls is run by the strategy
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 280, in start_tls
+    return self._start_tls(connection)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 289, in _start_tls
+    raise start_tls_exception_factory(e)(connection.last_error)
+ldap3.core.exceptions.LDAPStartTLSError: ('wrap socket error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)',)
+AD authenticate failed for anik.aziz
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 284, in _start_tls
+    self.wrap_socket(connection, do_handshake=True)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 204, in wrap_socket
+    wrapped_socket = ssl_context.wrap_socket(connection.socket, server_side=False, do_handshake_on_connect=do_handshake)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1041, in _create
+    self.do_handshake()
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1319, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 108, in __init__
+    self.conn.start_tls()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\connection.py", line 1314, in start_tls
+    if self.server.tls.start_tls(self) and self.strategy.sync:  # for asynchronous connections _start_tls is run by the strategy
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 280, in start_tls
+    return self._start_tls(connection)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 289, in _start_tls
+    raise start_tls_exception_factory(e)(connection.last_error)
+ldap3.core.exceptions.LDAPStartTLSError: ('wrap socket error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)',)
+Unauthorized: /api/user/token/
+Unauthorized: /api/user/token/
+192.168.19.48 - - [23/Sep/2025 15:33:58] "[31m[1mPOST /api/user/token/ HTTP/1.1[0m" 401 -
+AD authenticate failed for anik.aziz
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 284, in _start_tls
+    self.wrap_socket(connection, do_handshake=True)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 204, in wrap_socket
+    wrapped_socket = ssl_context.wrap_socket(connection.socket, server_side=False, do_handshake_on_connect=do_handshake)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1041, in _create
+    self.do_handshake()
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1319, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 108, in __init__
+    self.conn.start_tls()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\connection.py", line 1314, in start_tls
+    if self.server.tls.start_tls(self) and self.strategy.sync:  # for asynchronous connections _start_tls is run by the strategy
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 280, in start_tls
+    return self._start_tls(connection)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 289, in _start_tls
+    raise start_tls_exception_factory(e)(connection.last_error)
+ldap3.core.exceptions.LDAPStartTLSError: ('wrap socket error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)',)
+AD authenticate failed for anik.aziz
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 284, in _start_tls
+    self.wrap_socket(connection, do_handshake=True)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 204, in wrap_socket
+    wrapped_socket = ssl_context.wrap_socket(connection.socket, server_side=False, do_handshake_on_connect=do_handshake)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1041, in _create
+    self.do_handshake()
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1319, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 108, in __init__
+    self.conn.start_tls()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\connection.py", line 1314, in start_tls
+    if self.server.tls.start_tls(self) and self.strategy.sync:  # for asynchronous connections _start_tls is run by the strategy
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 280, in start_tls
+    return self._start_tls(connection)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 289, in _start_tls
+    raise start_tls_exception_factory(e)(connection.last_error)
+ldap3.core.exceptions.LDAPStartTLSError: ('wrap socket error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)',)
+Unauthorized: /api/user/token/
+Unauthorized: /api/user/token/
+192.168.19.48 - - [23/Sep/2025 15:34:07] "[31m[1mPOST /api/user/token/ HTTP/1.1[0m" 401 -
+AD authenticate failed for anik.aziz
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 284, in _start_tls
+    self.wrap_socket(connection, do_handshake=True)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 204, in wrap_socket
+    wrapped_socket = ssl_context.wrap_socket(connection.socket, server_side=False, do_handshake_on_connect=do_handshake)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1041, in _create
+    self.do_handshake()
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1319, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 108, in __init__
+    self.conn.start_tls()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\connection.py", line 1314, in start_tls
+    if self.server.tls.start_tls(self) and self.strategy.sync:  # for asynchronous connections _start_tls is run by the strategy
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 280, in start_tls
+    return self._start_tls(connection)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 289, in _start_tls
+    raise start_tls_exception_factory(e)(connection.last_error)
+ldap3.core.exceptions.LDAPStartTLSError: ('wrap socket error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)',)
+AD authenticate failed for anik.aziz
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 284, in _start_tls
+    self.wrap_socket(connection, do_handshake=True)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 204, in wrap_socket
+    wrapped_socket = ssl_context.wrap_socket(connection.socket, server_side=False, do_handshake_on_connect=do_handshake)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1041, in _create
+    self.do_handshake()
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1319, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 108, in __init__
+    self.conn.start_tls()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\connection.py", line 1314, in start_tls
+    if self.server.tls.start_tls(self) and self.strategy.sync:  # for asynchronous connections _start_tls is run by the strategy
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 280, in start_tls
+    return self._start_tls(connection)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 289, in _start_tls
+    raise start_tls_exception_factory(e)(connection.last_error)
+ldap3.core.exceptions.LDAPStartTLSError: ('wrap socket error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)',)
+Unauthorized: /api/user/token/
+Unauthorized: /api/user/token/
+192.168.19.48 - - [23/Sep/2025 15:34:15] "[31m[1mPOST /api/user/token/ HTTP/1.1[0m" 401 -
+AD authenticate failed for anik.aziz
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 284, in _start_tls
+    self.wrap_socket(connection, do_handshake=True)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 204, in wrap_socket
+    wrapped_socket = ssl_context.wrap_socket(connection.socket, server_side=False, do_handshake_on_connect=do_handshake)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1041, in _create
+    self.do_handshake()
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1319, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 108, in __init__
+    self.conn.start_tls()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\connection.py", line 1314, in start_tls
+    if self.server.tls.start_tls(self) and self.strategy.sync:  # for asynchronous connections _start_tls is run by the strategy
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 280, in start_tls
+    return self._start_tls(connection)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 289, in _start_tls
+    raise start_tls_exception_factory(e)(connection.last_error)
+ldap3.core.exceptions.LDAPStartTLSError: ('wrap socket error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)',)
+AD authenticate failed for anik.aziz
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 284, in _start_tls
+    self.wrap_socket(connection, do_handshake=True)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 204, in wrap_socket
+    wrapped_socket = ssl_context.wrap_socket(connection.socket, server_side=False, do_handshake_on_connect=do_handshake)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1041, in _create
+    self.do_handshake()
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1319, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 108, in __init__
+    self.conn.start_tls()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\connection.py", line 1314, in start_tls
+    if self.server.tls.start_tls(self) and self.strategy.sync:  # for asynchronous connections _start_tls is run by the strategy
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 280, in start_tls
+    return self._start_tls(connection)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 289, in _start_tls
+    raise start_tls_exception_factory(e)(connection.last_error)
+ldap3.core.exceptions.LDAPStartTLSError: ('wrap socket error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)',)
+Unauthorized: /api/user/token/
+Unauthorized: /api/user/token/
+192.168.19.48 - - [23/Sep/2025 15:34:53] "[31m[1mPOST /api/user/token/ HTTP/1.1[0m" 401 -
+AD authenticate failed for anik.aziz
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 284, in _start_tls
+    self.wrap_socket(connection, do_handshake=True)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 204, in wrap_socket
+    wrapped_socket = ssl_context.wrap_socket(connection.socket, server_side=False, do_handshake_on_connect=do_handshake)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1041, in _create
+    self.do_handshake()
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1319, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 108, in __init__
+    self.conn.start_tls()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\connection.py", line 1314, in start_tls
+    if self.server.tls.start_tls(self) and self.strategy.sync:  # for asynchronous connections _start_tls is run by the strategy
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 280, in start_tls
+    return self._start_tls(connection)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 289, in _start_tls
+    raise start_tls_exception_factory(e)(connection.last_error)
+ldap3.core.exceptions.LDAPStartTLSError: ('wrap socket error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)',)
+AD authenticate failed for anik.aziz
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 284, in _start_tls
+    self.wrap_socket(connection, do_handshake=True)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 204, in wrap_socket
+    wrapped_socket = ssl_context.wrap_socket(connection.socket, server_side=False, do_handshake_on_connect=do_handshake)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1041, in _create
+    self.do_handshake()
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1319, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 108, in __init__
+    self.conn.start_tls()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\connection.py", line 1314, in start_tls
+    if self.server.tls.start_tls(self) and self.strategy.sync:  # for asynchronous connections _start_tls is run by the strategy
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 280, in start_tls
+    return self._start_tls(connection)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 289, in _start_tls
+    raise start_tls_exception_factory(e)(connection.last_error)
+ldap3.core.exceptions.LDAPStartTLSError: ('wrap socket error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)',)
+Unauthorized: /api/user/token/
+Unauthorized: /api/user/token/
+192.168.19.48 - - [23/Sep/2025 15:36:45] "[31m[1mPOST /api/user/token/ HTTP/1.1[0m" 401 -
+172.16.0.5 - - [23/Sep/2025 15:39:17] "GET / HTTP/1.1" 200 -
+172.16.0.5 - - [23/Sep/2025 15:39:19] "GET /login/ HTTP/1.1" 200 -
+AD authenticate failed for ragib.shahriar
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 284, in _start_tls
+    self.wrap_socket(connection, do_handshake=True)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 204, in wrap_socket
+    wrapped_socket = ssl_context.wrap_socket(connection.socket, server_side=False, do_handshake_on_connect=do_handshake)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1041, in _create
+    self.do_handshake()
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1319, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 108, in __init__
+    self.conn.start_tls()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\connection.py", line 1314, in start_tls
+    if self.server.tls.start_tls(self) and self.strategy.sync:  # for asynchronous connections _start_tls is run by the strategy
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 280, in start_tls
+    return self._start_tls(connection)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 289, in _start_tls
+    raise start_tls_exception_factory(e)(connection.last_error)
+ldap3.core.exceptions.LDAPStartTLSError: ('wrap socket error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)',)
+AD authenticate failed for ragib.shahriar
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 284, in _start_tls
+    self.wrap_socket(connection, do_handshake=True)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 204, in wrap_socket
+    wrapped_socket = ssl_context.wrap_socket(connection.socket, server_side=False, do_handshake_on_connect=do_handshake)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1041, in _create
+    self.do_handshake()
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1319, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 108, in __init__
+    self.conn.start_tls()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\connection.py", line 1314, in start_tls
+    if self.server.tls.start_tls(self) and self.strategy.sync:  # for asynchronous connections _start_tls is run by the strategy
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 280, in start_tls
+    return self._start_tls(connection)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 289, in _start_tls
+    raise start_tls_exception_factory(e)(connection.last_error)
+ldap3.core.exceptions.LDAPStartTLSError: ('wrap socket error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)',)
+Unauthorized: /api/user/token/
+Unauthorized: /api/user/token/
+172.16.0.5 - - [23/Sep/2025 15:39:27] "[31m[1mPOST /api/user/token/ HTTP/1.1[0m" 401 -
+AD authenticate failed for ragib.shahriar
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 284, in _start_tls
+    self.wrap_socket(connection, do_handshake=True)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 204, in wrap_socket
+    wrapped_socket = ssl_context.wrap_socket(connection.socket, server_side=False, do_handshake_on_connect=do_handshake)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1041, in _create
+    self.do_handshake()
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1319, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 108, in __init__
+    self.conn.start_tls()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\connection.py", line 1314, in start_tls
+    if self.server.tls.start_tls(self) and self.strategy.sync:  # for asynchronous connections _start_tls is run by the strategy
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 280, in start_tls
+    return self._start_tls(connection)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 289, in _start_tls
+    raise start_tls_exception_factory(e)(connection.last_error)
+ldap3.core.exceptions.LDAPStartTLSError: ('wrap socket error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)',)
+AD authenticate failed for ragib.shahriar
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 284, in _start_tls
+    self.wrap_socket(connection, do_handshake=True)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 204, in wrap_socket
+    wrapped_socket = ssl_context.wrap_socket(connection.socket, server_side=False, do_handshake_on_connect=do_handshake)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1041, in _create
+    self.do_handshake()
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1319, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 108, in __init__
+    self.conn.start_tls()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\connection.py", line 1314, in start_tls
+    if self.server.tls.start_tls(self) and self.strategy.sync:  # for asynchronous connections _start_tls is run by the strategy
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 280, in start_tls
+    return self._start_tls(connection)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 289, in _start_tls
+    raise start_tls_exception_factory(e)(connection.last_error)
+ldap3.core.exceptions.LDAPStartTLSError: ('wrap socket error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)',)
+Unauthorized: /api/user/token/
+Unauthorized: /api/user/token/
+172.16.0.5 - - [23/Sep/2025 15:39:37] "[31m[1mPOST /api/user/token/ HTTP/1.1[0m" 401 -
+AD authenticate failed for ragib.shahriar
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 284, in _start_tls
+    self.wrap_socket(connection, do_handshake=True)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 204, in wrap_socket
+    wrapped_socket = ssl_context.wrap_socket(connection.socket, server_side=False, do_handshake_on_connect=do_handshake)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1041, in _create
+    self.do_handshake()
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1319, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 108, in __init__
+    self.conn.start_tls()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\connection.py", line 1314, in start_tls
+    if self.server.tls.start_tls(self) and self.strategy.sync:  # for asynchronous connections _start_tls is run by the strategy
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 280, in start_tls
+    return self._start_tls(connection)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 289, in _start_tls
+    raise start_tls_exception_factory(e)(connection.last_error)
+ldap3.core.exceptions.LDAPStartTLSError: ('wrap socket error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)',)
+AD authenticate failed for ragib.shahriar
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 284, in _start_tls
+    self.wrap_socket(connection, do_handshake=True)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 204, in wrap_socket
+    wrapped_socket = ssl_context.wrap_socket(connection.socket, server_side=False, do_handshake_on_connect=do_handshake)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1041, in _create
+    self.do_handshake()
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1319, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 108, in __init__
+    self.conn.start_tls()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\connection.py", line 1314, in start_tls
+    if self.server.tls.start_tls(self) and self.strategy.sync:  # for asynchronous connections _start_tls is run by the strategy
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 280, in start_tls
+    return self._start_tls(connection)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 289, in _start_tls
+    raise start_tls_exception_factory(e)(connection.last_error)
+ldap3.core.exceptions.LDAPStartTLSError: ('wrap socket error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)',)
+Unauthorized: /api/user/token/
+Unauthorized: /api/user/token/
+172.16.0.5 - - [23/Sep/2025 15:39:45] "[31m[1mPOST /api/user/token/ HTTP/1.1[0m" 401 -
+AD authenticate failed for anik.aziz
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 284, in _start_tls
+    self.wrap_socket(connection, do_handshake=True)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 204, in wrap_socket
+    wrapped_socket = ssl_context.wrap_socket(connection.socket, server_side=False, do_handshake_on_connect=do_handshake)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1041, in _create
+    self.do_handshake()
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1319, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 108, in __init__
+    self.conn.start_tls()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\connection.py", line 1314, in start_tls
+    if self.server.tls.start_tls(self) and self.strategy.sync:  # for asynchronous connections _start_tls is run by the strategy
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 280, in start_tls
+    return self._start_tls(connection)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 289, in _start_tls
+    raise start_tls_exception_factory(e)(connection.last_error)
+ldap3.core.exceptions.LDAPStartTLSError: ('wrap socket error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)',)
+AD authenticate failed for anik.aziz
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 284, in _start_tls
+    self.wrap_socket(connection, do_handshake=True)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 204, in wrap_socket
+    wrapped_socket = ssl_context.wrap_socket(connection.socket, server_side=False, do_handshake_on_connect=do_handshake)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1041, in _create
+    self.do_handshake()
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1319, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 108, in __init__
+    self.conn.start_tls()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\connection.py", line 1314, in start_tls
+    if self.server.tls.start_tls(self) and self.strategy.sync:  # for asynchronous connections _start_tls is run by the strategy
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 280, in start_tls
+    return self._start_tls(connection)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\tls.py", line 289, in _start_tls
+    raise start_tls_exception_factory(e)(connection.last_error)
+ldap3.core.exceptions.LDAPStartTLSError: ('wrap socket error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)',)
+Unauthorized: /api/user/token/
+Unauthorized: /api/user/token/
+192.168.19.48 - - [23/Sep/2025 15:42:41] "[31m[1mPOST /api/user/token/ HTTP/1.1[0m" 401 -
+172.16.0.5 - - [23/Sep/2025 17:35:07] "GET / HTTP/1.1" 200 -
+172.16.0.5 - - [23/Sep/2025 17:37:36] "GET / HTTP/1.1" 200 -
+172.16.0.5 - - [23/Sep/2025 17:37:37] "GET / HTTP/1.1" 200 -
+172.16.0.5 - - [23/Sep/2025 17:37:38] "GET /login/ HTTP/1.1" 200 -
+AD authenticate failed for ragib.shahriar
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 106, in __init__
+    self.conn.open()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\strategy\sync.py", line 57, in open
+    BaseStrategy.open(self, reset_usage, read_server_info)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\strategy\base.py", line 146, in open
+    raise exception_history[0][0]
+ldap3.core.exceptions.LDAPSocketOpenError: socket connection error while opening: timed out
+AD authenticate failed for ragib.shahriar
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 106, in __init__
+    self.conn.open()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\strategy\sync.py", line 57, in open
+    BaseStrategy.open(self, reset_usage, read_server_info)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\strategy\base.py", line 146, in open
+    raise exception_history[0][0]
+ldap3.core.exceptions.LDAPSocketOpenError: socket connection error while opening: timed out
+Unauthorized: /api/user/token/
+Unauthorized: /api/user/token/
+172.16.0.5 - - [23/Sep/2025 17:37:54] "[31m[1mPOST /api/user/token/ HTTP/1.1[0m" 401 -
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on https://127.0.0.1:9000
+ * Running on https://172.16.0.5:9000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 258-321-226
+172.16.0.5 - - [24/Sep/2025 15:39:08] "GET / HTTP/1.1" 200 -
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+172.16.0.5 - - [24/Sep/2025 15:39:09] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+172.16.0.5 - - [24/Sep/2025 15:39:22] "GET /login/ HTTP/1.1" 200 -
+AD authenticate failed for ragib.shahriar
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 106, in __init__
+    self.conn.open()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\strategy\sync.py", line 57, in open
+    BaseStrategy.open(self, reset_usage, read_server_info)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\strategy\base.py", line 146, in open
+    raise exception_history[0][0]
+ldap3.core.exceptions.LDAPSocketOpenError: socket connection error while opening: timed out
+AD authenticate failed for ragib.shahriar
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 106, in __init__
+    self.conn.open()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\strategy\sync.py", line 57, in open
+    BaseStrategy.open(self, reset_usage, read_server_info)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\strategy\base.py", line 146, in open
+    raise exception_history[0][0]
+ldap3.core.exceptions.LDAPSocketOpenError: socket connection error while opening: timed out
+Unauthorized: /api/user/token/
+Unauthorized: /api/user/token/
+172.16.0.5 - - [24/Sep/2025 15:40:04] "[31m[1mPOST /api/user/token/ HTTP/1.1[0m" 401 -
+AD authenticate failed for ragib.shahriar
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 106, in __init__
+    self.conn.open()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\strategy\sync.py", line 57, in open
+    BaseStrategy.open(self, reset_usage, read_server_info)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\strategy\base.py", line 146, in open
+    raise exception_history[0][0]
+ldap3.core.exceptions.LDAPSocketOpenError: socket connection error while opening: timed out
+AD authenticate failed for ragib.shahriar
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 106, in __init__
+    self.conn.open()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\strategy\sync.py", line 57, in open
+    BaseStrategy.open(self, reset_usage, read_server_info)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\strategy\base.py", line 146, in open
+    raise exception_history[0][0]
+ldap3.core.exceptions.LDAPSocketOpenError: socket connection error while opening: timed out
+Unauthorized: /api/user/token/
+Unauthorized: /api/user/token/
+172.16.0.5 - - [24/Sep/2025 15:40:23] "[31m[1mPOST /api/user/token/ HTTP/1.1[0m" 401 -
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on https://127.0.0.1:9000
+ * Running on https://172.16.0.5:9000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 258-321-226
+172.16.0.5 - - [24/Sep/2025 16:03:41] "GET /login/ HTTP/1.1" 200 -
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+172.16.0.5 - - [24/Sep/2025 16:03:41] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+AD authenticate failed for ragib.shahriar
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 106, in __init__
+    self.conn.open()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\strategy\sync.py", line 57, in open
+    BaseStrategy.open(self, reset_usage, read_server_info)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\strategy\base.py", line 146, in open
+    raise exception_history[0][0]
+ldap3.core.exceptions.LDAPSocketOpenError: ("('socket ssl wrapping error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)',)",)
+AD authenticate failed for ragib.shahriar
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 106, in __init__
+    self.conn.open()
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\strategy\sync.py", line 57, in open
+    BaseStrategy.open(self, reset_usage, read_server_info)
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\strategy\base.py", line 146, in open
+    raise exception_history[0][0]
+ldap3.core.exceptions.LDAPSocketOpenError: ("('socket ssl wrapping error: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)',)",)
+Unauthorized: /api/user/token/
+Unauthorized: /api/user/token/
+172.16.0.5 - - [24/Sep/2025 16:03:47] "[31m[1mPOST /api/user/token/ HTTP/1.1[0m" 401 -
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on https://127.0.0.1:9000
+ * Running on https://172.16.0.5:9000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 258-321-226
+172.16.0.5 - - [24/Sep/2025 16:05:31] "GET /login/ HTTP/1.1" 200 -
+AD authenticate failed for ragib.shahriar
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\strategy\sync.py", line 89, in receiving
+    data = self.connection.socket.recv(self.socket_size)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1232, in recv
+    return self.read(buflen)
+           ^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1105, in read
+    return self._sslobj.read(len)
+           ^^^^^^^^^^^^^^^^^^^^^^
+TimeoutError: The read operation timed out
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 109, in __init__
+    if not self.conn.bind():
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\connection.py", line 607, in bind
+    response = self.post_send_single_response(self.send('bindRequest', request, controls))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\strategy\sync.py", line 160, in post_send_single_response
+    responses, result = self.get_response(message_id)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\strategy\base.py", line 355, in get_response
+    responses = self._get_response(message_id, timeout)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\strategy\sync.py", line 196, in _get_response
+    responses = self.receiving()
+                ^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\strategy\sync.py", line 99, in receiving
+    raise communication_exception_factory(LDAPSocketReceiveError, type(e)(str(e)))(self.connection.last_error)
+ldap3.core.exceptions.LDAPSocketReceiveError: error receiving data: The read operation timed out
+AD authenticate failed for ragib.shahriar
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\strategy\sync.py", line 89, in receiving
+    data = self.connection.socket.recv(self.socket_size)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1232, in recv
+    return self.read(buflen)
+           ^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\ssl.py", line 1105, in read
+    return self._sslobj.read(len)
+           ^^^^^^^^^^^^^^^^^^^^^^
+TimeoutError: The read operation timed out
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\auth_backends\ad_db_backend.py", line 34, in authenticate
+    ad = ActiveDirectoryService()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\core\services\ad_service.py", line 109, in __init__
+    if not self.conn.bind():
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\core\connection.py", line 607, in bind
+    response = self.post_send_single_response(self.send('bindRequest', request, controls))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\strategy\sync.py", line 160, in post_send_single_response
+    responses, result = self.get_response(message_id)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\strategy\base.py", line 355, in get_response
+    responses = self._get_response(message_id, timeout)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\strategy\sync.py", line 196, in _get_response
+    responses = self.receiving()
+                ^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\ldap3\strategy\sync.py", line 99, in receiving
+    raise communication_exception_factory(LDAPSocketReceiveError, type(e)(str(e)))(self.connection.last_error)
+ldap3.core.exceptions.LDAPSocketReceiveError: error receiving data: The read operation timed out
+Unauthorized: /api/user/token/
+Unauthorized: /api/user/token/
+172.16.0.5 - - [24/Sep/2025 16:05:47] "[31m[1mPOST /api/user/token/ HTTP/1.1[0m" 401 -
+Skipping NTLM (disable_ntlm=True, md4_ok=False)
+Skipping NTLM (disable_ntlm=True, md4_ok=False)
+AD bind error (SIMPLE) for ragib.shahriar@bergerbd.com: LDAPSocketReceiveError('error receiving data: The read operation timed out')
+AD bind error (SIMPLE) for ragib.shahriar@bergerbd.com: LDAPSocketReceiveError('error receiving data: The read operation timed out')
+AD bind error (SIMPLE) for CN=Ragib Shahriar E10004221,CN=Users,DC=bergerbd,DC=com: LDAPSocketReceiveError('error receiving data: The read operation timed out')
+AD bind error (SIMPLE) for CN=Ragib Shahriar E10004221,CN=Users,DC=bergerbd,DC=com: LDAPSocketReceiveError('error receiving data: The read operation timed out')
+Unauthorized: /api/user/token/
+Unauthorized: /api/user/token/
+172.16.0.5 - - [24/Sep/2025 16:13:29] "[31m[1mPOST /api/user/token/ HTTP/1.1[0m" 401 -
+172.16.0.5 - - [24/Sep/2025 16:18:10] "GET /login/ HTTP/1.1" 200 -
+Skipping NTLM (disable_ntlm=True, md4_ok=False)
+Skipping NTLM (disable_ntlm=True, md4_ok=False)
+172.16.0.5 - - [24/Sep/2025 16:18:38] "POST /api/user/token/ HTTP/1.1" 200 -
+172.16.0.5 - - [24/Sep/2025 16:18:38] "GET /api/sales/index/ HTTP/1.1" 200 -
+172.16.0.5 - - [24/Sep/2025 16:18:38] "GET /api/conversations/?page=1 HTTP/1.1" 200 -
+172.16.0.5 - - [24/Sep/2025 16:19:27] "POST /api/user/logout/ HTTP/1.1" 200 -
+172.16.0.5 - - [24/Sep/2025 16:19:27] "[32mGET /login HTTP/1.1[0m" 301 -
+172.16.0.5 - - [24/Sep/2025 16:19:27] "GET /login/ HTTP/1.1" 200 -
+Skipping NTLM (disable_ntlm=True, md4_ok=False)
+Skipping NTLM (disable_ntlm=True, md4_ok=False)
+AD bind failed (SIMPLE) for ragib.shahriar@bergerbd.com: {'result': 49, 'description': 'invalidCredentials', 'dn': '', 'message': '80090308: LdapErr: DSID-0C090457, comment: AcceptSecurityContext error, data 52e, v3839\x00', 'referrals': None, 'saslCreds': None, 'type': 'bindResponse'}
+AD bind failed (SIMPLE) for ragib.shahriar@bergerbd.com: {'result': 49, 'description': 'invalidCredentials', 'dn': '', 'message': '80090308: LdapErr: DSID-0C090457, comment: AcceptSecurityContext error, data 52e, v3839\x00', 'referrals': None, 'saslCreds': None, 'type': 'bindResponse'}
+AD bind failed (SIMPLE) for CN=Ragib Shahriar E10004221,CN=Users,DC=bergerbd,DC=com: {'result': 49, 'description': 'invalidCredentials', 'dn': '', 'message': '80090308: LdapErr: DSID-0C090457, comment: AcceptSecurityContext error, data 52e, v3839\x00', 'referrals': None, 'saslCreds': None, 'type': 'bindResponse'}
+AD bind failed (SIMPLE) for CN=Ragib Shahriar E10004221,CN=Users,DC=bergerbd,DC=com: {'result': 49, 'description': 'invalidCredentials', 'dn': '', 'message': '80090308: LdapErr: DSID-0C090457, comment: AcceptSecurityContext error, data 52e, v3839\x00', 'referrals': None, 'saslCreds': None, 'type': 'bindResponse'}
+Unauthorized: /api/user/token/
+Unauthorized: /api/user/token/
+172.16.0.5 - - [24/Sep/2025 16:19:40] "[31m[1mPOST /api/user/token/ HTTP/1.1[0m" 401 -
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on https://127.0.0.1:9000
+ * Running on https://172.16.0.5:9000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 258-321-226
+Skipping NTLM (disable_ntlm=True, md4_ok=False)
+Skipping NTLM (disable_ntlm=True, md4_ok=False)
+192.168.19.48 - - [25/Sep/2025 10:34:53] "POST /api/user/token/ HTTP/1.1" 200 -
+192.168.19.48 - - [25/Sep/2025 10:34:53] "GET /api/sales/index/ HTTP/1.1" 200 -
+192.168.19.48 - - [25/Sep/2025 10:34:54] "GET /api/conversations/?page=1 HTTP/1.1" 200 -
 HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
 HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
 HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
 AzureCliCredential.get_token failed: Failed to invoke the Azure CLI
-192.168.22.139 - - [10/Sep/2025 18:14:16] "POST /api/sales/query/existing/6723564e-0ed4-483d-bfa0-901b5ed8574c/ HTTP/1.1" 200 -
-192.168.22.139 - - [10/Sep/2025 18:14:16] "GET /api/conversations/6723564e-0ed4-483d-bfa0-901b5ed8574c/messages/?page=1 HTTP/1.1" 200 -
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\identity\_credentials\azure_cli.py", line 254, in _run_command
+    return subprocess.check_output(args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\subprocess.py", line 466, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\subprocess.py", line 1630, in _communicate
+    raise TimeoutExpired(self.args, orig_timeout)
+subprocess.TimeoutExpired: Command '['C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\wbin\\az.CMD', 'account', 'get-access-token', '--output', 'json', '--resource', 'https://kusto.kusto.windows.net']' timed out after 10 seconds
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\_token_providers.py", line 444, in _get_token_impl
+    self._az_token = self._az_auth_context.get_token(self._scopes[0])
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\identity\_internal\decorators.py", line 23, in wrapper
+    token = fn(*args, **kwargs)
+            ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\identity\_credentials\azure_cli.py", line 120, in get_token
+    token_info = self._get_token_base(*scopes, options=options, **kwargs)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\identity\_credentials\azure_cli.py", line 168, in _get_token_base
+    output = _run_command(command_args, self._process_timeout)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\identity\_credentials\azure_cli.py", line 280, in _run_command
+    raise error from ex
+azure.identity._exceptions.CredentialUnavailableError: Failed to invoke the Azure CLI
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\security.py", line 82, in acquire_authorization_header
+    return _get_header_from_dict(self.token_provider.get_token())
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\_token_providers.py", line 164, in get_token
+    return _get_token()
+           ^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\core\tracing\decorator.py", line 119, in wrapper_use_tracer
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\_token_providers.py", line 161, in _get_token
+    token = MonitoredActivity.invoke(self._get_token_impl, name_of_span=f"{self.name()}.get_token_impl", tracing_attributes=self.context())
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\_telemetry.py", line 116, in invoke
+    return span()
+           ^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\core\tracing\decorator.py", line 119, in wrapper_use_tracer
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\_token_providers.py", line 447, in _get_token_impl
+    raise KustoClientError(
+azure.kusto.data.exceptions.KustoClientError: Failed to obtain Az Cli token for 'https://bpblaiadx.southeastasia.kusto.windows.net'.
+Please be sure AzCli version 2.3.0 and above is intalled.
+Failed to invoke the Azure CLI
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\sales_analyzer\views.py", line 66, in post
+    result = handle_user_query(prompt, conversation_id=str(conversation.uuid))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\agent\agent.py", line 1324, in handle_user_query
+    cols, rows = adx().run(kql)
+                 ^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\agent\agent.py", line 59, in run
+    response = self.client.execute(self.database, kql)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\client.py", line 164, in execute
+    return self.execute_query(database, query, properties)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\core\tracing\decorator.py", line 119, in wrapper_use_tracer
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\client.py", line 189, in execute_query
+    return self._execute(self._query_endpoint, request, properties)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\client.py", line 323, in _execute
+    request_headers["Authorization"] = self._aad_helper.acquire_authorization_header()
+                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\security.py", line 86, in acquire_authorization_header
+    raise KustoAuthenticationError(self.token_provider.name(), error, **kwargs)
+azure.kusto.data.exceptions.KustoAuthenticationError: KustoAuthenticationError('AzCliTokenProvider', 'KustoClientError("Failed to obtain Az Cli token for 'https://bpblaiadx.southeastasia.kusto.windows.net'.\nPlease be sure AzCli version 2.3.0 and above is intalled.\nFailed to invoke the Azure CLI")', '{'authority:': 'AzCliTokenProvider', 'kusto_uri': 'https://bpblaiadx.southeastasia.kusto.windows.net'}')
+192.168.19.48 - - [25/Sep/2025 10:36:13] "POST /api/sales/query/ HTTP/1.1" 200 -
+192.168.19.84 - - [25/Sep/2025 16:23:09] "GET /api/sales/index/ HTTP/1.1" 200 -
+192.168.19.84 - - [25/Sep/2025 16:23:09] "GET /api/conversations/?page=1 HTTP/1.1" 200 -
 HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
 HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
 HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
 AzureCliCredential.get_token failed: Please run 'az login' to set up an account
-192.168.22.139 - - [10/Sep/2025 18:15:37] "POST /api/sales/query/existing/6723564e-0ed4-483d-bfa0-901b5ed8574c/ HTTP/1.1" 200 -
-192.168.22.139 - - [10/Sep/2025 18:15:37] "GET /api/conversations/6723564e-0ed4-483d-bfa0-901b5ed8574c/messages/?page=1 HTTP/1.1" 200 -
-192.168.22.139 - - [10/Sep/2025 18:16:42] "GET /api/sales/index/ HTTP/1.1" 200 -
-HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
-HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
-HTTP Request: POST https://aiagenthub3393022984.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview "HTTP/1.1 200 OK"
-AzureCliCredential.get_token failed: Please run 'az login' to set up an account
-192.168.22.139 - - [10/Sep/2025 18:17:02] "POST /api/sales/query/existing/6723564e-0ed4-483d-bfa0-901b5ed8574c/ HTTP/1.1" 200 -
-192.168.22.139 - - [10/Sep/2025 18:17:03] "GET /api/conversations/6723564e-0ed4-483d-bfa0-901b5ed8574c/messages/?page=1 HTTP/1.1" 200 -
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\identity\_credentials\azure_cli.py", line 254, in _run_command
+    return subprocess.check_output(args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\subprocess.py", line 466, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\AppData\Local\Programs\Python\Python312\Lib\subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\wbin\\az.CMD', 'account', 'get-access-token', '--output', 'json', '--resource', 'https://kusto.kusto.windows.net']' returned non-zero exit status 1.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\_token_providers.py", line 444, in _get_token_impl
+    self._az_token = self._az_auth_context.get_token(self._scopes[0])
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\identity\_internal\decorators.py", line 23, in wrapper
+    token = fn(*args, **kwargs)
+            ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\identity\_credentials\azure_cli.py", line 120, in get_token
+    token_info = self._get_token_base(*scopes, options=options, **kwargs)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\identity\_credentials\azure_cli.py", line 168, in _get_token_base
+    output = _run_command(command_args, self._process_timeout)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\identity\_credentials\azure_cli.py", line 263, in _run_command
+    raise CredentialUnavailableError(message=NOT_LOGGED_IN) from ex
+azure.identity._exceptions.CredentialUnavailableError: Please run 'az login' to set up an account
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\security.py", line 82, in acquire_authorization_header
+    return _get_header_from_dict(self.token_provider.get_token())
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\_token_providers.py", line 164, in get_token
+    return _get_token()
+           ^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\core\tracing\decorator.py", line 119, in wrapper_use_tracer
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\_token_providers.py", line 161, in _get_token
+    token = MonitoredActivity.invoke(self._get_token_impl, name_of_span=f"{self.name()}.get_token_impl", tracing_attributes=self.context())
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\_telemetry.py", line 116, in invoke
+    return span()
+           ^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\core\tracing\decorator.py", line 119, in wrapper_use_tracer
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\_token_providers.py", line 447, in _get_token_impl
+    raise KustoClientError(
+azure.kusto.data.exceptions.KustoClientError: Failed to obtain Az Cli token for 'https://bpblaiadx.southeastasia.kusto.windows.net'.
+Please be sure AzCli version 2.3.0 and above is intalled.
+Please run 'az login' to set up an account
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\sales_analyzer\views.py", line 66, in post
+    result = handle_user_query(prompt, conversation_id=str(conversation.uuid))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\agent\agent.py", line 1324, in handle_user_query
+    cols, rows = adx().run(kql)
+                 ^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\src\agent\agent.py", line 59, in run
+    response = self.client.execute(self.database, kql)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\client.py", line 164, in execute
+    return self.execute_query(database, query, properties)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\core\tracing\decorator.py", line 119, in wrapper_use_tracer
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\client.py", line 189, in execute_query
+    return self._execute(self._query_endpoint, request, properties)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\client.py", line 323, in _execute
+    request_headers["Authorization"] = self._aad_helper.acquire_authorization_header()
+                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ragib\DeployInternally\SalesAgent\venv\Lib\site-packages\azure\kusto\data\security.py", line 86, in acquire_authorization_header
+    raise KustoAuthenticationError(self.token_provider.name(), error, **kwargs)
+azure.kusto.data.exceptions.KustoAuthenticationError: KustoAuthenticationError('AzCliTokenProvider', 'KustoClientError("Failed to obtain Az Cli token for 'https://bpblaiadx.southeastasia.kusto.windows.net'.\nPlease be sure AzCli version 2.3.0 and above is intalled.\nPlease run 'az login' to set up an account")', '{'authority:': 'AzCliTokenProvider', 'kusto_uri': 'https://bpblaiadx.southeastasia.kusto.windows.net'}')
+192.168.19.84 - - [25/Sep/2025 16:24:07] "POST /api/sales/query/ HTTP/1.1" 200 -
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on https://127.0.0.1:9000
+ * Running on https://172.16.0.5:9000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 258-321-226
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on https://127.0.0.1:9000
+ * Running on https://172.16.0.5:9000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 258-321-226
+192.168.22.138 - - [29/Sep/2025 15:01:12] "GET /login/ HTTP/1.1" 200 -
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+192.168.22.138 - - [29/Sep/2025 15:01:12] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on https://127.0.0.1:9000
+ * Running on https://172.16.0.5:9000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 258-321-226
+192.168.22.138 - - [30/Sep/2025 11:29:40] "GET /login/ HTTP/1.1" 200 -
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+192.168.22.138 - - [30/Sep/2025 11:29:41] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+192.168.22.138 - - [30/Sep/2025 11:30:02] "GET /login/ HTTP/1.1" 200 -
+192.168.22.138 - - [30/Sep/2025 11:30:03] "GET /login/ HTTP/1.1" 200 -
+192.168.22.138 - - [30/Sep/2025 11:30:04] "GET /login/ HTTP/1.1" 200 -
+192.168.22.138 - - [30/Sep/2025 11:31:24] "GET /login/ HTTP/1.1" 200 -
+192.168.22.138 - - [30/Sep/2025 11:32:14] "GET /login/ HTTP/1.1" 200 -
+192.168.22.138 - - [30/Sep/2025 11:52:28] "GET /login/ HTTP/1.1" 200 -
+192.168.22.138 - - [30/Sep/2025 14:15:46] "GET / HTTP/1.1" 200 -
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on https://127.0.0.1:9000
+ * Running on https://172.16.0.5:9000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 258-321-226
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on https://127.0.0.1:9000
+ * Running on https://172.16.0.5:9000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 258-321-226
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on https://127.0.0.1:9000
+ * Running on https://172.16.0.5:9000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 258-321-226
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on https://127.0.0.1:9000
+ * Running on https://172.16.0.5:9000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 258-321-226
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on https://127.0.0.1:9000
+ * Running on https://172.16.0.5:9000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 258-321-226
+192.168.22.114 - - [08/Oct/2025 10:33:12] "[32mGET /admin HTTP/1.1[0m" 301 -
+192.168.22.114 - - [08/Oct/2025 10:33:12] "[32mGET /admin/ HTTP/1.1[0m" 302 -
+192.168.22.114 - - [08/Oct/2025 10:33:13] "GET /admin/login/?next=/admin/ HTTP/1.1" 200 -
+192.168.22.114 - - [08/Oct/2025 10:33:13] "GET /static/vendor/adminlte/css/adminlte.min.css HTTP/1.1" 200 -
+192.168.22.114 - - [08/Oct/2025 10:33:13] "GET /static/vendor/fontawesome-free/css/all.min.css HTTP/1.1" 200 -
+192.168.22.114 - - [08/Oct/2025 10:33:13] "GET /static/jazzmin/css/main.css HTTP/1.1" 200 -
+192.168.22.114 - - [08/Oct/2025 10:33:13] "GET /static/admin/js/vendor/jquery/jquery.js HTTP/1.1" 200 -
+192.168.22.114 - - [08/Oct/2025 10:33:14] "GET /static/vendor/adminlte/img/AdminLTELogo.png HTTP/1.1" 200 -
+192.168.22.114 - - [08/Oct/2025 10:33:14] "GET /static/vendor/bootstrap/js/bootstrap.min.js HTTP/1.1" 200 -
+192.168.22.114 - - [08/Oct/2025 10:33:14] "GET /static/vendor/adminlte/js/adminlte.min.js HTTP/1.1" 200 -
+192.168.22.114 - - [08/Oct/2025 10:33:14] "GET /static/vendor/fontawesome-free/webfonts/fa-solid-900.woff2 HTTP/1.1" 200 -
+192.168.22.114 - - [08/Oct/2025 10:33:15] "GET /static/vendor/adminlte/img/AdminLTELogo.png HTTP/1.1" 200 -
+192.168.22.114 - - [08/Oct/2025 10:33:15] "GET /static/vendor/adminlte/img/AdminLTELogo.png HTTP/1.1" 200 -
+192.168.22.114 - - [08/Oct/2025 16:50:57] "GET /login/ HTTP/1.1" 200 -
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+192.168.22.114 - - [08/Oct/2025 16:50:57] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+192.168.22.114 - - [08/Oct/2025 16:50:59] "GET /login/ HTTP/1.1" 200 -
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on https://127.0.0.1:9000
+ * Running on https://172.16.0.5:9000
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 258-321-226
