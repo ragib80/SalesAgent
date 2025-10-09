@@ -8574,4 +8574,12 @@ Django version 5.0.14, using settings 'core.settings'
 Development server is running at https://0.0.0.0:9000/
 Using the Werkzeug debugger (https://werkzeug.palletsprojects.com/)
 Quit the server with CTRL-BREAK.
+Terminate batch job (Y/N)? Performing system checks...
+
+System check identified no issues (0 silenced).
+
+Django version 5.0.14, using settings 'core.settings'
+Development server is running at https://0.0.0.0:9000/
+Using the Werkzeug debugger (https://werkzeug.palletsprojects.com/)
+Quit the server with CTRL-BREAK.
 Terminate batch job (Y/N)? 
