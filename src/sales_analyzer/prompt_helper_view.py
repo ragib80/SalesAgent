@@ -11,6 +11,8 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from agent.agent import adx, TABLE_NAME, FIELD_MAPPINGS, KUSTO_SCHEMA
+from langchain_openai import AzureChatOpenAI
+from django.conf import settings
 
 # Mock data for now (later: replace with ADX)
 MOCK_FILTER_VALUES = {
@@ -70,63 +72,159 @@ class GetFilterValuesAPIView(APIView):
                 {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
+    
 class ApplyFiltersAPIView(APIView):
-    """Accepts applied filters and returns one or more generated prompts."""
+    """Accepts applied filters + optional metric, and returns LLM-refined prompts."""
     authentication_classes = (JWTAuthentication,)
     permission_classes = (IsAuthenticated,)
 
     def post(self, request):
         try:
             filters = request.data.get("filters", {})
-            print("🎯 Received filters:", filters)
+            metric = request.data.get("metric")
+            generatedPrompt = request.data.get("generatedPrompt")
 
-            if not filters:
+            print("🎯 Received filters:", filters)
+            print("📊 Selected metric:", metric)
+            print("📊 Selected generatedPrompt:", generatedPrompt)
+
+            if not filters and not metric:
                 return Response(
-                    {"status": "error", "message": "No filters provided"},
+                    {"status": "error", "message": "No filters or metric provided."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # Define metric fields (dynamic mapping)
-            METRIC_FIELDS = {
-                "Revenue": "Revenue",
-                "fkimg": "Quantity",
-                "volum": "Volume"
-            }
-
-            # Convert to human-readable parts
+            # ───────────────────────────────
+            #  1️⃣ Convert filters to human-readable format
+            # ───────────────────────────────
             readable_parts = []
             for col, values in filters.items():
                 label = next((k for k, v in FIELD_MAPPINGS.items() if v == col), col)
                 formatted_values = ", ".join(str(v) for v in values)
                 readable_parts.append(f"{label}: {formatted_values}")
 
-            filter_text = ", ".join(readable_parts)
+            filter_text = ", ".join(readable_parts) if readable_parts else ""
 
-            # Detect selected metrics
-            selected_metrics = [METRIC_FIELDS[f] for f in filters.keys() if f in METRIC_FIELDS]
+            # ───────────────────────────────
+            #  2️⃣ Build structured base prompt
+            # ───────────────────────────────
+            if metric:
+                base_prompt = f"Show me the {metric} where {filter_text}" if filter_text else f"Show me the {metric}"
+            else:
+                base_prompt = generatedPrompt  # user may edit manually later
 
-            # If no metric → fallback to Sales Data
-            if not selected_metrics:
-                selected_metrics = ["Sales Data"]
+            # ───────────────────────────────
+            #  3️⃣ Call Azure OpenAI to refine the natural language prompt
+            # ───────────────────────────────
+            llm = AzureChatOpenAI(
+                azure_endpoint   = settings.AZURE_OPENAI_ENDPOINT,
+                api_key          = settings.AZURE_OPENAI_KEY,
+                api_version      = "2025-01-01-preview",
+                azure_deployment = settings.AZURE_OPENAI_ANALYSIS,  # e.g., deployment of gpt-5-mini
+                temperature      = 0,  # set 0 if you want fully deterministic phrasing
+            )
 
-            # Build prompts
-            prompts = [f"Show me the {metric} where {filter_text}" for metric in selected_metrics]
+            system_prompt = (
+                "You are an SAP Sales Analysis Assistant. "
+                "The user’s filters {filter_text} describe SAP sales data (Dealer, Brand, Product, etc.). "
+                "Refine the given prompt into a natural, concise English query. "
+                "Ensure it still includes all key filters and the selected metric. "
+                "Do not add extra explanations — only return the final query text."
+            )
 
+            user_prompt = f"The base query is: '{base_prompt}'"
+
+            print(" Sending to LLM:", user_prompt)
+
+            refined_prompt = llm.invoke(
+                [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ]
+            ).content.strip()
+
+            print("✨ Refined Prompt:", refined_prompt)
+
+            # ───────────────────────────────
+            #  4️⃣ Return response
+            # ───────────────────────────────
             return Response(
                 {
                     "status": "success",
                     "filters": filters,
-                    "prompts": prompts,  # ✅ return array of prompts
+                    "metric": metric,
+                    "refined_prompt": refined_prompt,
+                    "prompts": [base_prompt, refined_prompt],
                 },
                 status=status.HTTP_200_OK,
             )
 
         except Exception as e:
+            print(" Exception in ApplyFiltersAPIView:", e)
             return Response(
                 {"status": "error", "message": str(e)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        
+
+
+#working code 
+# class ApplyFiltersAPIView(APIView):
+#     """Accepts applied filters and returns one or more generated prompts."""
+#     authentication_classes = (JWTAuthentication,)
+#     permission_classes = (IsAuthenticated,)
+
+#     def post(self, request):
+#         try:
+#             filters = request.data.get("filters", {})
+#             print("🎯 Received filters:", filters)
+
+#             if not filters:
+#                 return Response(
+#                     {"status": "error", "message": "No filters provided"},
+#                     status=status.HTTP_400_BAD_REQUEST,
+#                 )
+
+#             # Define metric fields (dynamic mapping)
+#             METRIC_FIELDS = {
+#                 "Revenue": "Revenue",
+#                 "fkimg": "Quantity",
+#                 "volum": "Volume"
+#             }
+
+#             # Convert to human-readable parts
+#             readable_parts = []
+#             for col, values in filters.items():
+#                 label = next((k for k, v in FIELD_MAPPINGS.items() if v == col), col)
+#                 formatted_values = ", ".join(str(v) for v in values)
+#                 readable_parts.append(f"{label}: {formatted_values}")
+
+#             filter_text = ", ".join(readable_parts)
+
+#             # Detect selected metrics
+#             selected_metrics = [METRIC_FIELDS[f] for f in filters.keys() if f in METRIC_FIELDS]
+
+#             # If no metric → fallback to Sales Data
+#             if not selected_metrics:
+#                 selected_metrics = ["Sales Data"]
+
+#             # Build prompts
+#             prompts = [f"Show me the {metric} where {filter_text}" for metric in selected_metrics]
+
+#             return Response(
+#                 {
+#                     "status": "success",
+#                     "filters": filters,
+#                     "prompts": prompts,  # ✅ return array of prompts
+#                 },
+#                 status=status.HTTP_200_OK,
+#             )
+
+#         except Exception as e:
+#             return Response(
+#                 {"status": "error", "message": str(e)},
+#                 status=status.HTTP_400_BAD_REQUEST,
+#             )
 
 
 # class ApplyFiltersAPIView(APIView):

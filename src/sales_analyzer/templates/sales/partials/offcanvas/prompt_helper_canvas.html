@@ -10,37 +10,47 @@
     <!-- Column Selector -->
     <div class="mb-4">
       <label for="availableColumns" class="form-label fw-semibold">Choose filter columns</label>
+      <div class="mb-4">
+      <label for="metricSelect" class="form-label fw-semibold">Select Metric</label>
+      <select id="metricSelect" class="form-select">
+        <option value="" disable>-- Select Metric --</option>
+        <option value="Revenue">Sales</option>
+        <option value="fkimg">Quantity</option>
+        <option value="volum">Volume</option>
+        <!-- Metrics will be dynamically populated from backend (Revenue, Quantity, Volume etc.) -->
+      </select>
+    </div>
       <select id="availableColumns" class="form-select" multiple>
          {% comment %} <option value="revenue">Revenue</option> {% endcomment %}
-    {% comment %} <option value="fkimg">Quantity</option> {% endcomment %}
-    {% comment %} <option value="volum">Volume</option> {% endcomment %}
-    <option value="cname">Dealer</option>
-    <option value="wgbez">Brand</option>
-    <option value="arktx">Product Name</option>
-    {% comment %} <option value="matkl">Category</option> {% endcomment %}
-    <option value="matkl">Material Group</option>
-    
-    <option value="spart_text">Division</option>
-    {% comment %} <option value="spart">Division Code</option> {% endcomment %}
-    <option value="bukrs">Company Code</option>
-    <option value="vkorg">Sales Org</option>
-    <option value="vtweg">Distribution Channel</option>
-    <option value="gsber">Business Area / Depo</option>
-    <option value="kkber">Credit Control Area</option>
-    <option value="kukla">Dealer Group</option>
-    <option value="ktokd">Account Group</option>
-    <option value="vkgrp_c">Sales Group</option>
-    <option value="vkbur_c">Sales Office</option>
-    <option value="Payer_DL">Payer ID</option>
-    <option value="matnr">Product Code / Material Code</option>
-    <option value="meins">Material UoM</option>
-    <option value="voleh">Volume Unit</option>
-    <option value="GK">Business Group</option>
-    <option value="Territory">Territory</option>
-    <option value="Szone">Sales Zone</option>
-    <option value="fkdat">Date</option>
-    <option value="kunrg">Dealer Code</option>
-    <option value="vbeln">Invoice Number</option>
+        {% comment %} <option value="fkimg">Quantity</option> {% endcomment %}
+        {% comment %} <option value="volum">Volume</option> {% endcomment %}
+        <option value="cname">Dealer</option>
+        <option value="wgbez">Brand</option>
+        <option value="arktx">Product Name</option>
+        {% comment %} <option value="matkl">Category</option> {% endcomment %}
+        <option value="matkl">Material Group</option>
+        
+        <option value="spart_text">Division</option>
+        {% comment %} <option value="spart">Division Code</option> {% endcomment %}
+        <option value="bukrs">Company Code</option>
+        <option value="vkorg">Sales Org</option>
+        <option value="vtweg">Distribution Channel</option>
+        <option value="gsber">Business Area / Depo</option>
+        <option value="kkber">Credit Control Area</option>
+        <option value="kukla">Dealer Group</option>
+        <option value="ktokd">Account Group</option>
+        <option value="vkgrp_c">Sales Group</option>
+        <option value="vkbur_c">Sales Office</option>
+        <option value="Payer_DL">Payer ID</option>
+        <option value="matnr">Product Code / Material Code</option>
+        <option value="meins">Material UoM</option>
+        <option value="voleh">Volume Unit</option>
+        <option value="GK">Business Group</option>
+        <option value="Territory">Territory</option>
+        <option value="Szone">Sales Zone</option>
+        <option value="fkdat">Date</option>
+        <option value="kunrg">Dealer Code</option>
+        <option value="vbeln">Invoice Number</option>
       </select>
     </div>
 
