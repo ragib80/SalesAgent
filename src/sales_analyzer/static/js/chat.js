@@ -59,7 +59,6 @@
   });
 
   $(function () {
-    let currentChatId = null;
     let isSubmitting = false;
     let typingIndicator = null;
 

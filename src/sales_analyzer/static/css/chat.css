@@ -455,7 +455,10 @@
             padding: 12px 16px;
             box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
             transition: all 0.2s;
+            /* new */
+            position: relative;
         }
+
         
         .input-wrapper:focus-within {
             border-color: #10a37f;
@@ -679,3 +682,69 @@
     max-width: 400px; /* Don't exceed 400px on tablets */
   }
 }
+
+
+/* textcomplete */
+  /* Make the dropdown feel like a Copilot/Bootstrap panel */
+.textcomplete-dropdown {
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 0.75rem;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+  padding: 0.5rem;
+  background: #fff;
+  width: min(700px, 95vw);
+  animation: fadeIn .15s ease-in;
+}
+.textcomplete-dropdown ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.textcomplete-item { margin: 0 0 .5rem 0; border-radius: .75rem; }
+.textcomplete-item:last-child { margin-bottom: 0; }
+.textcomplete-item.active .card {
+  border-color: rgba(0,123,255,0.35);
+  box-shadow: 0 0 0 .25rem rgba(0,123,255,0.15);
+}
+.suggest-card.card {
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: .75rem;
+  transition: transform .06s ease, box-shadow .12s ease;
+}
+.suggest-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  border-color: rgba(0,0,0,0.12);
+}
+.suggest-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.suggest-meta { color: #6c757d; font-size: .85rem; }
+.hl { background: #fff3cd; padding: 0 .15rem; border-radius: .25rem; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ghost */
+#ghost-suggestion {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;           /* sit just above the input */
+  transform: translateY(-6px);
+  z-index: 10001;         /* higher than .textcomplete-dropdown (10k) */
+  display: none;          /* JS will fadeIn/fadeOut */
+  pointer-events: none;   /* panel manages its own clicks */
+}
+
+#ghost-suggestion .ai-suggest-card {
+  width: 100%;
+  border-radius: 0.75rem;
+  background-color: #fff;
+  box-shadow: 0 12px 28px rgba(0,0,0,.12);
+  pointer-events: auto;   /* clickable */
+}
+
+#ghost-suggestion .ai-suggest-item:hover { background-color: #f8f9fa; }

@@ -13,6 +13,10 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from agent.agent import adx, TABLE_NAME, FIELD_MAPPINGS, KUSTO_SCHEMA
 from langchain_openai import AzureChatOpenAI
 from django.conf import settings
+from agent.utils.conversation_helpers import (
+    get_conversation_id_from_uuid,
+    get_last_20_messages,
+)
 
 # Mock data for now (later: replace with ADX)
 MOCK_FILTER_VALUES = {
@@ -247,3 +251,181 @@ class ApplyFiltersAPIView(APIView):
 #                 "status": "error",
 #                 "message": str(e)
 #             }, status=status.HTTP_400_BAD_REQUEST)
+
+
+SAP_FIELD_MAPPINGS = {
+    "Dealer": ("cname", "kunrg"),
+    "Brand": ("wgbez", None),
+    "Product Name": ("arktx", None),
+    "Material Group": ("matkl", None),
+    "Division": ("spart_text", None),
+    "Company Code": ("bukrs", None),
+    "Sales Org": ("vkorg", None),
+    "Distribution Channel": ("vtweg", None),
+    "Business Area": ("gsber", None),
+    "Credit Control Area": ("kkber", None),
+    "Dealer Group": ("kukla", None),
+    "Account Group": ("ktokd", None),
+    "Sales Group": ("vkgrp_c", None),
+    "Sales Office": ("vkbur_c", None),
+    "Payer ID": ("Payer_DL", None),
+    "Product Code": ("matnr", None),
+    "Volume Unit": ("voleh", None),
+    "Business Group": ("GK", None),
+    "Territory": ("Territory", None),
+    "Sales Zone": ("Szone", None),
+    "Date": ("fkdat", None),
+    "Dealer Code": ("kunrg", None),
+    "Invoice Number": ("vbeln", None),
+}
+
+class DynamicFieldAutocompleteAPIView(APIView):
+    authentication_classes = (JWTAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        field_name = request.GET.get("field")
+        query_text = request.GET.get("q", "").strip().lower()
+        page = int(request.GET.get("page", 1))
+        per_page = 50
+
+        if field_name not in SAP_FIELD_MAPPINGS:
+            return Response({"error": f"Invalid field: {field_name}"}, status=400)
+
+        # Handle tuple or string mappings
+        mapping = SAP_FIELD_MAPPINGS[field_name]
+        if isinstance(mapping, (list, tuple)):
+            name_field = mapping[0]
+            code_field = mapping[1] if len(mapping) > 1 else None
+        else:
+            name_field = mapping
+            code_field = None
+
+        # Build KQL
+        if code_field:
+            kql = f"""
+            {TABLE_NAME}
+            | where isnotempty({name_field}) and isnotempty({code_field})
+            | summarize by {name_field}, {code_field}
+            | project display = strcat(tostring({name_field}), " (", tostring({code_field}), ")")
+            """
+        else:
+            kql = f"""
+            {TABLE_NAME}
+            | where isnotempty({name_field})
+            | summarize by {name_field}
+            | project display = tostring({name_field})
+            """
+
+        if query_text:
+            kql += f'| where tolower(display) contains "{query_text}"'
+
+        kql += "| order by display asc"
+
+        try:
+            client = adx()
+            # Always get tuple (cols, rows) from adx().run()
+            cols, rows = client.run(kql)
+            values = [r[0] for r in rows]
+
+            # Pagination
+            total = len(values)
+            start = (page - 1) * per_page
+            end = start + per_page
+            paginated = values[start:end]
+
+            results = [{"id": v, "text": v} for v in paginated]
+
+            return Response({
+                "results": results,
+                "pagination": {"more": end < total}
+            })
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+
+
+class PromptSuggestionAPIView(APIView):
+    """Suggest AI prompts based on user's partial input and past chat history."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            input_text = request.data.get("input_text", "").strip()
+            conversation_id = request.data.get("conversation_id")
+
+            if not input_text:
+                return Response(
+                    {"status": "error", "message": "No input text provided."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # ───────────────────────────────
+            #  1️⃣ Build conversation history block
+            # ───────────────────────────────
+            history_block = ""
+            if conversation_id:
+                try:
+                    conv_id = get_conversation_id_from_uuid(conversation_id)
+                    last_msgs = get_last_20_messages(conv_id)
+                    if last_msgs:
+                        history_block = "Previous Conversation Context:\n"
+                        for m in last_msgs[-20:]:
+                            role = "USER" if m.sender == "user" else "ASSISTANT"
+                            history_block += f"{role}: {m.text or ''}\n"
+                except Exception as e:
+                    print(" History fetch error:", e)
+
+            # ───────────────────────────────
+            #  2️⃣ Construct system and user prompts
+            # ───────────────────────────────
+            system_prompt = (
+                "You are an AI assistant that helps users form natural business or sales analysis prompts. "
+                "Use the user's current input and recent chat history to predict what they might want to ask next. "
+                "Suggest 3 natural, helpful prompts — either completions of their current text or related questions. "
+                "Be concise. Do not add explanations or commentary. Return only a list of short sentences."
+            )
+
+            user_prompt = f"""
+            Current input: "{input_text}"
+
+            {history_block}
+
+            Suggest 3 next prompts the user may want to type.
+            """
+
+            # ───────────────────────────────
+            #  3️⃣ Call Azure OpenAI
+            # ───────────────────────────────
+            llm = AzureChatOpenAI(
+                azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+                api_key=settings.AZURE_OPENAI_KEY,
+                api_version="2025-01-01-preview",
+                azure_deployment=settings.AZURE_OPENAI_ANALYSIS,
+                temperature=0.7,
+            )
+
+            resp = llm.invoke(
+                [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ]
+            ).content.strip()
+
+            # Parse output into clean list
+            suggestions = [
+                s.strip("-• \n\r") for s in resp.split("\n") if s.strip()
+            ][:3]
+
+            return Response(
+                {"status": "success", "suggestions": suggestions},
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            print(" Exception in PromptSuggestionAPIView:", e)
+            return Response(
+                {"status": "error", "message": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
