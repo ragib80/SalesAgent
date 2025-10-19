@@ -7,6 +7,7 @@ from conversation.models import Conversation, Message, MessageMeta
 from django.db.models import Q
 from typing import List, Dict, Any
 import json, re
+import random
 # (you already have these)
 # from django.shortcuts import get_object_or_404
 # from conversation.models import Conversation, Message, MessageMeta
@@ -27,6 +28,69 @@ def get_last_20_messages(conversation_id: int):
     messages = list(qs)
     messages.reverse()  # now oldest→newest
     return messages
+
+def get_last_n_messages(conversation_id: int, limit: int = 20):
+    """
+    Fetch the last N messages of a conversation (default is 20).
+    Returns messages ordered from oldest → newest.
+    """
+    qs = (
+        Message.objects
+        .filter(conversation_id=conversation_id, is_deleted=False)
+        .order_by('-created_at')[:limit]
+    )
+    
+    messages = list(qs)
+    messages.reverse()  # Convert to chronological order (oldest first)
+    return messages
+
+def get_random_messages(conversation_id: int, limit: int = 20):
+    """
+    Faster: Fetch random messages directly via DB without loading all IDs.
+    Trims assistant messages to 150 chars.
+    """
+    #  Fast DB-side random selection
+    random_messages = (
+        Message.objects
+        .filter( is_deleted=False)
+        .only('id', 'text', 'sender')  # Load only needed fields
+        .order_by("?")[:limit]         # DB random
+    )
+
+    messages = list(random_messages)
+
+    # Trim assistant messages
+    for msg in messages:
+        if msg.sender == "assistant" and msg.text:
+            if len(msg.text) > 150:
+                msg.text = msg.text[:150] + "..."
+
+    return messages
+
+# def get_random_messages(conversation_id: int, limit: int = 20):
+#     """
+#     Fetch `limit` number of random messages from a conversation.
+#     Does NOT guarantee chronological order.
+#     """
+#     # Step 1: Get all message IDs from this conversation
+#     message_ids = list(
+#         Message.objects
+#         .filter(is_deleted=False)
+#         .values_list('id', flat=True)
+#     )
+
+#     if not message_ids:
+#         return []
+
+#     # Step 2: Randomly pick message IDs (no duplicates)
+#     selected_ids = random.sample(message_ids, min(len(message_ids), limit))
+
+#     # Step 3: Get full message objects
+#     random_messages = list(
+#         Message.objects.filter(id__in=selected_ids)
+#     )
+
+#     return random_messages
 
 
 # Function to format messages for LLM (multi-turn conversation)

@@ -728,23 +728,48 @@
 }
 
 /* ghost */
-#ghost-suggestion {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 100%;           /* sit just above the input */
-  transform: translateY(-6px);
-  z-index: 10001;         /* higher than .textcomplete-dropdown (10k) */
-  display: none;          /* JS will fadeIn/fadeOut */
-  pointer-events: none;   /* panel manages its own clicks */
+/* anchor */
+.input-wrapper { position: relative; }
+
+/* ghost above the input; lift amount controlled by a CSS var */
+#ghost-suggestion{
+  position:absolute;
+  left:0; right:0;
+  bottom:100%;
+  /* 10px base gap + dynamic lift when dropdown is open */
+  transform: translateY(calc(-10px - var(--ghost-lift, 0px)));
+  transition: transform .12s ease;
+  z-index:10001;
+  display:none;
+  pointer-events:none;
+  /* So the browser optimizes the transform/position changes smoothly */
+ will-change: top, left, width; 
+
+
 }
 
-#ghost-suggestion .ai-suggest-card {
-  width: 100%;
-  border-radius: 0.75rem;
-  background-color: #fff;
-  box-shadow: 0 12px 28px rgba(0,0,0,.12);
-  pointer-events: auto;   /* clickable */
+#ghost-suggestion .ai-suggest-card{
+  width:100%;
+  border-radius:12px;
+  background:#fff;
+  box-shadow: 0 18px 40px rgba(15,23,42,.18);
+  border:1px solid rgba(2,6,23,.06);
+  pointer-events:auto;
 }
 
-#ghost-suggestion .ai-suggest-item:hover { background-color: #f8f9fa; }
+#ghost-suggestion .ai-suggest-item{ border-radius:10px; }
+#ghost-suggestion .ai-suggest-item:hover{ background:#f8fafc; }
+
+/* textcomplete stays below the input; positioned via JS */
+.textcomplete-dropdown{
+  position:absolute !important;
+  z-index:10000 !important;
+  width: var(--tc-width, 100%);
+  max-height:360px;
+  overflow:auto;
+  border:1px solid rgba(2,6,23,.06);
+  border-radius:12px;
+  box-shadow: 0 18px 40px rgba(15,23,42,.16);
+  background:#fff;
+  padding:6px;
+}

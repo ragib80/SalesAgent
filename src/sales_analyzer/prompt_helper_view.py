@@ -15,7 +15,8 @@ from langchain_openai import AzureChatOpenAI
 from django.conf import settings
 from agent.utils.conversation_helpers import (
     get_conversation_id_from_uuid,
-    get_last_20_messages,
+    get_random_messages,
+    get_last_n_messages
 )
 
 # Mock data for now (later: replace with ADX)
@@ -344,7 +345,32 @@ class DynamicFieldAutocompleteAPIView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=500)
 
-
+avilable_column = {
+     "Dealer": ("cname", "kunrg"),
+    "Brand": ("wgbez", None),
+    "Product Name": ("arktx", None),
+    "Material Group": ("matkl", None),
+    "Division": ("spart_text", None),
+    "Company Code": ("bukrs", None),
+    "Sales Org": ("vkorg", None),
+    "Distribution Channel": ("vtweg", None),
+    "Business Area": ("gsber", None),
+    "Credit Control Area": ("kkber", None),
+    "Dealer Group": ("kukla", None),
+    "Account Group": ("ktokd", None),
+    "Sales Group": ("vkgrp_c", None),
+    "Sales Office": ("vkbur_c", None),
+    "Payer ID": ("Payer_DL", None),
+    "Product Code": ("matnr", None),
+    "Volume Unit": ("voleh", None),
+    "Business Group": ("GK", None),
+    "Territory": ("Territory", None),
+    "Sales Zone": ("Szone", None),
+    "Date": ("fkdat", None),
+    "Dealer Code": ("kunrg", None),
+    "Invoice Number": ("vbeln", None),
+    "Revenue":("revenue", None),
+}
 
 class PromptSuggestionAPIView(APIView):
     """Suggest AI prompts based on user's partial input and past chat history."""
@@ -354,6 +380,7 @@ class PromptSuggestionAPIView(APIView):
         try:
             input_text = request.data.get("input_text", "").strip()
             conversation_id = request.data.get("conversation_id")
+            print("conversation_id ",conversation_id)
 
             if not input_text:
                 return Response(
@@ -362,13 +389,14 @@ class PromptSuggestionAPIView(APIView):
                 )
 
             # ───────────────────────────────
-            #  1️⃣ Build conversation history block
+            #   Build conversation history block
             # ───────────────────────────────
             history_block = ""
             if conversation_id:
                 try:
                     conv_id = get_conversation_id_from_uuid(conversation_id)
-                    last_msgs = get_last_20_messages(conv_id)
+                    last_msgs = get_last_n_messages(conv_id,25)
+                    print("---------------------------------------get_last_n_messages ",last_msgs)
                     if last_msgs:
                         history_block = "Previous Conversation Context:\n"
                         for m in last_msgs[-20:]:
@@ -376,27 +404,52 @@ class PromptSuggestionAPIView(APIView):
                             history_block += f"{role}: {m.text or ''}\n"
                 except Exception as e:
                     print(" History fetch error:", e)
+            else:
+                # No conversation_id provided — directly use random messages (global fallback)
+                try:
+                    random_msgs = get_random_messages(None, 30)  # or remove conversation filter if needed
+                    print("---------------------------------------get_random_messages (no conv) ", random_msgs)
+
+                    if random_msgs:
+                        history_block = "General Conversation Context:\n"
+                        for m in random_msgs:
+                            role = "USER" if m.sender == "user" else "ASSISTANT"
+                            history_block += f"{role}: {m.text or ''}\n"
+                except Exception as e:
+                    print("Random fetch error:", e)
+                
 
             # ───────────────────────────────
-            #  2️⃣ Construct system and user prompts
+            #   Construct system and user prompts
             # ───────────────────────────────
-            system_prompt = (
-                "You are an AI assistant that helps users form natural business or sales analysis prompts. "
-                "Use the user's current input and recent chat history to predict what they might want to ask next. "
-                "Suggest 3 natural, helpful prompts — either completions of their current text or related questions. "
-                "Be concise. Do not add explanations or commentary. Return only a list of short sentences."
-            )
+
+   
+            system_prompt = f"""
+                            You are an AI assistant that helps users generate SAP sales analysis questions.
+
+                            Use ONLY the following SAP fields (English names only) when suggesting prompts:
+                            {", ".join(avilable_column.keys())}
+                            Be concise. Do not add explanations or commentary. Return only a list of short sentences.
+                            Rules:
+                                - Every suggestion must relate to one or more of these fields.
+                                - If conversation history is provided, make context-aware suggestions but still tied to SAP fields.
+                                - If no history, suggest generic useful SAP analysis prompts using these fields.
+                                - Responses must be short and without explanation. Return only prompt suggestions (no bullet symbols).
+                                """
+
+              
+            
 
             user_prompt = f"""
             Current input: "{input_text}"
 
             {history_block}
 
-            Suggest 3 next prompts the user may want to type.
+            Suggest upto 10 next prompts the user may want to type.
             """
 
             # ───────────────────────────────
-            #  3️⃣ Call Azure OpenAI
+            #   Call Azure OpenAI
             # ───────────────────────────────
             llm = AzureChatOpenAI(
                 azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,

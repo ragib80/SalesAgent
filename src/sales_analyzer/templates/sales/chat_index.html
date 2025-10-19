@@ -26,7 +26,9 @@
     <!-- Main Chat Content -->
     <div class="main-content">
       {% include "sales/partials/chat_header.html" %}
+       <span id="chat-id-holder" data-current-conversation-id="" style="display:none;"></span>
       <div class="chat-content" id="chat-content">
+         
         <div class="text-center text-muted">Start a new conversation!</div>
       </div>
       {% include "sales/partials/input_area.html" %}

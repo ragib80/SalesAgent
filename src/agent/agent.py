@@ -334,6 +334,14 @@ let StartDate = ago(365d);
 - Date comparisons: fkdat >= datetime(2024-01-01)
 - Long comparisons: kunrg == 12345 (numeric, NO quotes)
 
+### DATA TYPE ENFORCEMENT (STRICT)
+- Before using any column in WHERE, determine its type from schema:
+  - long / real → numeric equality (== 12345) without quotes
+  - string → use contains(), =~, has_any(), inside quotes "ABC"
+  - datetime → use datetime() wrappers
+
+- NEVER produce string comparison on numeric columns.
+
 ### ERROR PREVENTION:
 **Never use**: bin(fkdat, 1mo) → **Always use**: startofmonth(fkdat)
 **Never use**: summarize by , → **Always specify**: summarize ... by TimePeriod  
@@ -1605,11 +1613,7 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
         + "- Amount is in BDT and Volume is in gallons.\n"
         + "- Replace 'gsber' with 'Depo/Sales Office'.\n"
         + "- Use bullet points for both numerical and categorical results.\n\n"
-        + "Then generate two sections:\n"
-        + "1. Insights on [context] → trends, patterns, anomalies, risks, opportunities.\n"
-        + "2. Strategic Recommendations for [context] → actionable suggestions.\n"
-        + "Section titles should adapt dynamically (e.g. 'Insights on Customer Sales Distribution').\n"
-        + "Provide meaningful, business-related recommendations if possible."
+        + "Then generate short Insights on [context] \n"
     )
 
     # -----------------------------

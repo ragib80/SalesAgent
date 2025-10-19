@@ -495,6 +495,15 @@
       $('.chat-item').removeClass('active');
       $(`.chat-item[data-chat-id="${chatId}"]`).addClass('active');
       fetchMessages(chatId, 'reset');
+
+      // Clear previous chat ID from span
+      $('#chat-id-holder')
+      .attr('data-current-conversation-id', '')
+      .data('current-conversation-id', '');
+  // Set new chat ID into span
+      $('#chat-id-holder')
+      .attr('data-current-conversation-id', chatId)
+      .data('current-conversation-id', chatId);
     }
 
     function sendMessage() {
