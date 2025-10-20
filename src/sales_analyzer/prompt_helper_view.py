@@ -349,6 +349,7 @@ avilable_column = {
      "Dealer": ("cname", "kunrg"),
     "Brand": ("wgbez", None),
     "Product Name": ("arktx", None),
+    "Product": ("arktx", None),
     "Material Group": ("matkl", None),
     "Division": ("spart_text", None),
     "Company Code": ("bukrs", None),
@@ -430,11 +431,13 @@ class PromptSuggestionAPIView(APIView):
                             Use ONLY the following SAP fields (English names only) when suggesting prompts:
                             {", ".join(avilable_column.keys())}
                             Be concise. Do not add explanations or commentary. Return only a list of short sentences.
-                            Rules:
-                                - Every suggestion must relate to one or more of these fields.
-                                - If conversation history is provided, make context-aware suggestions but still tied to SAP fields.
-                                - If no history, suggest generic useful SAP analysis prompts using these fields.
-                                - Responses must be short and without explanation. Return only prompt suggestions (no bullet symbols).
+                            Behavior rules:
+                                - Detect user intent dynamically.
+                                - If user input starts with a natural-language phrase (e.g. "Give me", "Show me", "What is", "Tell me", "How many"), 
+                                return full natural-language suggestions continuing that phrase logically.
+                                - If input contains data filters (like "Dealer: Delwar Paint" or "Division: Decorative" or other perameter), 
+                                return refinement-style prompts such as "Filter by Dealer = Delwar Paint and compare with previous year".
+                                - Always return short, relevant suggestions, without bullet symbols or numbering.
                                 """
 
               
@@ -469,7 +472,7 @@ class PromptSuggestionAPIView(APIView):
             # Parse output into clean list
             suggestions = [
                 s.strip("-• \n\r") for s in resp.split("\n") if s.strip()
-            ][:3]
+            ][:10]
 
             return Response(
                 {"status": "success", "suggestions": suggestions},

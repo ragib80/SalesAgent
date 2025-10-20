@@ -719,7 +719,17 @@
   border-color: rgba(0,0,0,0.12);
 }
 .suggest-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.suggest-meta { color: #6c757d; font-size: .85rem; }
+/* .suggest-meta { color: #6c757d; font-size: .85rem; } */
+/* right-aligned, subtle column label */
+.suggest-meta {
+  color: #6c757d;
+  white-space: nowrap;
+  margin-left: auto;          /* forces it to the far right */
+  font-size: .875rem;
+  line-height: 1.2;
+  padding-left: .5rem;
+}
+
 .hl { background: #fff3cd; padding: 0 .15rem; border-radius: .25rem; }
 
 @keyframes fadeIn {

@@ -230,7 +230,7 @@ Handle ALL types of business questions: trends, comparisons, rankings, filtering
 **Always filter with**: | where fkdat between (StartDate .. EndDate)
 
 ### SMART STRING MATCHING:
-**Product/Customer Names**: Use contains for partial match, =~ for exact match
+**Product/Customer Names**: Use contains for partial match, =~ for exact match, always use contains for cname
 - Single item: arktx contains "ProductName" or cname contains "CustomerName"
 - Multiple items: arktx has_any("Product1", "Product2") or cname has_any("Customer1", "Customer2")
 - Brand filtering: wgbez contains "BrandName"
@@ -330,7 +330,8 @@ let StartDate = ago(365d);
 **Critical - Use correct data types**:
 - gsber comparisons: gsber == 4000 (numeric, NO quotes)
 - bukrs comparisons: bukrs == 1000 (numeric, NO quotes)
-- String comparisons: cname =~ "CustomerName" (with quotes)
+- String comparisons: field =~ "Value" (with quotes)
+ -Exception – cname: use cname contains "CustomerName" instead of =~
 - Date comparisons: fkdat >= datetime(2024-01-01)
 - Long comparisons: kunrg == 12345 (numeric, NO quotes)
 

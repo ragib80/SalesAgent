@@ -513,6 +513,7 @@
       if (!text || isSubmitting) return;
 
       isSubmitting = true;
+      $('#message-input').val('').css('height', 'auto');
       updateSendButton();
       $input.prop('disabled', true);
 
@@ -549,8 +550,8 @@
         (resp) => {
           isSubmitting = false;
           typingIndicator.remove();
+          
           updateSendButton();
-
           $('#message-input').val('').css('height', 'auto').prop('disabled', false).focus();
 
           if (!currentChatId && resp.uuid) {
