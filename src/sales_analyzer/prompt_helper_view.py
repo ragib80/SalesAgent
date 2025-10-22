@@ -18,7 +18,8 @@ from agent.utils.conversation_helpers import (
     get_random_messages,
     get_last_n_messages
 )
-
+from agent.agent import get_user_area_scope, UserAreaScope
+import json
 # Mock data for now (later: replace with ADX)
 MOCK_FILTER_VALUES = {
     "matkl": [f"Category {i}" for i in range(1, 501)],     # 500 fake categories
@@ -26,6 +27,37 @@ MOCK_FILTER_VALUES = {
     "vkorg": [f"SalesOrg {i}" for i in range(1, 101)],      # 100 fake orgs
     "vkbur_c": [f"Office {i}" for i in range(1, 201)],      # 200 fake offices
 }
+
+
+# helper to turn scope into a where-block
+def _build_scope_where_from_scope(scope: UserAreaScope) -> str:
+    if not scope or not getattr(scope, "restricted", False):
+        return ""
+    depots = []
+    for v in (scope.depots or []):
+        try:
+            depots.append(int(str(v).strip()))
+        except Exception:
+            pass
+    if not depots:
+        return "__NO_DEPO__"
+
+    parts = []
+    depots = sorted(set(depots))
+    if len(depots) == 1:
+        parts.append(f"| where gsber == {depots[0]}")
+    else:
+        parts.append(f"| where gsber in ({', '.join(map(str, depots))})")
+
+    if scope.territories:
+        terr_csv = ", ".join(json.dumps(str(t)) for t in sorted(set(map(str, scope.territories)), key=str.lower))
+        parts.append(f"| where Territory in~ ({terr_csv})")
+
+    if scope.zones:
+        zone_csv = ", ".join(json.dumps(str(z)) for z in sorted(set(map(str, scope.zones)), key=str.lower))
+        parts.append(f"| where Szone in~ ({zone_csv})")
+
+    return "\n".join(parts) + "\n"
 
 
 class GetFilterValuesAPIView(APIView):
@@ -173,85 +205,6 @@ class ApplyFiltersAPIView(APIView):
         
 
 
-#working code 
-# class ApplyFiltersAPIView(APIView):
-#     """Accepts applied filters and returns one or more generated prompts."""
-#     authentication_classes = (JWTAuthentication,)
-#     permission_classes = (IsAuthenticated,)
-
-#     def post(self, request):
-#         try:
-#             filters = request.data.get("filters", {})
-#             print("🎯 Received filters:", filters)
-
-#             if not filters:
-#                 return Response(
-#                     {"status": "error", "message": "No filters provided"},
-#                     status=status.HTTP_400_BAD_REQUEST,
-#                 )
-
-#             # Define metric fields (dynamic mapping)
-#             METRIC_FIELDS = {
-#                 "Revenue": "Revenue",
-#                 "fkimg": "Quantity",
-#                 "volum": "Volume"
-#             }
-
-#             # Convert to human-readable parts
-#             readable_parts = []
-#             for col, values in filters.items():
-#                 label = next((k for k, v in FIELD_MAPPINGS.items() if v == col), col)
-#                 formatted_values = ", ".join(str(v) for v in values)
-#                 readable_parts.append(f"{label}: {formatted_values}")
-
-#             filter_text = ", ".join(readable_parts)
-
-#             # Detect selected metrics
-#             selected_metrics = [METRIC_FIELDS[f] for f in filters.keys() if f in METRIC_FIELDS]
-
-#             # If no metric → fallback to Sales Data
-#             if not selected_metrics:
-#                 selected_metrics = ["Sales Data"]
-
-#             # Build prompts
-#             prompts = [f"Show me the {metric} where {filter_text}" for metric in selected_metrics]
-
-#             return Response(
-#                 {
-#                     "status": "success",
-#                     "filters": filters,
-#                     "prompts": prompts,  # ✅ return array of prompts
-#                 },
-#                 status=status.HTTP_200_OK,
-#             )
-
-#         except Exception as e:
-#             return Response(
-#                 {"status": "error", "message": str(e)},
-#                 status=status.HTTP_400_BAD_REQUEST,
-#             )
-
-
-# class ApplyFiltersAPIView(APIView):
-#     """Accepts applied filters and returns them back (later: pass to ADX)."""
-#     authentication_classes = (JWTAuthentication,)
-#     permission_classes = (IsAuthenticated,)
-
-#     def post(self, request):
-#         try:
-#             filters = request.data.get("filters", {})
-#             print("🎯 Received filters:", filters)
-
-#             # TODO: integrate with ADX query builder
-#             return Response({
-#                 "status": "success",
-#                 "filters": filters
-#             }, status=status.HTTP_200_OK)
-#         except Exception as e:
-#             return Response({
-#                 "status": "error",
-#                 "message": str(e)
-#             }, status=status.HTTP_400_BAD_REQUEST)
 
 
 SAP_FIELD_MAPPINGS = {
@@ -280,6 +233,97 @@ SAP_FIELD_MAPPINGS = {
     "Invoice Number": ("vbeln", None),
 }
 
+# class DynamicFieldAutocompleteAPIView(APIView):
+#     authentication_classes = (JWTAuthentication,)
+#     permission_classes = (IsAuthenticated,)
+
+#     def get(self, request):
+#         field_name = request.GET.get("field")
+#         query_text = request.GET.get("q", "").strip().lower()
+#         page = int(request.GET.get("page", 1))
+#         per_page = 50
+
+#         if field_name not in SAP_FIELD_MAPPINGS:
+#             return Response({"error": f"Invalid field: {field_name}"}, status=400)
+
+#         # Handle tuple or string mappings
+#         mapping = SAP_FIELD_MAPPINGS[field_name]
+#         if isinstance(mapping, (list, tuple)):
+#             name_field = mapping[0]
+#             code_field = mapping[1] if len(mapping) > 1 else None
+#         else:
+#             name_field = mapping
+#             code_field = None
+        
+#         # Build KQL
+#         if field_name == "Dealer":  # ONLY here we add Zone & Territory
+#             kql = f"""
+#             {TABLE_NAME}
+#             | where isnotempty({name_field}) and isnotempty({code_field})
+#             | summarize by {name_field}, {code_field}, Szone, Territory
+#             | project display = strcat(
+#                   tostring({name_field}), " (", tostring({code_field}), ")",
+#                   iif(isnotempty(Szone), strcat(" - Zone ", tostring(Szone)), ""),
+#                   iif(isnotempty(Territory), strcat(" - Territory ", tostring(Territory)), "")
+#               )
+#             """
+#         elif field_name == "Material Group":
+#             # matkl (lowercased) + wgbez (Brand) in parentheses → e.g., "f001 (RSE)"
+#             kql = f"""
+#             {TABLE_NAME}
+#             | where isnotempty(matkl)
+#             | summarize by matkl, wgbez
+#             | project display = strcat(
+#                 tolower(tostring(matkl)),
+#                 iif(isnotempty(wgbez), strcat(" (", tostring(wgbez), ")"), "")
+#             )
+#             """
+
+
+#         elif code_field:
+#             kql = f"""
+#             {TABLE_NAME}
+#             | where isnotempty({name_field}) and isnotempty({code_field})
+#             | summarize by {name_field}, {code_field}
+#             | project display = strcat(tostring({name_field}), " (", tostring({code_field}), ")")
+#             """
+#         else:
+#             kql = f"""
+#             {TABLE_NAME}
+#             | where isnotempty({name_field})
+#             | summarize by {name_field}
+#             | project display = tostring({name_field})
+#             """
+
+#         if query_text:
+#             kql += f'| where tolower(display) contains "{query_text}"'
+
+#         kql += "| order by display asc"
+
+#         try:
+#             client = adx()
+#             # Always get tuple (cols, rows) from adx().run()
+#             cols, rows = client.run(kql)
+#             values = [r[0] for r in rows]
+
+#             # Pagination
+#             total = len(values)
+#             start = (page - 1) * per_page
+#             end = start + per_page
+#             paginated = values[start:end]
+
+#             results = [{"id": v, "text": v} for v in paginated]
+
+#             return Response({
+#                 "results": results,
+#                 "pagination": {"more": end < total}
+#             })
+
+#         except Exception as e:
+#             return Response({"error": str(e)}, status=500)
+
+
+#new
 class DynamicFieldAutocompleteAPIView(APIView):
     authentication_classes = (JWTAuthentication,)
     permission_classes = (IsAuthenticated,)
@@ -293,7 +337,6 @@ class DynamicFieldAutocompleteAPIView(APIView):
         if field_name not in SAP_FIELD_MAPPINGS:
             return Response({"error": f"Invalid field: {field_name}"}, status=400)
 
-        # Handle tuple or string mappings
         mapping = SAP_FIELD_MAPPINGS[field_name]
         if isinstance(mapping, (list, tuple)):
             name_field = mapping[0]
@@ -301,45 +344,55 @@ class DynamicFieldAutocompleteAPIView(APIView):
         else:
             name_field = mapping
             code_field = None
-        
-        # Build KQL
-        if field_name == "Dealer":  # ONLY here we add Zone & Territory
+
+        # ---- scope (reused from agent.py)
+        scope = get_user_area_scope(request.user)
+        scope_where = _build_scope_where_from_scope(scope)
+        if scope_where == "__NO_DEPO__":
+            return Response({"error": "no depo is assigned."}, status=403)
+        base = f"{TABLE_NAME}\n{scope_where if scope_where else ''}"
+
+        # ---- KQL per field; ALWAYS include gsber/Szone/Territory in summarize + display
+
+        if field_name == "Material Group":
+            # keep brand next to matkl, plus region info
             kql = f"""
-            {TABLE_NAME}
-            | where isnotempty({name_field}) and isnotempty({code_field})
-            | summarize by {name_field}, {code_field}, Szone, Territory
-            | project display = strcat(
-                  tostring({name_field}), " (", tostring({code_field}), ")",
-                  iif(isnotempty(Szone), strcat(" - Zone ", tostring(Szone)), ""),
-                  iif(isnotempty(Territory), strcat(" - Territory ", tostring(Territory)), "")
-              )
-            """
-        elif field_name == "Material Group":
-            # matkl (lowercased) + wgbez (Brand) in parentheses → e.g., "f001 (RSE)"
-            kql = f"""
-            {TABLE_NAME}
+            {base}
             | where isnotempty(matkl)
-            | summarize by matkl, wgbez
+            | summarize by matkl, wgbez, gsber, Szone, Territory
             | project display = strcat(
                 tolower(tostring(matkl)),
-                iif(isnotempty(wgbez), strcat(" (", tostring(wgbez), ")"), "")
+                iif(isnotempty(wgbez), strcat(" (", tostring(wgbez), ")"), ""),
+                iif(isnotempty(gsber), strcat(" - Depo ", tostring(gsber)), ""),
+                iif(isnotempty(Szone), strcat(" - Zone ", tostring(Szone)), ""),
+                iif(isnotempty(Territory), strcat(" - Territory ", tostring(Territory)), "")
             )
             """
-
-
         elif code_field:
+            # name + code + region context for ALL code-bearing fields (Dealer, Product Code, etc.)
             kql = f"""
-            {TABLE_NAME}
+            {base}
             | where isnotempty({name_field}) and isnotempty({code_field})
-            | summarize by {name_field}, {code_field}
-            | project display = strcat(tostring({name_field}), " (", tostring({code_field}), ")")
+            | summarize by {name_field}, {code_field}, gsber, Szone, Territory
+            | project display = strcat(
+                tostring({name_field}), " (", tostring({code_field}), ")",
+                iif(isnotempty(gsber), strcat(" - Depo ", tostring(gsber)), ""),
+                iif(isnotempty(Szone), strcat(" - Zone ", tostring(Szone)), ""),
+                iif(isnotempty(Territory), strcat(" - Territory ", tostring(Territory)), "")
+            )
             """
         else:
+            # name-only fields (Brand, Division, etc.) + region context
             kql = f"""
-            {TABLE_NAME}
+            {base}
             | where isnotempty({name_field})
-            | summarize by {name_field}
-            | project display = tostring({name_field})
+            | summarize by {name_field}, gsber, Szone, Territory
+            | project display = strcat(
+                tostring({name_field}),
+                iif(isnotempty(gsber), strcat(" - Depo ", tostring(gsber)), ""),
+                iif(isnotempty(Szone), strcat(" - Zone ", tostring(Szone)), ""),
+                iif(isnotempty(Territory), strcat(" - Territory ", tostring(Territory)), "")
+            )
             """
 
         if query_text:
@@ -348,12 +401,9 @@ class DynamicFieldAutocompleteAPIView(APIView):
         kql += "| order by display asc"
 
         try:
-            client = adx()
-            # Always get tuple (cols, rows) from adx().run()
-            cols, rows = client.run(kql)
+            cols, rows = adx().run(kql)
             values = [r[0] for r in rows]
 
-            # Pagination
             total = len(values)
             start = (page - 1) * per_page
             end = start + per_page
@@ -361,13 +411,12 @@ class DynamicFieldAutocompleteAPIView(APIView):
 
             results = [{"id": v, "text": v} for v in paginated]
 
-            return Response({
-                "results": results,
-                "pagination": {"more": end < total}
-            })
-
+            return Response(
+                {"results": results, "pagination": {"more": end < total}}
+            )
         except Exception as e:
             return Response({"error": str(e)}, status=500)
+
 
 avilable_column = {
      "Dealer": ("cname", "kunrg"),
