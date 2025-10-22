@@ -27,7 +27,8 @@ from agent.utils.conversation_helpers import (
     build_context_memory_contract,
 
 )
-from core.middleware.current_user import get_current_chat_user 
+
+from core.middleware.current_user import get_current_chat_user ,set_current_chat_user
 
 logger = logging.getLogger(__name__)
 
@@ -729,7 +730,55 @@ def save_metadata_for_current_turn(conversation_id, message_id, new_meta):
     """
     save_meta(conversation_id, message_id, new_meta)
 
+# def is_sales_analysis_query(user_req: str, *, conversation_id: str | None = None) -> bool:
+#     print("dsadsad")
+#     """
+#     Uses the LLM model to determine if the user's request is related to SAP sales data analysis and KQL generation.
+#     If a conversation_id is provided, include the last 20 messages as additional context.
+#     """
+
+#     # Base instruction
+#     prompt = (
+#         "You are an expert SAP Sales Analysis Assistant.\n"
+#         f'The user has sent the following request: "{user_req}".\n\n'
+#         "Please determine if the request is related to SAP sales analysis, such as sales reports, revenue analysis, "
+#         "growth calculations, or KQL generation.\n"
+#         'If the request is about SAP sales data analysis, return "yes". If the request is a general question, '
+#         'unrelated to sales analysis, return "no".'
+#     )
+    
+
+#     # Append last 20 messages if conversation_id is provided
+#     if conversation_id:
+#         try:
+#             conv_id = get_conversation_id_from_uuid(conversation_id)
+#             last_msgs = get_last_20_messages(conv_id) or []
+#             if last_msgs:
+#                 prompt += "\n\nRecent conversation (last 20 messages):\n"
+#                 for m in last_msgs[-20:]:
+#                     role = "USER" if m.sender == "user" else "ASSISTANT"
+#                     text = (m.text or "").strip()
+#                     # keep it compact to avoid hitting context limits
+#                     if len(text) > 400:
+#                         text = text[:400] + "..."
+#                     prompt += f"{role}: {text}\n"
+#             else:
+#             # ✅ Minimal addition: explicitly mark that this is the first message (no prior context)
+#                 prompt += "\n\nNote: This is the first message in this conversation (no prior context)."
+#         except Exception:
+#             # fail-open: just proceed without context if anything goes wrong
+#             pass
+#     else:
+#         #  Also handle when no conversation_id is passed at all (brand-new chat)
+#         prompt += "\n\nNote: This is the first message in this conversation (no prior context).return yes"
+    
+#     print("from check ",prompt)
+#     response = llm.invoke([{"role": "user", "content": prompt}]).content.strip()
+#     print("from check ",response)
+#     return response.lower() == "yes"
+
 def is_sales_analysis_query(user_req: str, *, conversation_id: str | None = None) -> bool:
+    print("dsadsad")
     """
     Uses the LLM model to determine if the user's request is related to SAP sales data analysis and KQL generation.
     If a conversation_id is provided, include the last 20 messages as additional context.
@@ -755,17 +804,41 @@ def is_sales_analysis_query(user_req: str, *, conversation_id: str | None = None
                 for m in last_msgs[-20:]:
                     role = "USER" if m.sender == "user" else "ASSISTANT"
                     text = (m.text or "").strip()
-                    # keep it compact to avoid hitting context limits
                     if len(text) > 400:
                         text = text[:400] + "..."
                     prompt += f"{role}: {text}\n"
+            else:
+                # First message within this conversation
+                prompt += "\n\nNote: This is the first message in this conversation (no prior context)."
         except Exception:
-            # fail-open: just proceed without context if anything goes wrong
             pass
+    else:
+        # Brand-new chat (no conversation_id at all)
+        prompt += "\n\nNote: This is the first message in this conversation (no prior context)."
 
-    response = llm.invoke([{"role": "user", "content": prompt}]).content.strip()
-    return response.lower() == "yes"
+    print("from check ", prompt)
 
+    # --- Only change: add a SYSTEM message + deterministic params ---
+    messages = [
+        {"role": "system",
+         "content": (
+             "You are a STRICT binary classifier for SAP Sales queries. "
+             "Answer with exactly 'yes' or 'no' in lowercase, no punctuation. "
+             "If the request is ambiguous or could plausibly refer to SAP sales, answer 'yes'."
+         )},
+        {"role": "user", "content": prompt},
+    ]
+    try:
+        resp_obj = llm.invoke(messages, temperature=0, max_output_tokens=3)
+    except TypeError:
+        resp_obj = llm.invoke(messages)
+
+    response = getattr(resp_obj, "content", resp_obj)
+    response = (response or "").strip().lower()
+    print("from check ", response)
+
+    # Minimal normalization (no heuristics): accept "yes", "yes." etc.
+    return response.startswith("yes")
 
 #helper for retricted acces
 
@@ -987,7 +1060,7 @@ def generate_kql(user_req: str, conversation_uuid: Optional[str] = None, strict=
     # ====================== user access (REPLACE THIS BLOCK) ======================
     _scope = None
     try:
-        
+         
         _user = get_current_chat_user()
         print(">>> agent current_user:", _user, "| id:", getattr(_user, "id", None))
         print(_user)
@@ -1632,7 +1705,7 @@ def _build_scope_title_and_insight(user) -> tuple[str, str]:
 
 # Handle user queries dynamically and generate the corresponding KQL query
 
-def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -> str:
+def handle_user_query(user_prompt: str, *, conversation_id: str | None = None, user: Optional["User"] = None,) -> str:
     """
     Dynamically handle SAP Sales prompts with multi-turn conversation support,
     ensuring correct KQL generation, and mapping business area/territory to the correct 'gsber' code.
@@ -1642,6 +1715,7 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
     # -----------------------------
     # 1) Non-sales queries → general assistant
     # -----------------------------
+    print("calll llmmm")
     if not is_sales_analysis_query(user_prompt, conversation_id=conversation_id):
         general_prompt = """
         You are a SAP Sales Analysis Assistant. The user has asked a general question not related to sales data analysis or KQL.

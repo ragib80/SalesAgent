@@ -19,6 +19,7 @@ from agent.utils.conversation_helpers import (
     get_last_n_messages
 )
 from agent.agent import get_user_area_scope, UserAreaScope
+from core.middleware.current_user import get_current_chat_user ,set_current_chat_user
 import json
 # Mock data for now (later: replace with ADX)
 MOCK_FILTER_VALUES = {
@@ -346,53 +347,62 @@ class DynamicFieldAutocompleteAPIView(APIView):
             code_field = None
 
         # ---- scope (reused from agent.py)
-        scope = get_user_area_scope(request.user)
-        scope_where = _build_scope_where_from_scope(scope)
+     
+        set_user = set_current_chat_user(request.user)  
+        _user = get_current_chat_user() 
+        print(">>> agent current_user:", set_user, "| id:", getattr(set_user, "id", None))
+        print("----------------fsdfsdffds-----------",_user)
+        scope = get_user_area_scope(_user)
+        scope_where = _build_scope_where_from_scope(scope)  # returns "" when unrestricted
         if scope_where == "__NO_DEPO__":
             return Response({"error": "no depo is assigned."}, status=403)
+
+        # If unrestricted, scope_where is "", so no scope filter is added
         base = f"{TABLE_NAME}\n{scope_where if scope_where else ''}"
 
-        # ---- KQL per field; ALWAYS include gsber/Szone/Territory in summarize + display
-
+        # ---- KQL per field
         if field_name == "Material Group":
-            # keep brand next to matkl, plus region info
+            # DISTINCT by matkl (+ optional brand), no region columns here
             kql = f"""
             {base}
             | where isnotempty(matkl)
-            | summarize by matkl, wgbez, gsber, Szone, Territory
+            | summarize by matkl, wgbez
             | project display = strcat(
                 tolower(tostring(matkl)),
-                iif(isnotempty(wgbez), strcat(" (", tostring(wgbez), ")"), ""),
-                iif(isnotempty(gsber), strcat(" - Depo ", tostring(gsber)), ""),
-                iif(isnotempty(Szone), strcat(" - Zone ", tostring(Szone)), ""),
-                iif(isnotempty(Territory), strcat(" - Territory ", tostring(Territory)), "")
+                iif(isnotempty(wgbez), strcat(" (", tostring(wgbez), ")"), "")
             )
             """
-        elif code_field:
-            # name + code + region context for ALL code-bearing fields (Dealer, Product Code, etc.)
+
+        elif field_name == "Dealer":
+            # Include region context; also include gsber in summarize since we use it in project
             kql = f"""
             {base}
             | where isnotempty({name_field}) and isnotempty({code_field})
             | summarize by {name_field}, {code_field}, gsber, Szone, Territory
             | project display = strcat(
-                tostring({name_field}), " (", tostring({code_field}), ")",
-                iif(isnotempty(gsber), strcat(" - Depo ", tostring(gsber)), ""),
-                iif(isnotempty(Szone), strcat(" - Zone ", tostring(Szone)), ""),
-                iif(isnotempty(Territory), strcat(" - Territory ", tostring(Territory)), "")
-            )
+                  tostring({name_field}), " (", tostring({code_field}), ")",
+                  iif(isnotempty(gsber), strcat(" - Depo ", tostring(gsber)), ""),
+                  iif(isnotempty(Szone), strcat(" - Zone ", tostring(Szone)), ""),
+                  iif(isnotempty(Territory), strcat(" - Territory ", tostring(Territory)), "")
+              )
             """
+
+        elif code_field:
+            # DISTINCT by name + code only; no region columns → unique across scoped data
+            kql = f"""
+            {base}
+            | where isnotempty({name_field}) and isnotempty({code_field})
+            | summarize by {name_field}, {code_field}
+            | project display = strcat(tostring({name_field}), " (", tostring({code_field}), ")")
+            """
+
         else:
-            # name-only fields (Brand, Division, etc.) + region context
+            # DISTINCT by name only; no region columns
             kql = f"""
             {base}
             | where isnotempty({name_field})
-            | summarize by {name_field}, gsber, Szone, Territory
-            | project display = strcat(
-                tostring({name_field}),
-                iif(isnotempty(gsber), strcat(" - Depo ", tostring(gsber)), ""),
-                iif(isnotempty(Szone), strcat(" - Zone ", tostring(Szone)), ""),
-                iif(isnotempty(Territory), strcat(" - Territory ", tostring(Territory)), "")
-            )
+            | summarize by {name_field}
+            | project display = tostring({name_field})
             """
 
         if query_text:
@@ -416,7 +426,6 @@ class DynamicFieldAutocompleteAPIView(APIView):
             )
         except Exception as e:
             return Response({"error": str(e)}, status=500)
-
 
 avilable_column = {
      "Dealer": ("cname", "kunrg"),
