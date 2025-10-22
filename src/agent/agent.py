@@ -332,8 +332,10 @@ let StartDate = ago(365d);
 - bukrs comparisons: bukrs == 1000 (numeric, NO quotes)
 - String comparisons: field =~ "Value" (with quotes)
  -Exception – cname: use cname contains "CustomerName" instead of =~
+ 
 - Date comparisons: fkdat >= datetime(2024-01-01)
 - Long comparisons: kunrg == 12345 (numeric, NO quotes)
+ -matkl normalization (critical): When the user provides matkl like f010 (RSE) or F010(ABC), extract only the leading F + digits (F\d+) and ignore everything after (spaces/parentheses).
 
 ### DATA TYPE ENFORCEMENT (STRICT)
 - Before using any column in WHERE, determine its type from schema:

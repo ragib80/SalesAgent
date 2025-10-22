@@ -301,9 +301,33 @@ class DynamicFieldAutocompleteAPIView(APIView):
         else:
             name_field = mapping
             code_field = None
-
+        
         # Build KQL
-        if code_field:
+        if field_name == "Dealer":  # ONLY here we add Zone & Territory
+            kql = f"""
+            {TABLE_NAME}
+            | where isnotempty({name_field}) and isnotempty({code_field})
+            | summarize by {name_field}, {code_field}, Szone, Territory
+            | project display = strcat(
+                  tostring({name_field}), " (", tostring({code_field}), ")",
+                  iif(isnotempty(Szone), strcat(" - Zone ", tostring(Szone)), ""),
+                  iif(isnotempty(Territory), strcat(" - Territory ", tostring(Territory)), "")
+              )
+            """
+        elif field_name == "Material Group":
+            # matkl (lowercased) + wgbez (Brand) in parentheses → e.g., "f001 (RSE)"
+            kql = f"""
+            {TABLE_NAME}
+            | where isnotempty(matkl)
+            | summarize by matkl, wgbez
+            | project display = strcat(
+                tolower(tostring(matkl)),
+                iif(isnotempty(wgbez), strcat(" (", tostring(wgbez), ")"), "")
+            )
+            """
+
+
+        elif code_field:
             kql = f"""
             {TABLE_NAME}
             | where isnotempty({name_field}) and isnotempty({code_field})

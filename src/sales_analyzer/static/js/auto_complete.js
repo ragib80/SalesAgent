@@ -8,6 +8,8 @@
   const SEND_BTN_SELECTOR = '#send-btn';
   const AUTOCOMPLETE_URL = '/api/sales/autocomplete/';
   const AI_SUGGEST_URL = '/api/sales/prompt-suggestions/';
+  const AI_SUGGEST_MAX_LEN = 20; //  NEW: cap length to avoid calling when > 20 chars
+  const AI_SUGGEST_MIN_LEN = 4; //  
   const JWT_TOKEN = localStorage.getItem("auth_token");
   if (JWT_TOKEN) $.ajaxSetup({ headers: { 'Authorization': 'Bearer ' + JWT_TOKEN } });
 
@@ -55,18 +57,20 @@
   });
 
   // Smooth lift for the input bar when smart dropdown needs space
-  $inputArea.css({ transition: 'transform 160ms ease', willChange: 'transform' });
+  $inputArea.css({ transition: 'transform 160ms ease, opacity 160ms ease', willChange: 'transform' });
 
   /* ---------------- Helpers ---------------- */
   function normalizeFieldName(field) {
     const map = {
-      "dealer": "Dealer", "brand": "Brand", "product name": "Product Name", "product": "Product", "material group": "Material Group",
-      "division": "Division", "company code": "Company Code", "sales org": "Sales Org",
-      "distribution channel": "Distribution Channel", "business area": "Business Area",
-      "credit control area": "Credit Control Area", "dealer group": "Dealer Group", "account group": "Account Group",
-      "sales group": "Sales Group", "sales office": "Sales Office", "payer id": "Payer ID", "product code": "Product Code",
-      "volume unit": "Volume Unit", "business group": "Business Group", "territory": "Territory",
-      "sales zone": "Sales Zone", "date": "Date", "dealer code": "Dealer Code", "invoice number": "Invoice Number"
+      "dealer": "Dealer", "brand": "Brand", "product name": "Product Name", "product": "Product",
+      "material group": "Material Group", "division": "Division", "company code": "Company Code",
+      "sales org": "Sales Org", "distribution channel": "Distribution Channel",
+      "business area": "Business Area", "credit control area": "Credit Control Area",
+      "dealer group": "Dealer Group", "account group": "Account Group",
+      "sales group": "Sales Group", "sales office": "Sales Office", "payer id": "Payer ID",
+      "product code": "Product Code", "volume unit": "Volume Unit", "business group": "Business Group",
+      "territory": "Territory", "sales zone": "Sales Zone", "zone": "Sales Zone", "date": "Date",
+      "dealer code": "Dealer Code", "invoice number": "Invoice Number"
     };
     return map[field?.toLowerCase()] || field;
   }
@@ -123,6 +127,19 @@
       </div>`;
   }
 
+  /* --------- detect explicit label context near caret --------- */
+  function explicitContext() {
+    const text = $ta.val().slice(0, $ta[0].selectionStart);
+    const ctx = text.match(findAnyFieldContext) || text.match(findNewFieldStart);
+    if (ctx) {
+      return {
+        label: normalizeFieldName((ctx[1] || '').trim()),
+        term: (ctx[2] || '').trim()
+      };
+    }
+    return null;
+  }
+
   /* ---------------- Smart suggestions (textcomplete) ---------------- */
   let curField = null, curTerm = '', curPage = 1, hasMore = false, currentRequest = null;
 
@@ -135,17 +152,72 @@
       .fail(() => cb({ items: [], more: false }));
   }
 
+  // ---------- 0) Explicit "Label term" strategy (e.g., "Dealer del") ----------
+  (function labeledFieldStrategy () {
+    // ", Dealer del" | "Dealer: del" | "Dealer del"
+    const labeledRx = new RegExp(`(?:^|[\\s,])\\s*(${fieldAlt})\\s*:?\\s*([^,\\s]{1,})$`, 'i');
+    let term = '', page = 1, more = false, label = '';
+
+    $ta.textcomplete([{
+      match: labeledRx,
+      index: 2,
+      cache: false,
+      search: function (t, callback) {
+        const m = ($ta.val().slice(0, $ta[0].selectionStart) || '').match(labeledRx);
+        if (!m) { callback([]); return; }
+
+        label = normalizeFieldName((m[1] || '').trim());
+        term  = (m[2] || '').trim();
+        if (!label || !term) { callback([]); return; }
+
+        page = 1;
+        ajaxFetch(label, term, page, ({ items, more: mMore }) => {
+          more = mMore; callback(items);
+
+          requestAnimationFrame(() => {
+            const dd = document.querySelector('.textcomplete-dropdown');
+            if (!dd) return;
+            attachInfiniteScroll(dd, () => {
+              if (!more) return;
+              ajaxFetch(label, term, ++page, ({ items: next, more: m2 }) => {
+                more = m2;
+                const ul = dd.querySelector('ul'); if (!ul) return;
+                next.forEach(x => {
+                  const li = document.createElement('li');
+                  li.className = 'textcomplete-item';
+                  li.innerHTML = `<a>
+                    ${cardHTML(hl(x.text, term), label)}
+                  </a>`;
+                  ul.appendChild(li);
+                });
+              });
+            }, 'infLabeled');
+          });
+        });
+      },
+      replace: function (item) {
+        const result = specialReplace(label, item.text);
+        const $input = $('#message-input');
+        $input.val(result).trigger('input');
+        $input.trigger('textComplete:hide');
+      },
+      template: (item) => `
+        <div class="card suggest-card">
+          <div class="card-body py-2 px-3">
+            <div class="d-flex align-items-center">
+              <div class="suggest-title">${hl(item.text, term)}</div>
+              <small class="suggest-meta ms-auto">${label}</small>
+            </div>
+          </div>
+        </div>`
+    }], { maxCount: 15, debounce: 120, zIndex: 10000, dropdownClassName: 'textcomplete-dropdown' });
+  })();
+
   $ta.textcomplete([{
     match: /([^\s,].*)$/,
     index: 1,
     cache: false,
-
-    // DISABLE this strategy if any special token is present
-    context: function () {
-      // NOTE: Returning false disables generic completion by default as per original.
-      return false;
-    },
-
+    context: function () { return false; }, // keep disabled by default
     search: function (term, callback) {
       if (currentRequest) { try { currentRequest.abort(); } catch { } }
       const text = $ta.val().slice(0, $ta[0].selectionStart);
@@ -204,12 +276,8 @@
 
       curField = null; curTerm = ''; callback([]);
     },
-
     replace: function (item) {
-      if (suppressGenericOnce) {
-        suppressGenericOnce = false;
-        return $ta.val();
-      }
+      if (suppressGenericOnce) { suppressGenericOnce = false; return $ta.val(); }
 
       const full = $ta.val(), pos = $ta[0].selectionStart;
       const before = full.slice(0, pos), after = full.slice(pos);
@@ -235,7 +303,6 @@
       const pref = before.trim().endsWith(',') ? ' ' : ', ';
       return label ? `${before}${pref}${label} ${item.text}, ${after}` : `${before}${pref}${item.text}, ${after}`;
     },
-
     template: function (item) {
       const label = item.meta || (curField ? curField : '');
       return `<div class="card suggest-card">
@@ -314,7 +381,7 @@
     if (!q) { hideGhost(); return; }
     lastQuery = q;
 
-    // ----- LOADER (left-aligned spinner + text) -----
+    // ----- LOADER -----
     $ghostPortal
       .html(`
         <div class="card ai-suggest-card shadow-sm" style="padding: 10px;">
@@ -353,7 +420,6 @@
       placeGhostAboveInput();
     } catch (e) {
       console.log('AI suggest error:', e);
-      // If error, keep loader text but fade it a bit
       $ghostPortal.find('.text-secondary').text('Could not load suggestions');
       placeGhostAboveInput();
     }
@@ -366,7 +432,7 @@
 
     if (!v) { hideGhost(); return; }
 
-    if (v.length >= 6) {
+    if (v.length >= AI_SUGGEST_MIN_LEN && v.length <= AI_SUGGEST_MAX_LEN) {
       aiTimer = setTimeout(() => fetchAISuggestions(v), 500);
     } else {
       hideGhost();
@@ -377,8 +443,7 @@
   function placeDropdownBelowInput() {
     const $dd = $('.textcomplete-dropdown:visible');
     if (!$dd.length || !$wrapper.length) {
-      setInputLift(0);
-      return;
+      setInputLift(0); return;
     }
     $dd.css({ position: 'fixed', visibility: 'hidden', display: 'block', height: '', maxHeight: '360px' });
 
@@ -397,10 +462,7 @@
     $dd.css({ top, left: r.left, width: r.width + 'px', visibility: 'visible', zIndex: 10010 });
   }
 
-  function layoutOverlays() {
-    placeDropdownBelowInput();
-    placeGhostAboveInput();
-  }
+  function layoutOverlays() { placeDropdownBelowInput(); placeGhostAboveInput(); }
   function layoutOverlaysNextPaint() { requestAnimationFrame(() => requestAnimationFrame(layoutOverlays)); }
 
   $ta.on('textComplete:show textComplete:rendered textComplete:append textComplete:hide', layoutOverlaysNextPaint);
@@ -455,10 +517,7 @@
       "Sales Zone"
     ]);
 
-    // Split existing groups
-    const parts = before ? before.split(',')
-      .map(s => squish(s))
-      .filter(Boolean) : [];
+    const parts = before ? before.split(',').map(s => squish(s)).filter(Boolean) : [];
 
     let groups = {};  // { Label: [values] }
     let order = [];   // preserve label order
@@ -485,12 +544,8 @@
       order.push(L);
     } else {
       if (MULTI_VALUE_LABELS.has(L)) {
-        // Append new value if not a duplicate
-        if (!groups[L].includes(V)) {
-          groups[L].push(V);
-        }
+        if (!groups[L].includes(V)) groups[L].push(V);
       } else {
-        // Single-value field: replace old value
         groups[L] = [V];
       }
     }
@@ -503,7 +558,6 @@
       }
     }
 
-    // Add the remaining text after cursor
     return result + (after ? after + ' ' : '');
   }
 
@@ -513,8 +567,6 @@
       caretToken();
 
     const result = insertLabeled(label.trim(), String(val).trim());
-    console.log('Before:', $('#message-input').val());
-    console.log('After:', result);
     return result;
   }
 
@@ -526,6 +578,10 @@
       index: 1,
       cache: false,
       search: function (t, callback) {
+        // Guard: if user is inside a DIFFERENT explicit label, don't trigger quick territory search
+        const ec = explicitContext();
+        if (ec && ec.label && ec.label !== 'Territory') { callback([]); return; }
+
         term = t.trim(); page = 1;
         ajaxFetch('Territory', term, page, ({ items, more: m }) => {
           more = m; callback(items);
@@ -576,6 +632,10 @@
       index: 1,
       cache: false,
       search: function (t, callback) {
+        // Guard against explicit label that isn't Sales Zone
+        const ec = explicitContext();
+        if (ec && ec.label && ec.label !== 'Sales Zone') { callback([]); return; }
+
         term = t.trim(); page = 1;
         ajaxFetch('Sales Zone', term, page, ({ items, more: m }) => {
           more = m; callback(items);
@@ -599,7 +659,7 @@
         });
       },
       replace: function (item) {
-        const result = specialReplace('Zone', item.text);
+        const result = specialReplace('Sales Zone', item.text); // explicit
         const $input = $('#message-input');
         $input.val(result).trigger('input');
         $input.trigger('textComplete:hide');
@@ -609,7 +669,7 @@
         <div class="card-body py-2 px-3">
           <div class="d-flex align-items-center">
             <div class="suggest-title">${hl(item.text, term)}</div>
-            <small class="suggest-meta ms-auto"> Zone</small>
+            <small class="suggest-meta ms-auto">Sales Zone</small>
           </div>
         </div>
       </div>`
@@ -627,6 +687,10 @@
       index: 1,
       cache: false,
       search: function (t, callback) {
+        // Guard against explicit label that isn't Material Group
+        const ec = explicitContext();
+        if (ec && ec.label && ec.label !== 'Material Group') { callback([]); return; }
+
         term = t.trim(); page = 1;
         ajaxFetch('Material Group', term, page, ({ items, more: m }) => {
           more = m; callback(items);
@@ -681,12 +745,16 @@
     ];
     const DIVISION_CODES = new Set(["10", "20", "50", "40", "80", "30", "70", "11", "60", "55", "65", "90", "3", "2", "4", "95", "66"]);
 
-    // Division Names
+    // Division Names (free-text)
     $ta.textcomplete([{
       match: /(?:^|[\s,])([A-Za-z][A-Za-z\s]{3,})$/,
       index: 1,
       cache: false,
       search: function (t, callback) {
+        // If user is inside ANY explicit label (Dealer, Territory, etc.), do NOT treat as Division free-text
+        const ec = explicitContext();
+        if (ec && ec.label) { callback([]); return; }
+
         term = (t || '').trim();
         if (term.length < 4) { callback([]); return; }
 
@@ -746,12 +814,16 @@
       { maxCount: 15, debounce: 140, zIndex: 10000, dropdownClassName: 'textcomplete-dropdown' }
     );
 
-    // Division Codes
+    // Division Codes (digits)
     $ta.textcomplete([{
       match: /(?:^|[\s,])(\d{1,2})$/,
       index: 1,
       cache: false,
       search: function (t, callback) {
+        // If inside an explicit (different) label, ignore
+        const ec = explicitContext();
+        if (ec && ec.label && ec.label !== 'Division Code') { callback([]); return; }
+
         const code = (t || '').trim();
         if (DIVISION_CODES.has(code)) {
           callback([{ id: code, text: code, meta: 'Division Code' }]);
