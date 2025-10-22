@@ -7,15 +7,11 @@ from conversation.models import Conversation, Message, MessageMeta
 from django.db.models import Q
 from typing import List, Dict, Any
 import json, re
-<<<<<<< HEAD
-
-=======
 import random
 # (you already have these)
 # from django.shortcuts import get_object_or_404
 # from conversation.models import Conversation, Message, MessageMeta
 # from .your_existing_imports import ...
->>>>>>> dev_adx_prompt_help_copilot
 def get_conversation_id_from_uuid(conversation_uuid: uuid.UUID) -> int:
     # Fetch the conversation using the UUID
     conversation = get_object_or_404(Conversation, uuid=conversation_uuid)
