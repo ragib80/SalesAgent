@@ -59,7 +59,6 @@
   });
 
   $(function () {
-    let currentChatId = null;
     let isSubmitting = false;
     let typingIndicator = null;
 
@@ -496,6 +495,15 @@
       $('.chat-item').removeClass('active');
       $(`.chat-item[data-chat-id="${chatId}"]`).addClass('active');
       fetchMessages(chatId, 'reset');
+
+      // Clear previous chat ID from span
+      $('#chat-id-holder')
+      .attr('data-current-conversation-id', '')
+      .data('current-conversation-id', '');
+  // Set new chat ID into span
+      $('#chat-id-holder')
+      .attr('data-current-conversation-id', chatId)
+      .data('current-conversation-id', chatId);
     }
 
     function sendMessage() {
@@ -505,6 +513,7 @@
       if (!text || isSubmitting) return;
 
       isSubmitting = true;
+      $('#message-input').val('').css('height', 'auto');
       updateSendButton();
       $input.prop('disabled', true);
 
@@ -541,8 +550,8 @@
         (resp) => {
           isSubmitting = false;
           typingIndicator.remove();
+          
           updateSendButton();
-
           $('#message-input').val('').css('height', 'auto').prop('disabled', false).focus();
 
           if (!currentChatId && resp.uuid) {

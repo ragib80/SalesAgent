@@ -455,7 +455,10 @@
             padding: 12px 16px;
             box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
             transition: all 0.2s;
+            /* new */
+            position: relative;
         }
+
         
         .input-wrapper:focus-within {
             border-color: #10a37f;
@@ -678,4 +681,105 @@
     --bs-offcanvas-width: 75vw;
     max-width: 400px; /* Don't exceed 400px on tablets */
   }
+}
+
+
+/* textcomplete */
+  /* Make the dropdown feel like a Copilot/Bootstrap panel */
+.textcomplete-dropdown {
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 0.75rem;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+  padding: 0.5rem;
+  background: #fff;
+  width: min(700px, 95vw);
+  animation: fadeIn .15s ease-in;
+}
+.textcomplete-dropdown ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.textcomplete-item { margin: 0 0 .5rem 0; border-radius: .75rem; }
+.textcomplete-item:last-child { margin-bottom: 0; }
+.textcomplete-item.active .card {
+  border-color: rgba(0,123,255,0.35);
+  box-shadow: 0 0 0 .25rem rgba(0,123,255,0.15);
+}
+.suggest-card.card {
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: .75rem;
+  transition: transform .06s ease, box-shadow .12s ease;
+}
+.suggest-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  border-color: rgba(0,0,0,0.12);
+}
+.suggest-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* .suggest-meta { color: #6c757d; font-size: .85rem; } */
+/* right-aligned, subtle column label */
+.suggest-meta {
+  color: #6c757d;
+  white-space: nowrap;
+  margin-left: auto;          /* forces it to the far right */
+  font-size: .875rem;
+  line-height: 1.2;
+  padding-left: .5rem;
+}
+
+.hl { background: #fff3cd; padding: 0 .15rem; border-radius: .25rem; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ghost */
+/* anchor */
+.input-wrapper { position: relative; }
+
+/* ghost above the input; lift amount controlled by a CSS var */
+#ghost-suggestion{
+  position:absolute;
+  left:0; right:0;
+  bottom:100%;
+  /* 10px base gap + dynamic lift when dropdown is open */
+  transform: translateY(calc(-10px - var(--ghost-lift, 0px)));
+  transition: transform .12s ease;
+  z-index:10001;
+  display:none;
+  pointer-events:none;
+  /* So the browser optimizes the transform/position changes smoothly */
+ will-change: top, left, width; 
+
+
+}
+
+#ghost-suggestion .ai-suggest-card{
+  width:100%;
+  border-radius:12px;
+  background:#fff;
+  box-shadow: 0 18px 40px rgba(15,23,42,.18);
+  border:1px solid rgba(2,6,23,.06);
+  pointer-events:auto;
+}
+
+#ghost-suggestion .ai-suggest-item{ border-radius:10px; }
+#ghost-suggestion .ai-suggest-item:hover{ background:#f8fafc; }
+
+/* textcomplete stays below the input; positioned via JS */
+.textcomplete-dropdown{
+  position:absolute !important;
+  z-index:10000 !important;
+  width: var(--tc-width, 100%);
+  max-height:360px;
+  overflow:auto;
+  border:1px solid rgba(2,6,23,.06);
+  border-radius:12px;
+  box-shadow: 0 18px 40px rgba(15,23,42,.16);
+  background:#fff;
+  padding:6px;
 }

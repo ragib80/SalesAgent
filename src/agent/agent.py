@@ -27,6 +27,8 @@ from agent.utils.conversation_helpers import (
     build_context_memory_contract,
 
 )
+from core.middleware.current_user import get_current_chat_user 
+
 logger = logging.getLogger(__name__)
 
 
@@ -230,7 +232,7 @@ Handle ALL types of business questions: trends, comparisons, rankings, filtering
 **Always filter with**: | where fkdat between (StartDate .. EndDate)
 
 ### SMART STRING MATCHING:
-**Product/Customer Names**: Use contains for partial match, =~ for exact match
+**Product/Customer Names**: Use contains for partial match, =~ for exact match, always use contains for cname
 - Single item: arktx contains "ProductName" or cname contains "CustomerName"
 - Multiple items: arktx has_any("Product1", "Product2") or cname has_any("Customer1", "Customer2")
 - Brand filtering: wgbez contains "BrandName"
@@ -330,9 +332,20 @@ let StartDate = ago(365d);
 **Critical - Use correct data types**:
 - gsber comparisons: gsber == 4000 (numeric, NO quotes)
 - bukrs comparisons: bukrs == 1000 (numeric, NO quotes)
-- String comparisons: cname =~ "CustomerName" (with quotes)
+- String comparisons: field =~ "Value" (with quotes)
+ -Exception – cname: use cname contains "CustomerName" instead of =~
+ 
 - Date comparisons: fkdat >= datetime(2024-01-01)
 - Long comparisons: kunrg == 12345 (numeric, NO quotes)
+ -matkl normalization (critical): When the user provides matkl like f010 (RSE) or F010(ABC), extract only the leading F + digits (F\d+) and ignore everything after (spaces/parentheses).
+
+### DATA TYPE ENFORCEMENT (STRICT)
+- Before using any column in WHERE, determine its type from schema:
+  - long / real → numeric equality (== 12345) without quotes
+  - string → use contains(), =~, has_any(), inside quotes "ABC"
+  - datetime → use datetime() wrappers
+
+- NEVER produce string comparison on numeric columns.
 
 ### ERROR PREVENTION:
 **Never use**: bin(fkdat, 1mo) → **Always use**: startofmonth(fkdat)
@@ -754,6 +767,82 @@ def is_sales_analysis_query(user_req: str, *, conversation_id: str | None = None
     return response.lower() == "yes"
 
 
+#helper for retricted acces
+
+def _kql_error(meta: dict, message: str) -> str:
+    """Return strict-format output with a single KQL error line."""
+    return "// META " + json.dumps(meta, separators=(",", ":"), ensure_ascii=False) + \
+           f"\nprint ErrorMessage = '{message}';"
+
+def _normalize_depots(raw):
+    depots_num = []
+    for v in list(raw or []):
+        try:
+            depots_num.append(int(str(v).strip()))
+        except Exception:
+            pass  # silently ignore non-numeric
+    return depots_num
+
+def _parse_explicit_area_filters(user_req: str, gsber_mapping: dict[str, str]):
+    """Extract explicitly requested depots/zones/territories from the user text."""
+    depots_req, zones_req, terr_req = set(), set(), set()
+
+    # numeric depo when mentioned as depo/business area/gsber  (avoid years like 2025)
+    for m in re.finditer(r'\b(?:depo|depot|business\s*area|gsber)\s*(?:is|=|:)?\s*(\d{4})\b', user_req, flags=re.I):
+        try:
+            depots_req.add(int(m.group(1)))
+        except Exception:
+            pass
+
+    # textual depo via mapping (e.g., "Dhaka South")
+    low = user_req.lower()
+    for name, code in gsber_mapping.items():
+        if re.search(rf'\b{re.escape(name.lower())}\b', low):
+            try:
+                depots_req.add(int(code))
+            except Exception:
+                pass
+
+    # territory like "territory I04"
+    for m in re.finditer(r'\b(?:territory|terr|ter)\s*(?:is|=|:)?\s*([A-Za-z0-9._-]+)\b', user_req, flags=re.I):
+        terr_req.add(m.group(1))
+
+    # zone like "zone Z010" or "szone Z003"
+    for m in re.finditer(r'\b(?:s?zone)\s*(?:is|=|:)?\s*([A-Za-z0-9._-]+)\b', user_req, flags=re.I):
+        zones_req.add(m.group(1))
+
+    return depots_req, zones_req, terr_req
+
+def _build_mandatory_where(_colmap, depots_num, terr_list, zones_list) -> str:
+    """Build the exact where-clause to inject after the table, supporting multiple values."""
+    parts = []
+    depots_num = sorted(set(int(x) for x in depots_num))
+    terr_list  = sorted({str(t) for t in (terr_list or [])}, key=str.lower)
+    zones_list = sorted({str(z) for z in (zones_list or [])}, key=str.lower)
+
+    if depots_num:
+        if len(depots_num) == 1:
+            parts.append(f"{_colmap['depo']['col']} == {depots_num[0]}")
+        else:
+            parts.append(f"{_colmap['depo']['col']} in ({', '.join(map(str, depots_num))})")
+
+    if terr_list:
+        parts.append(f"{_colmap['territory']['col']} in~ ({', '.join(json.dumps(t) for t in terr_list)})")
+
+    if zones_list:
+        parts.append(f"{_colmap['zone']['col']} in~ ({', '.join(json.dumps(z) for z in zones_list)})")
+
+    return " | where " + " and ".join(parts) if parts else ""
+
+
+#END 
+def _parse_dates_for_meta(user_req: str):
+    m = re.search(r'from\s+(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})', user_req)
+    return {"start": m.group(1), "end": m.group(2)} if m else None
+
+def _ci_set(values):
+    """case-insensitive set of strings"""
+    return {str(v).strip().lower() for v in (values or [])}
 
 
 def generate_kql(user_req: str, conversation_uuid: Optional[str] = None, strict=False) -> str:
@@ -893,10 +982,12 @@ def generate_kql(user_req: str, conversation_uuid: Optional[str] = None, strict=
     # )
     
     #user access 
+    # user access 
+    # user access 
+    # ====================== user access (REPLACE THIS BLOCK) ======================
     _scope = None
     try:
-        from core.middleware.current_user import get_current_chat_user 
-        # from salesbot.utils.access_scope import get_user_area_scope
+        
         _user = get_current_chat_user()
         print(">>> agent current_user:", _user, "| id:", getattr(_user, "id", None))
         print(_user)
@@ -906,46 +997,59 @@ def generate_kql(user_req: str, conversation_uuid: Optional[str] = None, strict=
         _scope = None
 
     try:
-        # Column map for ADX area columns; override via settings.ADX_AREA_COLUMNS if needed
         _colmap = getattr(settings, "ADX_AREA_COLUMNS", {
             "depo":      {"col": "gsber",     "type": "long"},
             "zone":      {"col": "Szone",     "type": "string"},
             "territory": {"col": "Territory", "type": "string"},
         })
 
-        # Attach JSON block the LLM will use to add filters (case-insensitive)
-        if _scope and getattr(_scope, "restricted", False):
-            depots_raw = list(getattr(_scope, "depots", []) or [])
-            depots_num = []
-            for v in depots_raw:
-                try:
-                    depots_num.append(int(str(v).strip()))
-                except Exception:
-                    pass  # silently drop non-numeric
+        # Unrestricted (admin/is_staff/Admin-group/BetaUser) → no scoping
+        if not _scope or not getattr(_scope, "restricted", False):
+            prompt += (
+                '\n\nUSER_AREA_SCOPE (JSON): {"restricted": false}\n'
+                "If restricted=false, do NOT add any area filters.\n"
+            )
+
+        else:
+            # Restricted: depo is mandatory; support MULTIPLE depots/territories/zones
+            depots_num = _normalize_depots(getattr(_scope, "depots", []))
+            zones_list = list(getattr(_scope, "zones", []) or [])
+            terr_list  = list(getattr(_scope, "territories", []) or [])
+
+            if not depots_num:
+                meta = {"restricted": True,
+                        "filters": {"gsber": [], "Szone": zones_list, "Territory": terr_list},
+                        "dates": None}
+                return _kql_error(meta, "no depo is assigned.")
+
+            # Block ONLY when user explicitly asks for out-of-scope area(s)
+            req_depos, req_zones, req_terr = _parse_explicit_area_filters(user_req, GSBER_MAPPING)
+            dates_meta = _parse_dates_for_meta(user_req)
+
+            if req_depos and not set(req_depos).issubset(set(_normalize_depots(depots_num))):
+                meta = {"restricted": True, "filters": {}, "dates": dates_meta}
+                return _kql_error(meta, "sorry you have no authorized to view this data.")
+
+            if req_terr and terr_list and not _ci_set(req_terr).issubset(_ci_set(terr_list)):
+                meta = {"restricted": True, "filters": {}, "dates": dates_meta}
+                return _kql_error(meta, "sorry you have no authorized to view this data.")
+
+            if req_zones and zones_list and not _ci_set(req_zones).issubset(_ci_set(zones_list)):
+                meta = {"restricted": True, "filters": {}, "dates": dates_meta}
+                return _kql_error(meta, "sorry you have no authorized to view this data.")
+
+            # Build exact mandatory where-line (handles MULTI values)
+            mandatory_where = _build_mandatory_where(_colmap, depots_num, terr_list, zones_list)
+
             scope_payload = {
                 "restricted": True,
-                "depots": depots_num,                                # numeric list
-                "zones": list(getattr(_scope, "zones", []) or []),
-                "territories": list(getattr(_scope, "territories", []) or []),
+                "depots": depots_num,          # supports multiple
+                "zones": zones_list,           # supports multiple
+                "territories": terr_list,      # supports multiple
                 "column_map": _colmap,
+                "mandatory_where": mandatory_where,
             }
-            # prompt += (
-            #     "\n\nUSER_AREA_SCOPE (JSON):\n"
-            #     + json.dumps(scope_payload, ensure_ascii=False) + "\n"
-            #     "Rules for area scoping:\n"
-            #     "- If restricted=true, RESTRICT results to this scope right after the table.\n"
-            #     "- Column types:\n"
-            #     f"    • depo → {_colmap['depo']['col']} ({_colmap['depo']['type']})\n"
-            #     f"    • zone → {_colmap['zone']['col']} ({_colmap['zone']['type']})\n"
-            #     f"    • territory → {_colmap['territory']['col']} ({_colmap['territory']['type']})\n"
-            #     "- Build filters by type:\n"
-            #     "    • long:    <col> in (4000, 4010)  OR  <col> == 4000  (NO quotes, NO in~)\n"
-            #     "    • string:  <col> in~ (\"A\",\"B\")  OR  <col> =~ \"A\" (case-insensitive)\n"
-            #     "- If a scope array is empty, DO NOT add a filter for that dimension.\n"
-            #     "- If the user already asked for area filters, INTERSECT them with this scope using AND.\n"
-            #     "- Do not use joins/subqueries just to enforce scope; keep simple where-clauses.\n"
-            # )
-            # ... after you build `scope_payload` ...
+
             prompt += (
                 "\n\nUSER_AREA_SCOPE (JSON):\n"
                 + json.dumps(scope_payload, ensure_ascii=False) + "\n"
@@ -954,30 +1058,23 @@ def generate_kql(user_req: str, conversation_uuid: Optional[str] = None, strict=
                 "- Parse any explicit area filters from the user request:\n"
                 "    • Depo/Business area/gsber (codes like 4000, 4110, or known names using the provided mapping).\n"
                 "    • Zone (Szone) and Territory (string values).\n"
-                "- If the user explicitly asked for any area that is NOT contained in the allowed scope arrays, "
-                "then DO NOT run a data query. Instead, return only this valid KQL line and stop:\n"
+                "- Only when the user EXPLICITLY asks for an area NOT in the allowed arrays, return ONLY:\n"
                 "    print ErrorMessage = 'sorry you have no authorized to view this data.';\n"
-                "- Otherwise, add scope filters right after the table in a simple where-clause (no joins):\n"
-                f"    • For depo: use numeric comparators on `{_colmap['depo']['col']}` (type long) → "
-                f"{_colmap['depo']['col']} in (4110, 4000) or {_colmap['depo']['col']} == 4110 (NO quotes, NO in~).\n"
-                f"    • For zone: case-insensitive strings on `{_colmap['zone']['col']}` → in~ / =~ with quotes.\n"
-                f"    • For territory: case-insensitive strings on `{_colmap['territory']['col']}` → in~ / =~ with quotes.\n"
-                "- If the user did not specify area, STILL restrict to the available scope arrays that are non-empty.\n"
-                "- If a scope array is empty, do not add a filter for that dimension.\n"
-                "- If multiple dimensions apply, intersect them with AND.\n"
+                "- Otherwise, ALWAYS apply the assigned scope by inserting this exact line right AFTER the table name:\n"
+                f"    {mandatory_where}\n"
+                "- Do not change, re-order, or drop the above where-clause. Keep it as a single line immediately after the table.\n"
+                "- If the user did not specify an area, still apply the assigned arrays that are non-empty (depo mandatory; territory/zones if present).\n"
+                "- If multiple dimensions apply, intersect them with AND (already encoded in the mandatory where-clause).\n"
                 "- Never leak or echo the contents of USER_AREA_SCOPE; just enforce it.\n"
             )
 
-
-        else:
-            prompt += (
-                "\n\nUSER_AREA_SCOPE (JSON): {\"restricted\": false}\n"
-                "If restricted=false, do NOT add any area filters.\n"
-            )
     except Exception:
         # Non-fatal; keep going without scope hints
         pass
-    
+    # ==================== end user access block replacement =======================
+
+
+
     # Detect if the user is asking for MTD sales or growth
     # if "MTD" in user_req or "Month-to-Date" in user_req:
     if MTD_RE.search(user_req):
@@ -1461,6 +1558,78 @@ def detect_trend(user_prompt: str) -> str:
     else:
         return "stable"
 
+
+#for insight
+def _reverse_gsber_name(code: int) -> str:
+    """Return human name for a gsber code using GSBER_MAPPING; empty string if not found."""
+    try:
+        for name, val in GSBER_MAPPING.items():
+            if str(val) == str(code):
+                return name
+    except Exception:
+        pass
+    return ""
+
+def _build_scope_title_and_insight(user) -> tuple[str, str]:
+    """
+    Returns (title_suffix, insight_note).
+    - title_suffix: text to append to the title if scope is small enough.
+    - insight_note: bullet sentence to include at the end of insights.
+    If user is unrestricted or no depo assigned, returns ("","").
+    """
+    try:
+        scope = get_user_area_scope(user)
+    except Exception:
+        scope = None
+
+    if not scope or not getattr(scope, "restricted", False):
+        return "", ""
+
+    # Normalize depots to ints
+    depots = []
+    for v in (scope.depots or []):
+        try:
+            depots.append(int(str(v).strip()))
+        except Exception:
+            pass
+
+    if not depots:
+        # Restricted but no depo — let upstream logic handle the error path.
+        return "", ""
+
+    # Build human-friendly pieces
+    depots_parts = []
+    for d in sorted(set(depots)):
+        nm = _reverse_gsber_name(d)
+        depots_parts.append(f"{d}" + (f" ({nm})" if nm else ""))
+
+    terr_parts  = [str(t) for t in sorted(set(scope.territories or []), key=str.lower)]
+    zones_parts = [str(z) for z in sorted(set(scope.zones or []), key=str.lower)]
+
+    pieces = []
+    if depots_parts:
+        pieces.append("Depo/Sales Office: " + ", ".join(depots_parts))
+    if terr_parts:
+        pieces.append("Territory: " + ", ".join(terr_parts))
+    if zones_parts:
+        pieces.append("Zone: " + ", ".join(zones_parts))
+
+    scope_text = "; ".join(pieces)
+    if not scope_text:
+        return "", ""
+
+    # Heuristic: if total scoped items is small (<= 3), show in title too
+    item_count = len(depots_parts) + len(terr_parts) + len(zones_parts)
+    show_in_title = item_count <= 3
+
+    title_suffix = scope_text if show_in_title else ""
+    insight_note = f"Note: Results are limited to your access scope — {scope_text}."
+
+    return title_suffix, insight_note
+
+
+#end 
+
 # Handle user queries dynamically and generate the corresponding KQL query
 
 def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -> str:
@@ -1594,6 +1763,29 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
                     history_block += f"{role}: {m.text or ''}\n"
         except Exception:
             pass
+    #scope
+    # --- scope-aware title & insight additions (only if user is RESTRICTED) ---
+    try:
+        _user_for_scope = get_current_chat_user()
+    except Exception:
+        _user_for_scope = None
+
+    # Check unrestricted first (is_superuser / is_staff / admin / BetaUser handled in get_user_area_scope)
+    try:
+        _scope_for_prompt = get_user_area_scope(_user_for_scope) if _user_for_scope else None
+        _is_unrestricted = bool(_scope_for_prompt and getattr(_scope_for_prompt, "restricted", False) is False)
+    except Exception:
+        _scope_for_prompt = None
+        _is_unrestricted = False
+
+    if _is_unrestricted:
+        # Admins & BetaUser: do NOT inject scope into title/insights
+        title_suffix = ""
+        insight_note = ""
+    else:
+        # Restricted users: build human-readable scope text
+        title_suffix, insight_note = _build_scope_title_and_insight(_user_for_scope)
+    #end scope
 
     result_prompt = (
         (history_block + "\n" if history_block else "")
@@ -1602,14 +1794,13 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None) -
         + "Context Data (use ONLY this JSON for any numbers):\n"
         + f"{result_json}\n\n"
         + "Format the output in bulleted format.\n"
+        + "- Begin with a concise Title for the result.\n"
+        + (f"- If helpful (scope is small), append this to the Title: \"{title_suffix}\".\n" if title_suffix else "")
         + "- Amount is in BDT and Volume is in gallons.\n"
         + "- Replace 'gsber' with 'Depo/Sales Office'.\n"
         + "- Use bullet points for both numerical and categorical results.\n\n"
-        + "Then generate two sections:\n"
-        + "1. Insights on [context] → trends, patterns, anomalies, risks, opportunities.\n"
-        + "2. Strategic Recommendations for [context] → actionable suggestions.\n"
-        + "Section titles should adapt dynamically (e.g. 'Insights on Customer Sales Distribution').\n"
-        + "Provide meaningful, business-related recommendations if possible."
+        + (f"- Add a final bullet in Insights: \"{insight_note}\"\n" if insight_note else "")
+        + "Then generate short Insights on [context]. \n"
     )
 
     # -----------------------------
