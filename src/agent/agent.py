@@ -79,7 +79,7 @@ FIELD_MAPPINGS = {
     "revenue":"Revenue","sale":"Revenue","quantity":"fkimg","volume":"volum","Dealer":"cname",
     "brand":"wgbez","product name":"arktx","product":"arktx","category":"matkl","Material Group":"matkl",
     "division":"spart_text","division code":"spart","company code":"bukrs","sales org":"vkorg",
-    "dist channel":"vtweg","distribution channel":"vtweg","business area":"gsber","depo":"gsber",
+    "dist channel":"vtweg","distribution channel":"vtweg","channel":"vtweg","business area":"gsber","depo":"gsber",
     "credit control area":"kkber","Dealer group":"kukla","account group":"ktokd",
     "sales group":"vkgrp_c","sales office":"vkbur_c","payer id":"Payer_DL",
     "product code":"matnr","material code":"matnr","material code":"meins","volume unit":"voleh","business group":"GK",
@@ -131,6 +131,14 @@ GSBER_MAPPING = {
     "Corporate": "9000"
 }
 GSBER_MAPPING_STR = "\n".join(f'"{k}": "{v}"' for k, v in GSBER_MAPPING.items())
+
+VTWEG_MAPPING = {
+    "Dealer": "10",
+    "Customer": "20",
+    "Project Customer": "30"
+}
+
+VTWEG_MAPPING_STR = "\n".join(f'"{k}": "{v}"' for k, v in VTWEG_MAPPING.items())
 
 # SYSTEM_PROMPT_KQL = (
 #     "You are an expert Kusto (ADX) analyst for SAP sales data.\n"
@@ -202,6 +210,9 @@ Handle ALL types of business questions: trends, comparisons, rankings, filtering
 ### BUSINESS AREA/DEPOT CODES:
 {GSBER_MAPPING_STR}
 
+### DISTRIBUTION CHANNEL (vtwegSSSSSSSSSSSSSSSSSSSSSS) CODES:
+{VTWEG_MAPPING_STR}
+
 ### INTELLIGENT QUERY PROCESSING:
 **Handle ANY query type**:
 1. **Time Analysis**: "last month", "Q1", "2024", "past 6 months", "year over year", trends, growth
@@ -233,7 +244,8 @@ Handle ALL types of business questions: trends, comparisons, rankings, filtering
 **Always filter with**: | where fkdat between (StartDate .. EndDate)
 
 ### SMART STRING MATCHING:
-**Product/Customer Names**: Use contains for partial match, =~ for exact match, always use contains for cname
+**Product/Customer Names**: Use contains for partial match, =~ for exact match, always use contains for cname.
+-cname with code suffix: When a cname is shown like "<Name> (<digits>)" (e.g., Delwar Paint (24)), treat the (<digits>) as the dealer/customer code kunrg.For name filtering, ignore the trailing (<digits>) and match only the name with contains (e.g., cname contains "Delwar Paint").you may also filter exactly by kunrg (e.g., kunrg =~ "24")
 - Single item: arktx contains "ProductName" or cname contains "CustomerName"
 - Multiple items: arktx has_any("Product1", "Product2") or cname has_any("Customer1", "Customer2")
 - Brand filtering: wgbez contains "BrandName"
@@ -256,6 +268,7 @@ Handle ALL types of business questions: trends, comparisons, rankings, filtering
 3. Extended calculations
 4. Aggregations and grouping
 5. Sorting and limiting
+6. if user ask about lifting ,then lifting means the total Volume and total revenue of product 
 
 ### TIME GROUPING INTELLIGENCE:
 **Never use bin() - Always use proper time functions**:
@@ -264,6 +277,40 @@ Handle ALL types of business questions: trends, comparisons, rankings, filtering
 - Yearly analysis: extend TimePeriod = startofyear(fkdat)
 - Daily analysis: extend TimePeriod = startofday(fkdat)
 - Weekly analysis: extend TimePeriod = startofweek(fkdat)
+
+### SPECIAL SCENARIO: CUSTOMER DROP-OFF (BOUGHT BEFORE, NOT AFTER)
+If the user asks:
+- "Which customers/dealers bought [a product] in one time period but did not buy it in another?"
+- "Show me who purchased in April 2025 but not in May 2025"
+- "Which customers stopped buying this product next month?"
+- or similar questions about customers missing in later periods —
+
+Then generate KQL that:
+
+1. **Identifies the first time window (Period A)** → customers who bought the specific product(s) in that period.
+2. **Identifies the second time window (Period B)** → customers who bought the same product(s) in that later period.
+3. **Compares both sets** using `join kind=leftanti` on customer code (`kunrg`) to find those who are **present in Period A but missing in Period B**.
+4. **Summarizes key metrics** such as Revenue, Quantity (`fkimg`), and Volume (`volum`).
+5. **Projects** customer name (`cname`), customer code (`kunrg`), business area (`gsber`), and distribution channel (`vtweg`).
+6. **Orders** the result by highest Revenue or Volume to highlight major missing customers.
+
+**Example Pattern:**
+```kql
+let buyers_A = {TABLE_NAME}
+| where fkdat between (start_period .. end_period)
+| where arktx == product_name
+| summarize Revenue_A = sum(Revenue) by kunrg, cname, vtweg, gsber;
+
+let buyers_B = {TABLE_NAME}
+| where fkdat between (next_start .. next_end)
+| where arktx == product_name
+| summarize Revenue_B = sum(Revenue) by kunrg, cname, vtweg, gsber;
+
+buyers_A
+| join kind=leftanti buyers_B on kunrg
+| project cname, kunrg, vtweg, gsber, Revenue_A
+| order by Revenue_A desc;
+
 
 ### ADVANCED ANALYTICS SUPPORT:
 **Statistical Functions**: percentile(), avg(), stdev(), dcount(), count()
@@ -1872,6 +1919,10 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None, u
         + (f"- If helpful (scope is small), append this to the Title: \"{title_suffix}\".\n" if title_suffix else "")
         + "- Amount is in BDT and Volume is in gallons.\n"
         + "- Replace 'gsber' with 'Depo/Sales Office'.\n"
+        + "- If 'vtweg' is found, show:\n"
+        + "    - '10' → Dealer (10)\n"
+        + "    - '20' → Customer (20)\n"
+        + "    - '30' → Project Customer (30)\n"
         + "- Use bullet points for both numerical and categorical results.\n\n"
         + (f"- Add a final bullet in Insights: \"{insight_note}\"\n" if insight_note else "")
         + "Then generate short Insights on [context]. \n"
