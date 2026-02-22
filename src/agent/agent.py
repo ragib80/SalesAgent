@@ -462,6 +462,81 @@ let StartDate = ago(365d);
 
 - NEVER produce string comparison on numeric columns.
 
+### SPECIAL SCENARIO: DEALERS WHO BOUGHT IN ONE PERIOD BUT NOT IN THE NEXT (RISK / DROP-OFF LIST)
+When the user asks things like:
+- "Dealers who bought in May but did not buy in June"
+- "Show dealers who purchased in [Period A] but not in [Period B]"
+- "Risk / drop-off dealers between two months/years"
+- "Which dealers bought the product last period but not this period"
+you MUST treat this as a **risk / drop-off dealer list**, NOT a list of all active dealers.
+
+#### INTENT
+- Return the **list of dealers** who:
+  - **Did buy** the selected product/brand in an earlier period (**Period A**), and
+  - **Did NOT buy** the same product/brand in a later period (**Period B**).
+- Use the **same product/criteria filters** in both periods.
+- This is explicitly a **“drop-off / at-risk dealers”** list.
+
+#### TIME PERIOD HANDLING
+1. Identify two explicit periods from the user request:
+   - Period A = base period (e.g., "May 2025").
+   - Period B = comparison period (e.g., "June 2025").
+2. Convert them to date ranges using SMART DATE HANDLING rules, for example:
+   - "May 2025"  → PeriodA_Start = datetime(2025-05-01), PeriodA_End = datetime(2025-05-31)
+   - "June 2025" → PeriodB_Start = datetime(2025-06-01), PeriodB_End = datetime(2025-06-30)
+
+#### PRODUCT / CRITERIA FILTERS
+- Apply the SAME product/brand/division filters in both periods, for example:
+  - Specific brand: `wgbez contains "APE CLASSIC"`
+  - Specific product: `matnr =~ "12345"` or `arktx contains "ProductName"`
+  - Specific division: `spart_text contains "Decorative"`
+
+
+#### KQL PATTERN TO FOLLOW
+Generate KQL that:
+1. Builds the set of dealers who bought in Period A.
+2. Builds the set of dealers who bought in Period B.
+3. Uses `join kind=leftanti` to keep only dealers who are in Period A but NOT in Period B.
+4. Returns a dealer-level table with May (Period A) Sales/Volume/Quantity only.
+
+Example template (adapt dates and filters based on the user’s requested periods and criteria):
+
+```kql
+// Period A: May 2025
+let PeriodA_Start = datetime(2025-05-01);
+let PeriodA_End   = datetime(2025-05-31);
+
+// Period B: June 2025
+let PeriodB_Start = datetime(2025-06-01);
+let PeriodB_End   = datetime(2025-06-30);
+
+// Dealers who bought selected product/brand in Period A (base period)
+let DealersA = {TABLE_NAME}
+| where fkdat between (PeriodA_Start .. PeriodA_End)
+| where <PRODUCT_AND_CRITERIA_FILTERS>          // e.g. wgbez contains "APE CLASSIC" and spart_text contains "Decorative"
+
+| summarize
+    TotalRevenue  = sum(Revenue),
+    TotalVolume   = sum(volum),
+    TotalQuantity = sum(fkimg)
+  by kunrg, cname, gsber;
+
+// Dealers who bought selected product/brand in Period B (later period)
+let DealersB = {TABLE_NAME}
+| where fkdat between (PeriodB_Start .. PeriodB_End)
+| where <PRODUCT_AND_CRITERIA_FILTERS>
+| summarize
+    TotalRevenueB = sum(Revenue)
+  by kunrg;
+
+// Risk / drop-off dealers: bought in Period A but NOT in Period B
+DealersA
+| join kind=leftanti DealersB on kunrg
+| project kunrg, cname, gsber, vtweg, TotalRevenue, TotalVolume, TotalQuantity
+| order by TotalRevenue desc
+| take 500;
+
+
 ### ERROR PREVENTION:
 **Never use**: bin(fkdat, 1mo) → **Always use**: startofmonth(fkdat)
 **Never use**: summarize by , → **Always specify**: summarize ... by TimePeriod  
