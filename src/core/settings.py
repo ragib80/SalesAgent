@@ -32,7 +32,8 @@ SECRET_KEY = 'django-insecure-z350z@5$p*7=3ll0iw8n!7et86d-mw1zga94*q45^_b(so_#j4
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-AUTH_DEV_BYPASS_AD = True
+# AUTH_DEV_BYPASS_AD = True
+AUTH_DEV_BYPASS_AD = False
 
 ALLOWED_HOSTS = ['172.16.0.5',
                  '127.0.0.1']
@@ -275,6 +276,19 @@ LDAP_AUTH_FORMAT_USERNAME = (
     "django_python3_ldap.utils.format_username_active_directory"
 )
 # 4. Group-based flags
+
+# ── Email (used for OTP delivery) ────────────────────────────────────────────
+EMAIL_BACKEND      = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+EMAIL_HOST         = os.getenv("EMAIL_HOST", "smtp.office365.com")
+EMAIL_PORT         = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_USE_TLS      = os.getenv("EMAIL_USE_TLS", "True") == "True"
+EMAIL_HOST_USER    = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD= os.getenv("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)
+
+# ── MFA / OTP settings ───────────────────────────────────────────────────────
+OTP_LENGTH          = int(os.getenv("OTP_LENGTH", "6"))
+OTP_EXPIRY_MINUTES  = int(os.getenv("OTP_EXPIRY_MINUTES", "5"))
 
 LOGGING = {
     "version": 1,

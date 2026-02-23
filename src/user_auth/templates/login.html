@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> Login</title>
-    <!-- Bootstrap 5 -->
+    <title>Login</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-     <style>
+    <style>
         body {
             background: linear-gradient(120deg, #f3f4f6 0%, #e9ecef 100%);
             min-height: 100vh;
@@ -24,7 +23,12 @@
             font-size: 2.2rem;
             letter-spacing: -0.5px;
             color: #202123;
-            margin-bottom: 2rem;
+            margin-bottom: 0.4rem;
+        }
+        .login-subtitle {
+            color: #6b7280;
+            font-size: 0.97rem;
+            margin-bottom: 1.8rem;
         }
         .form-label {
             color: #202123;
@@ -40,6 +44,27 @@
             border-color: #202123;
             box-shadow: 0 0 0 0.2rem rgba(32,33,35,0.08);
         }
+        /* OTP digit boxes */
+        .otp-inputs {
+            display: flex;
+            gap: 0.55rem;
+            justify-content: center;
+        }
+        .otp-inputs input {
+            width: 52px;
+            height: 56px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-align: center;
+            border-radius: 0.9rem;
+            border: 1.5px solid #e5e7eb;
+            transition: border-color 0.15s;
+        }
+        .otp-inputs input:focus {
+            border-color: #202123;
+            box-shadow: 0 0 0 0.18rem rgba(32,33,35,0.10);
+            outline: none;
+        }
         .btn-primary {
             background: linear-gradient(90deg, #202123 60%, #343541 100%);
             border: none;
@@ -54,135 +79,333 @@
             background: linear-gradient(90deg, #343541 0%, #202123 100%);
             box-shadow: 0 4px 24px 0 rgba(32,33,35,0.13);
         }
-        #error-message {
-            font-size: 1rem;
-            text-align: center;
+        .btn-link-back {
+            background: none;
+            border: none;
+            color: #6b7280;
+            font-size: 0.93rem;
+            padding: 0;
+            cursor: pointer;
+            text-decoration: underline;
         }
+        .btn-link-back:hover { color: #202123; }
+        .alert-msg {
+            font-size: 0.97rem;
+            border-radius: 1rem;
+            padding: 0.65rem 1rem;
+        }
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .step-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: #e5e7eb;
+            transition: background 0.2s;
+        }
+        .step-dot.active { background: #202123; }
         @media (max-width: 600px) {
             .login-title { font-size: 1.5rem; }
             .login-card { padding: 1.3rem 0.7rem; }
+            .otp-inputs input { width: 42px; height: 48px; font-size: 1.2rem; }
         }
     </style>
 </head>
 <body>
-    <div class="container d-flex flex-column justify-content-center align-items-center min-vh-100">
-        <div class="col-12 col-sm-10 col-md-7 col-lg-5">
-            <div class="login-card mt-3">
+<div class="container d-flex flex-column justify-content-center align-items-center min-vh-100">
+    <div class="col-12 col-sm-10 col-md-7 col-lg-5">
+        <div class="login-card mt-3">
+
+            <!-- Step indicators -->
+            <div class="step-indicator">
+                <div class="step-dot active" id="dot-1"></div>
+                <div class="step-dot" id="dot-2"></div>
+            </div>
+
+            <!-- ── STEP 1: Username / Password ── -->
+            <div id="step-login">
                 <div class="text-center">
-                    <span class="login-title">Login</span>
+                    <div class="login-title">Sign In</div>
+                    <div class="login-subtitle">Enter your credentials to continue</div>
                 </div>
-                <form id="login-form" class="mt-3">
+
+                <form id="login-form">
                     <div class="mb-3">
                         <label for="username" class="form-label">Username</label>
-                        <input type="text" class="form-control" id="username" placeholder="Enter your username" required>
+                        <input type="text" class="form-control" id="username"
+                               placeholder="Enter your username" required autocomplete="username">
                     </div>
                     <div class="mb-3">
                         <label for="password" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="password" placeholder="Enter your password" required>
+                        <input type="password" class="form-control" id="password"
+                               placeholder="Enter your password" required autocomplete="current-password">
                     </div>
-                    {% comment %} <button type="submit" class="btn btn-primary w-100">Login</button> {% endcomment %}
-                    <button type="submit" id="login-btn" class="btn btn-primary w-100 d-flex justify-content-center align-items-center">
-                        <span id="login-spinner" class="spinner-border spinner-border-sm text-light me-2 d-none" role="status" aria-hidden="true"></span>
-                        <span class="btn-text">Login</span>
-                    </button>
 
+                    <button type="submit" id="login-btn"
+                            class="btn btn-primary w-100 d-flex justify-content-center align-items-center">
+                        <span id="login-spinner"
+                              class="spinner-border spinner-border-sm text-light me-2 d-none"
+                              role="status" aria-hidden="true"></span>
+                        <span id="login-btn-text">Continue</span>
+                    </button>
                 </form>
-                <div id="error-message" class="text-danger mt-3" style="display: none;">
-                    Invalid credentials, please try again.
+
+                <div id="login-error" class="alert alert-danger alert-msg mt-3 d-none"></div>
+            </div>
+
+            <!-- ── STEP 2: OTP Verification ── -->
+            <div id="step-otp" class="d-none">
+                <div class="text-center">
+                    <div class="login-title">Verify OTP</div>
+                    <div class="login-subtitle" id="otp-subtitle">
+                        Enter the 6-digit code sent to your email.
+                    </div>
+                </div>
+
+                <form id="otp-form">
+                    <div class="mb-4">
+                        <label class="form-label d-block text-center mb-3">One-Time Password</label>
+                        <div class="otp-inputs" id="otp-inputs">
+                            <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" data-index="0">
+                            <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" data-index="1">
+                            <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" data-index="2">
+                            <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" data-index="3">
+                            <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" data-index="4">
+                            <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" data-index="5">
+                        </div>
+                    </div>
+
+                    <button type="submit" id="otp-btn"
+                            class="btn btn-primary w-100 d-flex justify-content-center align-items-center">
+                        <span id="otp-spinner"
+                              class="spinner-border spinner-border-sm text-light me-2 d-none"
+                              role="status" aria-hidden="true"></span>
+                        <span id="otp-btn-text">Verify &amp; Sign In</span>
+                    </button>
+                </form>
+
+                <div id="otp-error" class="alert alert-danger alert-msg mt-3 d-none"></div>
+                <div id="otp-success" class="alert alert-success alert-msg mt-3 d-none"></div>
+
+                <div class="text-center mt-3">
+                    <button class="btn-link-back" id="back-btn">
+                        &larr; Back to login
+                    </button>
                 </div>
             </div>
-        </div>
+
+        </div><!-- /.login-card -->
     </div>
+</div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+$(document).ready(function () {
 
-    <script>
-        {% comment %} $(document).ready(function() {
-            // Handle form submission
-            $('#login-form').on('submit', function(e) {
-                e.preventDefault();  // Prevent the form from submitting the traditional way
+    // ── State ──────────────────────────────────────────────────────────────
+    let sessionToken = null;   // received from /api/user/login/
 
-                var username = $('#username').val();
-                var password = $('#password').val();
+    // ── Helpers ────────────────────────────────────────────────────────────
+    function setLoading($btn, $spinner, $text, label, loading) {
+        $btn.prop('disabled', loading);
+        $spinner.toggleClass('d-none', !loading);
+        $text.text(loading ? label : $text.data('default'));
+    }
 
-                // Make an AJAX request to Django's API
-                $.ajax({
-                    url: '/api/user/token/',  // Django REST Framework token view URL
-                    method: 'POST',
-                    data: {
-                        username: username,
-                        password: password
-                    },
-                    success: function(response) {
-                        console.log(response)
-                       alert(response.user_full_name)
-                        //localStorage.clear(); // or remove auth_token & refresh_token individually
-                        // On success, store the token and redirect
-                        localStorage.setItem('auth_token', response.access);
-                        localStorage.setItem('refresh_token', response.refresh);
-                        localStorage.setItem('full_name', response.full_name);
-                        localStorage.setItem('designation', response.designation);
-                        localStorage.setItem('username', response.username);
-                        window.location.href = '/api/sales/index/';  // Redirect to a dashboard or home page
-                    },
-                    error: function() {
-                        // Show error message if login fails
-                        $('#error-message').show();
-                    }
-                });
-            });
-        }); {% endcomment %}
+    function showError($el, msg) {
+        $el.text(msg).removeClass('d-none');
+    }
 
-        
-            $(document).ready(function() {
-                const $form = $('#login-form');
-                const $btn = $('#login-btn');
-                const $spinner = $('#login-spinner');
-                const $btnText = $btn.find('.btn-text');
+    function hideError($el) {
+        $el.addClass('d-none').text('');
+    }
 
-                $form.on('submit', function(e) {
-                    e.preventDefault();
+    function goToStep(step) {
+        if (step === 1) {
+            $('#step-login').removeClass('d-none');
+            $('#step-otp').addClass('d-none');
+            $('#dot-1').addClass('active');
+            $('#dot-2').removeClass('active');
+        } else {
+            $('#step-login').addClass('d-none');
+            $('#step-otp').removeClass('d-none');
+            $('#dot-1').removeClass('active');
+            $('#dot-2').addClass('active');
+            // Focus first OTP box
+            $('.otp-digit').first().focus();
+        }
+    }
 
-                    // UI: show spinner, disable button, hide any previous error
-                    $('#error-message').hide();
-                    $btn.prop('disabled', true);
-                    $spinner.removeClass('d-none');
-                    $btnText.text('Logging in...');
+    // Store default button labels
+    $('#login-btn-text').data('default', 'Continue');
+    $('#otp-btn-text').data('default', 'Verify & Sign In');
 
-                    var username = $('#username').val();
-                    var password = $('#password').val();
+    // ── STEP 1: Login ───────────────────────────────────────────────────────
+    $('#login-form').on('submit', function (e) {
+        e.preventDefault();
+        hideError($('#login-error'));
 
-                    $.ajax({
-                        url: '/api/user/token/',
-                        method: 'POST',
-                        data: { username: username, password: password },
-                        success: function(response) {
-                            // Optional: console.log(response);
-                            // alert(response.user_full_name);
+        const $btn     = $('#login-btn');
+        const $spinner = $('#login-spinner');
+        const $text    = $('#login-btn-text');
 
-                            localStorage.setItem('auth_token', response.access);
-                            localStorage.setItem('refresh_token', response.refresh);
-                            localStorage.setItem('full_name', response.full_name || response.user_full_name || '');
-                            localStorage.setItem('designation', response.designation || '');
-                            localStorage.setItem('username', response.username || username);
+        setLoading($btn, $spinner, $text, 'Checking...', true);
 
-                            window.location.href = '/api/sales/index/';
-                        },
-                        error: function() {
-                            $('#error-message').show();
-                        },
-                        complete: function() {
-                            // In case of error (or before redirect kicks in on success)
-                            $btn.prop('disabled', false);
-                            $spinner.addClass('d-none');
-                            $btnText.text('Login');
-                        }
+        $.ajax({
+            url: '/api/user/login/',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                username: $('#username').val().trim(),
+                password: $('#password').val()
+            }),
+            success: function (res) {
+                sessionToken = res.session_token;
+
+                // Dev mode: pre-fill OTP boxes if server returned it
+                if (res.dev_otp) {
+                    const digits = res.dev_otp.toString().split('');
+                    $('.otp-digit').each(function (i) {
+                        $(this).val(digits[i] || '');
                     });
-                });
-            });
+                    $('#otp-subtitle').text('DEV MODE — OTP pre-filled (not emailed).');
+                } else {
+                    $('.otp-digit').val('');
+                    $('#otp-subtitle').text(
+                        'Enter the 6-digit code sent to your email.'
+                    );
+                }
 
+                goToStep(2);
+            },
+            error: function (xhr) {
+                const msg = xhr.responseJSON && xhr.responseJSON.detail
+                    ? xhr.responseJSON.detail
+                    : 'Login failed. Please check your credentials.';
+                showError($('#login-error'), msg);
+            },
+            complete: function () {
+                setLoading($btn, $spinner, $text, '', false);
+            }
+        });
+    });
 
-    </script>
+    // ── STEP 2: OTP verify ──────────────────────────────────────────────────
+    $('#otp-form').on('submit', function (e) {
+        e.preventDefault();
+        hideError($('#otp-error'));
+        $('#otp-success').addClass('d-none');
+
+        const otp = $('.otp-digit').map(function () {
+            return $(this).val();
+        }).get().join('');
+
+        if (otp.length !== 6 || !/^\d{6}$/.test(otp)) {
+            showError($('#otp-error'), 'Please enter the complete 6-digit code.');
+            return;
+        }
+
+        const $btn     = $('#otp-btn');
+        const $spinner = $('#otp-spinner');
+        const $text    = $('#otp-btn-text');
+
+        setLoading($btn, $spinner, $text, 'Verifying...', true);
+
+        $.ajax({
+            url: '/api/user/otp/verify/',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                session_token: sessionToken,
+                otp_code: otp
+            }),
+            success: function (res) {
+                // Store tokens & user info
+                localStorage.setItem('auth_token',    res.access);
+                localStorage.setItem('refresh_token', res.refresh);
+                localStorage.setItem('full_name',     res.full_name    || '');
+                localStorage.setItem('designation',   res.designation  || '');
+                localStorage.setItem('username',      res.username     || '');
+                localStorage.setItem('user_uuid',     res.user_uuid    || '');
+
+                $('#otp-success').text('Verified! Redirecting…').removeClass('d-none');
+                setTimeout(function () {
+                    window.location.href = '/api/sales/index/';
+                }, 600);
+            },
+            error: function (xhr) {
+                const msg = xhr.responseJSON && xhr.responseJSON.detail
+                    ? xhr.responseJSON.detail
+                    : 'OTP verification failed. Please try again.';
+                showError($('#otp-error'), msg);
+                // Clear boxes so user re-types
+                $('.otp-digit').val('');
+                $('.otp-digit').first().focus();
+            },
+            complete: function () {
+                setLoading($btn, $spinner, $text, '', false);
+            }
+        });
+    });
+
+    // ── Back button ─────────────────────────────────────────────────────────
+    $('#back-btn').on('click', function () {
+        sessionToken = null;
+        hideError($('#otp-error'));
+        $('#otp-success').addClass('d-none');
+        hideError($('#login-error'));
+        $('#password').val('');
+        goToStep(1);
+    });
+
+    // ── OTP digit UX: auto-advance & backspace ───────────────────────────────
+    $(document).on('input', '.otp-digit', function () {
+        const val = $(this).val().replace(/\D/g, '');   // digits only
+        $(this).val(val.slice(-1));                      // keep last digit
+
+        if (val && $(this).data('index') < 5) {
+            $('.otp-digit[data-index="' + ($(this).data('index') + 1) + '"]').focus();
+        }
+        // Auto-submit when last box is filled
+        if ($('.otp-digit[data-index="5"]').val()) {
+            const all = $('.otp-digit').map(function () { return $(this).val(); }).get().join('');
+            if (/^\d{6}$/.test(all)) {
+                $('#otp-form').trigger('submit');
+            }
+        }
+    });
+
+    $(document).on('keydown', '.otp-digit', function (e) {
+        if (e.key === 'Backspace' && !$(this).val() && $(this).data('index') > 0) {
+            $('.otp-digit[data-index="' + ($(this).data('index') - 1) + '"]').focus().val('');
+        }
+        // Allow only digits, backspace, tab, arrows
+        if (!/^\d$/.test(e.key) && !['Backspace','Tab','ArrowLeft','ArrowRight','Delete'].includes(e.key)) {
+            e.preventDefault();
+        }
+    });
+
+    // Handle paste into any OTP box
+    $(document).on('paste', '.otp-digit', function (e) {
+        e.preventDefault();
+        const pasted = (e.originalEvent.clipboardData || window.clipboardData)
+                        .getData('text').replace(/\D/g, '').slice(0, 6);
+        if (!pasted) return;
+        const digits = pasted.split('');
+        $('.otp-digit').each(function (i) {
+            $(this).val(digits[i] || '');
+        });
+        const last = Math.min(digits.length, 5);
+        $('.otp-digit[data-index="' + last + '"]').focus();
+        if (/^\d{6}$/.test(pasted)) {
+            $('#otp-form').trigger('submit');
+        }
+    });
+
+});
+</script>
 </body>
 </html>
