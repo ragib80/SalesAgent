@@ -278,6 +278,73 @@ Handle ALL types of business questions: trends, comparisons, rankings, filtering
 - Daily analysis: extend TimePeriod = startofday(fkdat)
 - Weekly analysis: extend TimePeriod = startofweek(fkdat)
 
+
+
+### MULTI-YEAR / MULTI-PERIOD COMPARISONS ("INDIVIDUALLY")
+When the user asks about multiple periods "individually" or "separately", for example:
+- "in 2025 and 2024 individually"
+- "compare 2023 and 2024 separately"
+- "show each year separately"
+- "month wise individually" or similar wording,
+
+you MUST follow this pattern:
+
+1. Create ONE subquery per period using let.
+2. In each subquery:
+   - Filter the base table by that period (for example using fkdat between datetime(YYYY-01-01) .. datetime(YYYY-12-31) for whole years).
+   - Apply all other requested filters (brand, division, depot, etc.).
+   - Summarize the required metrics by the requested dimensions (e.g. dealer, area, region).
+   - AFTER summarize, add a CONSTANT label column for that period, such as:
+       | extend Year = "2025"
+     or for months:
+       | extend Period = "2025-01"
+3. Use union to combine all the period subqueries:
+   union Period2024, Period2025
+4. Project the period label (Year / Period) along with the grouped dimensions and metrics.
+5. Optionally order by the period label and the main metric.
+
+IMPORTANT RULES:
+- DO NOT try to infer the year or period AFTER union using fkdat. fkdat usually does not exist after summarize.
+- NEVER write:
+    | union Sales2025, Sales2024
+    | extend Year = iff(fkdat between (...), "2025", "2024")
+  because fkdat is not guaranteed to be present at that stage.
+- For multi-year comparisons where explicit periods are given (like 2024 and 2025), PREFER the "one let per period + union + constant label" pattern instead of getyear(fkdat).
+
+EXAMPLE PATTERN (DEALER LIST FOR TWO YEARS):
+User: "show me the dealer list who bought Brand APE CLASSIC in Division Decorative in 2025 and 2024 individually."
+
+Generated KQL should follow this structure:
+
+let Sales2025 = {TABLE_NAME}
+| where fkdat between (datetime(2025-01-01) .. datetime(2025-12-31))
+| where wgbez contains "APE CLASSIC"
+  and spart_text contains "Decorative"
+| summarize
+    TotalRevenue  = sum(Revenue),
+    TotalVolume   = sum(volum),
+    TotalQuantity = sum(fkimg)
+  by kunrg, cname, gsber, vtweg
+| extend Year = "2025";
+
+let Sales2024 = {TABLE_NAME}
+| where fkdat between (datetime(2024-01-01) .. datetime(2024-12-31))
+| where wgbez contains "APE CLASSIC"
+  and spart_text contains "Decorative"
+| summarize
+    TotalRevenue  = sum(Revenue),
+    TotalVolume   = sum(volum),
+    TotalQuantity = sum(fkimg)
+  by kunrg, cname, gsber, vtweg
+| extend Year = "2024";
+
+union Sales2025, Sales2024
+| project Year, cname, kunrg, gsber, vtweg,
+          TotalRevenue, TotalVolume, TotalQuantity
+| order by Year desc, TotalRevenue desc
+| take 500;
+
+
 ### SPECIAL SCENARIO: CUSTOMER DROP-OFF (BOUGHT BEFORE, NOT AFTER)
 If the user asks:
 - "Which customers/dealers bought [a product] in one time period but did not buy it in another?"
@@ -394,6 +461,81 @@ let StartDate = ago(365d);
   - datetime → use datetime() wrappers
 
 - NEVER produce string comparison on numeric columns.
+
+### SPECIAL SCENARIO: DEALERS WHO BOUGHT IN ONE PERIOD BUT NOT IN THE NEXT (RISK / DROP-OFF LIST)
+When the user asks things like:
+- "Dealers who bought in May but did not buy in June"
+- "Show dealers who purchased in [Period A] but not in [Period B]"
+- "Risk / drop-off dealers between two months/years"
+- "Which dealers bought the product last period but not this period"
+you MUST treat this as a **risk / drop-off dealer list**, NOT a list of all active dealers.
+
+#### INTENT
+- Return the **list of dealers** who:
+  - **Did buy** the selected product/brand in an earlier period (**Period A**), and
+  - **Did NOT buy** the same product/brand in a later period (**Period B**).
+- Use the **same product/criteria filters** in both periods.
+- This is explicitly a **“drop-off / at-risk dealers”** list.
+
+#### TIME PERIOD HANDLING
+1. Identify two explicit periods from the user request:
+   - Period A = base period (e.g., "May 2025").
+   - Period B = comparison period (e.g., "June 2025").
+2. Convert them to date ranges using SMART DATE HANDLING rules, for example:
+   - "May 2025"  → PeriodA_Start = datetime(2025-05-01), PeriodA_End = datetime(2025-05-31)
+   - "June 2025" → PeriodB_Start = datetime(2025-06-01), PeriodB_End = datetime(2025-06-30)
+
+#### PRODUCT / CRITERIA FILTERS
+- Apply the SAME product/brand/division filters in both periods, for example:
+  - Specific brand: `wgbez contains "APE CLASSIC"`
+  - Specific product: `matnr =~ "12345"` or `arktx contains "ProductName"`
+  - Specific division: `spart_text contains "Decorative"`
+
+
+#### KQL PATTERN TO FOLLOW
+Generate KQL that:
+1. Builds the set of dealers who bought in Period A.
+2. Builds the set of dealers who bought in Period B.
+3. Uses `join kind=leftanti` to keep only dealers who are in Period A but NOT in Period B.
+4. Returns a dealer-level table with May (Period A) Sales/Volume/Quantity only.
+
+Example template (adapt dates and filters based on the user’s requested periods and criteria):
+
+```kql
+// Period A: May 2025
+let PeriodA_Start = datetime(2025-05-01);
+let PeriodA_End   = datetime(2025-05-31);
+
+// Period B: June 2025
+let PeriodB_Start = datetime(2025-06-01);
+let PeriodB_End   = datetime(2025-06-30);
+
+// Dealers who bought selected product/brand in Period A (base period)
+let DealersA = {TABLE_NAME}
+| where fkdat between (PeriodA_Start .. PeriodA_End)
+| where <PRODUCT_AND_CRITERIA_FILTERS>          // e.g. wgbez contains "APE CLASSIC" and spart_text contains "Decorative"
+
+| summarize
+    TotalRevenue  = sum(Revenue),
+    TotalVolume   = sum(volum),
+    TotalQuantity = sum(fkimg)
+  by kunrg, cname, gsber;
+
+// Dealers who bought selected product/brand in Period B (later period)
+let DealersB = {TABLE_NAME}
+| where fkdat between (PeriodB_Start .. PeriodB_End)
+| where <PRODUCT_AND_CRITERIA_FILTERS>
+| summarize
+    TotalRevenueB = sum(Revenue)
+  by kunrg;
+
+// Risk / drop-off dealers: bought in Period A but NOT in Period B
+DealersA
+| join kind=leftanti DealersB on kunrg
+| project kunrg, cname, gsber, vtweg, TotalRevenue, TotalVolume, TotalQuantity
+| order by TotalRevenue desc
+| take 500;
+
 
 ### ERROR PREVENTION:
 **Never use**: bin(fkdat, 1mo) → **Always use**: startofmonth(fkdat)
@@ -1918,15 +2060,65 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None, u
         + "- Begin with a concise Title for the result.\n"
         + (f"- If helpful (scope is small), append this to the Title: \"{title_suffix}\".\n" if title_suffix else "")
         + "- Amount is in BDT and Volume is in gallons.\n"
+        + "- When you show a money value for Sales:\n"
+        + "    - First, show the FULL exact value from the JSON with thousand separators (e.g. 2902212694.11 → 2,902,212,694.11 BDT). upto 2 decimal places\n"
+        + "    - Immediately after that, in brackets, show an approximate value in million or billion BDT, for example:\n"
+        + "        - 2,902,212,694.1105475 BDT (~2.90 billion BDT)\n"
+        + "        - 75,123,456.78 BDT (~75.12 million BDT)\n"
+        + "    - Do NOT replace the full number with only 'about X billion'; always show the full value first, then the rounded value in brackets.\n"
         + "- Replace 'gsber' with 'Depo/Sales Office'.\n"
         + "- If 'vtweg' is found, show:\n"
         + "    - '10' → Dealer (10)\n"
         + "    - '20' → Customer (20)\n"
         + "    - '30' → Project Customer (30)\n"
         + "- Use bullet points for both numerical and categorical results.\n\n"
+        +"-Intead of using Revenue Use Sales Value"
         + (f"- Add a final bullet in Insights: \"{insight_note}\"\n" if insight_note else "")
         + "Then generate short Insights on [context]. \n"
     )
+
+#     result_prompt = (
+#     (history_block + "\n" if history_block else "")
+#     + "Now, CURRENT USER MESSAGE:\n"
+#     + f"USER: {user_prompt}\n\n"
+#     + "Context Data (use ONLY this JSON for any numbers):\n"
+#     + f"{result_json}\n\n"
+#     + "Format the output in bulleted format.\n"
+#     + "- Begin with a concise Title for the result.\n"
+#     + "- The Title should mention the time scope if it is obvious from the data (e.g. 'July 2024 vs July 2025 Sales').\n"
+#     + (f"- If helpful (scope is small), append this to the Title: \"{title_suffix}\".\n" if title_suffix else "")
+#     + "- Amount is in BDT and Volume is in gallons.\n"
+#     + "- When describing the metric named 'Revenue' in the data, always refer to it as 'Sales' in the narrative. Do NOT use the word 'Revenue'.\n"
+#     + "- Replace 'gsber' with 'Depo/Sales Office'.\n"
+#     + "- If 'vtweg' is found, show:\n"
+#     + "    - '10' → Dealer (10)\n"
+#     + "    - '20' → Customer (20)\n"
+#     + "    - '30' → Project Customer (30)\n"
+#     + "- Use bullet points for both numerical and categorical results.\n"
+#     + "- Always base ALL numeric values ONLY on the Context Data JSON. Do NOT invent or guess numbers.\n"
+#     + "- When you show a money value for Sales:\n"
+#     + "    - First, show the FULL exact value from the JSON with thousand separators (e.g. 2902212694.1105475 → 2,902,212,694.1105475 BDT).\n"
+#     + "    - Immediately after that, in brackets, show an approximate value in million or billion BDT, for example:\n"
+#     + "        - 2,902,212,694.1105475 BDT (~2.90 billion BDT)\n"
+#     + "        - 75,123,456.78 BDT (~75.12 million BDT)\n"
+#     + "    - Use 'billion' if the value is ≥ 1,000,000,000 BDT, otherwise use 'million' if the value is ≥ 1,000,000 BDT.\n"
+#     + "    - Do NOT replace the full number with only 'about X billion'; always show the full value first, then the rounded value in brackets.\n"
+#     + "- If the data contains a time-like field such as 'TimePeriod', 'Year', 'Month', 'fkdat', etc.:\n"
+#     + "    - First, list EACH time period present in the data with its Sales value (full amount + brackets), one bullet per period.\n"
+#     + "      Example: 'Sales in July 2024: 2,887,503,249.590391 BDT (~2.89 billion BDT)'.\n"
+#     + "    - After listing all periods, add a separate bullet section for comparison:\n"
+#     + "        - Compare the latest period to the immediately previous period.\n"
+#     + "        - Compute the absolute change in Sales (full value + brackets in million/billion).\n"
+#     + "        - Compute the percentage change in Sales (e.g. +0.51%).\n"
+#     + "        - State clearly whether it is an increase or decrease (e.g. 'slight increase', 'moderate decline').\n"
+#     + "- If only a single time period is present, just describe the level of Sales for that period using the full amount + brackets.\n"
+#     + "- When there are multiple categories (e.g. multiple depots, brands, customers), highlight the top ones by Sales or Volume when useful.\n"
+#     + "- Do NOT talk about columns or JSON structure; talk in business terms (Sales, time period, dealers, depots, etc.).\n\n"
+#     + (f"- Add a final bullet in Insights: \"{insight_note}\"\n" if insight_note else "")
+#     + "Then generate short Insights on this context, focusing on what changed, which periods or categories are higher or lower, and any obvious patterns.\n"
+# )
+
+
 
     # -----------------------------
     # 8) Generate narrative output

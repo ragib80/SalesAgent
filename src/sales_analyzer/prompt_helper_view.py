@@ -21,6 +21,7 @@ from agent.utils.conversation_helpers import (
 from agent.agent import get_user_area_scope, UserAreaScope
 from core.middleware.current_user import get_current_chat_user ,set_current_chat_user
 import json
+from functools import lru_cache
 # Mock data for now (later: replace with ADX)
 MOCK_FILTER_VALUES = {
     "matkl": [f"Category {i}" for i in range(1, 501)],     # 500 fake categories
@@ -133,7 +134,7 @@ class ApplyFiltersAPIView(APIView):
                 )
 
             # ───────────────────────────────
-            #  1️⃣ Convert filters to human-readable format
+            #   Convert filters to human-readable format
             # ───────────────────────────────
             readable_parts = []
             for col, values in filters.items():
@@ -144,7 +145,7 @@ class ApplyFiltersAPIView(APIView):
             filter_text = ", ".join(readable_parts) if readable_parts else ""
 
             # ───────────────────────────────
-            #  2️⃣ Build structured base prompt
+            #   Build structured base prompt
             # ───────────────────────────────
             if metric:
                 base_prompt = f"Show me the {metric} where {filter_text}" if filter_text else f"Show me the {metric}"
@@ -152,7 +153,7 @@ class ApplyFiltersAPIView(APIView):
                 base_prompt = generatedPrompt  # user may edit manually later
 
             # ───────────────────────────────
-            #  3️⃣ Call Azure OpenAI to refine the natural language prompt
+            #   Call Azure OpenAI to refine the natural language prompt
             # ───────────────────────────────
             llm = AzureChatOpenAI(
                 azure_endpoint   = settings.AZURE_OPENAI_ENDPOINT,
@@ -184,7 +185,7 @@ class ApplyFiltersAPIView(APIView):
             print("✨ Refined Prompt:", refined_prompt)
 
             # ───────────────────────────────
-            #  4️⃣ Return response
+            #   Return response
             # ───────────────────────────────
             return Response(
                 {
@@ -378,12 +379,10 @@ class DynamicFieldAutocompleteAPIView(APIView):
             kql = f"""
             {base}
             | where isnotempty({name_field}) and isnotempty({code_field})
-            | summarize by {name_field}, {code_field}, gsber, Szone, Territory
+            | summarize by {name_field}, {code_field}
             | project display = strcat(
-                  tostring({name_field}), " (", tostring({code_field}), ")",
-                  iif(isnotempty(gsber), strcat(" - Depo ", tostring(gsber)), ""),
-                  iif(isnotempty(Szone), strcat(" - Zone ", tostring(Szone)), ""),
-                  iif(isnotempty(Territory), strcat(" - Territory ", tostring(Territory)), "")
+                  tostring({name_field}), " (", tostring({code_field}), ")"
+                
               )
             """
 
@@ -455,6 +454,22 @@ avilable_column = {
     "Revenue":("revenue", None),
 }
 
+
+@lru_cache(maxsize=1)
+def get_llm():
+    """Process-wide cached Azure OpenAI chat client."""
+    return AzureChatOpenAI(
+        azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+        api_key=settings.AZURE_OPENAI_KEY,
+        api_version="2025-01-01-preview",
+        azure_deployment=settings.AZURE_OPENAI_ANALYSIS,
+        temperature=0.7,
+        # Optional latency guards:
+        # max_tokens=256,
+        # request_timeout=10,
+        # max_retries=2,
+    )
+
 class PromptSuggestionAPIView(APIView):
     """Suggest AI prompts based on user's partial input and past chat history."""
     permission_classes = [IsAuthenticated]
@@ -490,7 +505,7 @@ class PromptSuggestionAPIView(APIView):
             else:
                 # No conversation_id provided — directly use random messages (global fallback)
                 try:
-                    random_msgs = get_random_messages(None, 30)  # or remove conversation filter if needed
+                    random_msgs = get_random_messages(None, 20)  # or remove conversation filter if needed
                     print("---------------------------------------get_random_messages (no conv) ", random_msgs)
 
                     if random_msgs:
@@ -536,13 +551,15 @@ class PromptSuggestionAPIView(APIView):
             # ───────────────────────────────
             #   Call Azure OpenAI
             # ───────────────────────────────
-            llm = AzureChatOpenAI(
-                azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
-                api_key=settings.AZURE_OPENAI_KEY,
-                api_version="2025-01-01-preview",
-                azure_deployment=settings.AZURE_OPENAI_ANALYSIS,
-                temperature=0.7,
-            )
+            # llm = AzureChatOpenAI(
+            #     azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+            #     api_key=settings.AZURE_OPENAI_KEY,
+            #     api_version="2025-01-01-preview",
+            #     azure_deployment=settings.AZURE_OPENAI_ANALYSIS,
+            #     temperature=0.7,
+            # )
+            llm = get_llm()
+
 
             resp = llm.invoke(
                 [
