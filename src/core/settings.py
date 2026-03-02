@@ -35,7 +35,11 @@ DEBUG = True
 AUTH_DEV_BYPASS_AD = False
 
 ALLOWED_HOSTS = ['172.16.0.5',
-                 '127.0.0.1']
+                 '127.0.0.1',
+                 'https://voiceofsales.bergerbd.com'
+                 ]
+
+USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Application definition
@@ -88,8 +92,17 @@ AUTH_ALLOW_LOCAL_PASSWORD_FALLBACK = True  # set False to force AD for everyone 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8000",
     "http://172.16.0.5:8000",
+    "https://voiceofsales.bergerbd.com",
     "http://127.0.0.1:8000" # Frontend URL
 ]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://voiceofsales.bergerbd.com",
+    "http://voiceofsales.bergerbd.com",
+    "http://127.0.0.1:8004"  # include if HTTP is also used
+]
+
+
 
 REST_FRAMEWORK = {
      'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -204,10 +217,13 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
+
+
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

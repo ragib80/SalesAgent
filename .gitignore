@@ -6,3 +6,6 @@ venv/
 
 src/**/__pycache__/
 src/logs/django.log
+src/staticfiles/
+**/__pycache__/
+src/logs/
