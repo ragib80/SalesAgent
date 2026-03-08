@@ -83,7 +83,7 @@ FIELD_MAPPINGS = {
     "credit control area":"kkber","Dealer group":"kukla","account group":"ktokd",
     "sales group":"vkgrp_c","sales office":"vkbur_c","payer id":"Payer_DL",
     "product code":"matnr","material code":"matnr","material code":"meins","volume unit":"voleh","business group":"GK",
-    "territory":"Territory","sales zone":"Szone","date":"fkdat","Dealer Code":"kunrg","dealer code":"kunrg",
+    "territory":"Territory","sales zone":"Szone","zone":"Szone","date":"fkdat","Dealer Code":"kunrg","dealer code":"kunrg",
     "fkdat":"fkdat","invoice number":"vbeln", "sales org":"vkorg","sales organization":"vkorg","credit control area":"kkber"
 }
 MAPPING_STR = "\n".join(f'"{k}": "{v}"' for k, v in FIELD_MAPPINGS.items())
@@ -210,7 +210,7 @@ Handle ALL types of business questions: trends, comparisons, rankings, filtering
 ### BUSINESS AREA/DEPOT CODES:
 {GSBER_MAPPING_STR}
 
-### DISTRIBUTION CHANNEL (vtwegSSSSSSSSSSSSSSSSSSSSSS) CODES:
+### DISTRIBUTION CHANNEL (vtweg) CODES:
 {VTWEG_MAPPING_STR}
 
 ### INTELLIGENT QUERY PROCESSING:
@@ -245,7 +245,7 @@ Handle ALL types of business questions: trends, comparisons, rankings, filtering
 
 ### SMART STRING MATCHING:
 **Product/Customer Names**: Use contains for partial match, =~ for exact match, always use contains for cname.
--cname with code suffix: When a cname is shown like "<Name> (<digits>)" (e.g., Delwar Paint (24)), treat the (<digits>) as the dealer/customer code kunrg.For name filtering, ignore the trailing (<digits>) and match only the name with contains (e.g., cname contains "Delwar Paint").you may also filter exactly by kunrg (e.g., kunrg =~ "24")
+-cname with code suffix: When a cname is shown like "<Name> (<digits>)" (e.g., Delwar Paint (24)), treat the (<digits>) as the dealer/customer code kunrg.For name filtering, ignore the trailing (<digits>) and match only the name with contains (e.g., cname contains "Delwar Paint").you may also filter exactly by kunrg (e.g., kunrg == 24)
 - Single item: arktx contains "ProductName" or cname contains "CustomerName"
 - Multiple items: arktx has_any("Product1", "Product2") or cname has_any("Customer1", "Customer2")
 - Brand filtering: wgbez contains "BrandName"
@@ -253,7 +253,7 @@ Handle ALL types of business questions: trends, comparisons, rankings, filtering
 
 **Geographic Terms**: Normalize variations automatically
 - "Depo 4000", "Depot 4000", "DSC 4000", "Dhaka Sales", "Dhaka" → gsber == 4000
-- "Div 1100", "Industrial", "Industrial Division" → spart_text =~ "Industrial"
+- "Div 1100", "Industrial", "Industrial Division" → spart_text contains "Industrial"
 
 ### PERFORMANCE OPTIMIZATION (MANDATORY):
 **Always include result limits**:
@@ -365,19 +365,19 @@ Then generate KQL that:
 ```kql
 let buyers_A = {TABLE_NAME}
 | where fkdat between (start_period .. end_period)
-| where arktx == product_name
+| where arktx contains "product_name"
 | summarize Revenue_A = sum(Revenue) by kunrg, cname, vtweg, gsber;
 
 let buyers_B = {TABLE_NAME}
 | where fkdat between (next_start .. next_end)
-| where arktx == product_name
+| where arktx contains "product_name"
 | summarize Revenue_B = sum(Revenue) by kunrg, cname, vtweg, gsber;
 
 buyers_A
 | join kind=leftanti buyers_B on kunrg
 | project cname, kunrg, vtweg, gsber, Revenue_A
 | order by Revenue_A desc;
-
+```
 
 ### ADVANCED ANALYTICS SUPPORT:
 **Statistical Functions**: percentile(), avg(), stdev(), dcount(), count()
@@ -426,8 +426,8 @@ let PreviousYear = CurrentYear - 1;
 | where getyear(fkdat) in (CurrentYear, PreviousYear)
 | extend Year = getyear(fkdat)
 | summarize Revenue = sum(Revenue) by Year, cname
-| evaluate pivot(Year, sum(Revenue))
-| top 20 by [tostring(CurrentYear)] desc;
+| order by Year desc, Revenue desc
+| take 40;
 ```
 
 **Multi-dimensional Analysis**:
@@ -452,7 +452,7 @@ let StartDate = ago(365d);
  
 - Date comparisons: fkdat >= datetime(2024-01-01)
 - Long comparisons: kunrg == 12345 (numeric, NO quotes)
- -matkl normalization (critical): When the user provides matkl like f010 (RSE) or F010(ABC), extract only the leading F + digits (F\d+) and ignore everything after (spaces/parentheses).
+ -matkl normalization (critical): When the user provides matkl like f010 (RSE) or F010(ABC), extract only the leading F + digits (F\\d+) and ignore everything after (spaces/parentheses).
 
 ### DATA TYPE ENFORCEMENT (STRICT)
 - Before using any column in WHERE, determine its type from schema:
@@ -519,7 +519,7 @@ let DealersA = {TABLE_NAME}
     TotalRevenue  = sum(Revenue),
     TotalVolume   = sum(volum),
     TotalQuantity = sum(fkimg)
-  by kunrg, cname, gsber;
+  by kunrg, cname, gsber, vtweg;
 
 // Dealers who bought selected product/brand in Period B (later period)
 let DealersB = {TABLE_NAME}
@@ -535,7 +535,7 @@ DealersA
 | project kunrg, cname, gsber, vtweg, TotalRevenue, TotalVolume, TotalQuantity
 | order by TotalRevenue desc
 | take 500;
-
+```
 
 ### ERROR PREVENTION:
 **Never use**: bin(fkdat, 1mo) → **Always use**: startofmonth(fkdat)
@@ -810,7 +810,10 @@ def get_user_area_scope(user) -> UserAreaScope:
 MTD_RE = re.compile(r'\b(?:mtd|month[- ]to[- ]date)\b', re.IGNORECASE)
 YTD_RE = re.compile(r'\b(?:ytd|year[- ]to[- ]date)\b', re.IGNORECASE)
 
-CONTRIBUTION_RE = re.compile(r'\b(contribution of|contribution from|contribution by)\b', re.IGNORECASE)
+CONTRIBUTION_RE = re.compile(
+    r'\b(contribution (?:of|from|by)|% contribution|percentage contribution|what (?:percent\w*|%)|did\b.*\bcontribute)\b',
+    re.IGNORECASE
+)
 AVG_SALES_RE = re.compile(
     r'\b(?:average|avg|mean)[ -]?(?:sales|revenue|amount|quantity|volume)?\b',
     re.IGNORECASE
@@ -821,7 +824,7 @@ FIELD_MAP_LOWER = {k.lower(): v for k, v in FIELD_MAPPINGS.items()}
 
 TREND_RE     = re.compile(r'\b(?:up[- ]?trending|trending)\b', re.IGNORECASE)
 DOWN_TREND_RE = re.compile(r'\b(?:down[- ]?trending|downtrend|negative trend|falling|declining|decreasing)\b', re.IGNORECASE) 
-EXCLUDE_KEYS = {"revenue", "quantity", "volume", "date", "fkdat"}
+EXCLUDE_KEYS = {"revenue", "sale", "quantity", "volume", "date", "fkdat"}
 
 # 3. Cleanup function for LLM-generated KQL
 def cleanup_kql(kql: str) -> str:
@@ -1245,9 +1248,10 @@ def generate_kql(user_req: str, conversation_uuid: Optional[str] = None, strict=
     
     #user access 
     # user access 
-    # user access 
+    # user access
     # ====================== user access (REPLACE THIS BLOCK) ======================
     _scope = None
+    _mandatory_where_clause = ""
     try:
          
         _user = get_current_chat_user()
@@ -1302,6 +1306,7 @@ def generate_kql(user_req: str, conversation_uuid: Optional[str] = None, strict=
 
             # Build exact mandatory where-line (handles MULTI values)
             mandatory_where = _build_mandatory_where(_colmap, depots_num, terr_list, zones_list)
+            _mandatory_where_clause = mandatory_where
 
             scope_payload = {
                 "restricted": True,
@@ -1337,66 +1342,118 @@ def generate_kql(user_req: str, conversation_uuid: Optional[str] = None, strict=
 
 
 
+    # ── Pre-compute concrete dates so the LLM never has to calculate them ──
+    _now = datetime.datetime.now()
+    # AsOfDate = last day of the most recently completed month
+    _asof = _now.replace(day=1) - datetime.timedelta(days=1)
+    _asof_str = _asof.strftime("%Y-%m-%d")
+    # LY AsOfDate = same month/day last year (handle Feb-28/29 edge via calendar)
+    _ly_asof_month_days = calendar.monthrange(_asof.year - 1, _asof.month)[1]
+    _ly_asof_day = min(_asof.day, _ly_asof_month_days)
+    _ly_asof = _asof.replace(year=_asof.year - 1, day=_ly_asof_day)
+    _ly_asof_str = _ly_asof.strftime("%Y-%m-%d")
+    # Default MTD month = last fully completed calendar month
+    _mtd_cy_start = _asof.replace(day=1).strftime("%Y-%m-%d")
+    _mtd_cy_end   = _asof_str
+    _mtd_ly_start = _ly_asof.replace(day=1).strftime("%Y-%m-%d")
+    _mtd_ly_end   = _ly_asof_str
+    # Current fiscal year: April 1 → March 31
+    _fy_start_year = _now.year - 1 if _now.month < 4 else _now.year
+    _fy_start_str  = f"{_fy_start_year}-04-01"
+    # LY fiscal year start
+    _ly_fy_start_str = f"{_fy_start_year - 1}-04-01"
+
     # Detect if the user is asking for MTD sales or growth
     # if "MTD" in user_req or "Month-to-Date" in user_req:
     if MTD_RE.search(user_req):
-        prompt += """
-        Instruction:
-        - The user is asking for MTD (Month-to-Date) growth. Please calculate the MTD growth using the following formula:
-        (Current Year Revenue - Last Year Revenue) / Last Year Revenue * 100
-        - If the user specifies a specific month (e.g., "MTD growth in May 2025"):
-        - Use the **current year revenue** from **the 1st of the month to the last day of the month** (e.g., May 1 to May 31, 2025).
-        - Use the **last year revenue** for the same month last year (e.g., May 1 to May 31, 2024).
-        - If the user specifies "this year" or "last year" as a time frame:
-        - Calculate **total revenue for the current year** (i.e., from **Jan 1st to current date**).
-        - Calculate **total revenue for the previous year** (i.e., from **Jan 1st to same date in the previous year**).
-        - If the user asks for **MTD growth in the current month**, and the  current **month is not finished** (e.g., the 15th or 23rd day of the month):
-        - Calculate using **previous month's total revenue** as Current Year Revenue (CY Rev) and the **same month from the previous year** as Last Year Revenue (LY Rev).
-        - Ensure the KQL query **does not use partial month data**. Always calculate **full month data** for both the current and previous year, e.g., **May 1 to May 31**.
-        - If the user requests **MTD growth for May 2025**, use:
-        - **Current Year Revenue** for May 2025 from **May 1 to May 31, 2025**.
-        - **Last Year Revenue** for May 2024 from **May 1 to May 31, 2024**.
-        - The KQL query should return both **CYRevenue** and **LYRevenue** for the requested month.
-        - The **`union`** operator should be used to combine both **Current Year Revenue** and **Last Year Revenue** based on the **TimePeriod**.
-        -do not use  |extend MTDGrowth = (CYRevenue - LYRevenue) / LYRevenue * 100;
-        - If there's an error (e.g., no data found), return an error message indicating the issue.
+        prompt += f"""
+        Instruction — MTD (Month-to-Date):
+        - Identify the target month from the user request.
+        - If no specific month is given, default to the last fully completed month:
+            CYStart = {_mtd_cy_start}, CYEnd = {_mtd_cy_end}
+        - If the user specifies a past month (e.g. "May 2025"), use that month's exact first and last day.
+        - Use only datetime literals — NEVER use now(), startofmonth(), or endofmonth() for date boundaries.
+
+        CASE A — Simple total (e.g. "MTD sales of May 2025", "What is MTD sales?"):
+        - Use toscalar and print:
+            let CYStart = datetime(YYYY-MM-01);
+            let CYEnd   = datetime(YYYY-MM-LD);   // LD = last day of that month
+            let LYStart = datetime(YYYY-1-MM-01);
+            let LYEnd   = datetime(YYYY-1-MM-LD);
+            let CYRevenue = toscalar(SAPSalesInfos | where fkdat between (CYStart .. CYEnd) | summarize sum(Revenue));
+            let LYRevenue = toscalar(SAPSalesInfos | where fkdat between (LYStart .. LYEnd) | summarize sum(Revenue));
+            print
+                CYRevenue = CYRevenue,
+                LYRevenue = LYRevenue,
+                MTDGrowth = iff(LYRevenue == 0, real(null), (CYRevenue - LYRevenue) / LYRevenue * 100)
+            | extend GrowthType = iff(isnull(MTDGrowth), "N/A", iff(MTDGrowth > 0, "positive growth", "negative growth"));
+
+        CASE B — Grouped by dimension (e.g. "MTD sales by division", "MTD by brand", "MTD by depot"):
+        - Do NOT use toscalar or print. Use summarize ... by [dimension_column]:
+            let CYStart = datetime(YYYY-MM-01);
+            let CYEnd   = datetime(YYYY-MM-LD);   // LD = last day of that month
+            SAPSalesInfos
+            | where fkdat between (CYStart .. CYEnd)
+            | summarize CYRevenue = sum(Revenue), TotalQuantity = sum(fkimg) by [dimension_column]
+            | order by CYRevenue desc
+            | take 100;
+
+        Choose the correct case based on the user request.
+        IMPORTANT: Use only concrete datetime literals in the generated KQL. Do NOT use now(), startofmonth(), or endofmonth().
         """
 
 
     # elif "YTD" in user_req or "Year-to-Date" in user_req:
     elif YTD_RE.search(user_req):
-        prompt += """
-        Instruction:
+        prompt += f"""
+        Instruction — YTD (Year-to-Date):
         - Fiscal year runs April 1 → March 31.
-        - Compute YTD through the **last day of the previous month**, **not** through today:
-            let FiscalYearStart = datetime(YYYY-04-01);
-            // AsOfDate must be end of *prior* month:
-            let AsOfDate        = startofmonth(now()) - 1d;  
-            // e.g. if today is 2025-07-17, AsOfDate = 2025-06-30
-        - Pull two scalars with `toscalar(...)`:
+        - Current fiscal year start  : {_fy_start_str}
+        - YTD cut-off (AsOfDate)     : {_asof_str}  ← use this EXACT date, do NOT recompute it
+        - Last fiscal year start     : {_ly_fy_start_str}
+
+        RULES:
+        - Use the concrete dates provided above — do NOT call now(), startofmonth(), or endofmonth() in the query.
+        - Do NOT use now() in any where clauses — only use the literal datetime values given above.
+        - If the user asks for a PAST fiscal year (e.g. "ytd sales of 2023"), adjust FiscalYearStart accordingly
+          (e.g. 2023-04-01) and set AsOfDate to 2024-03-31 (end of that year). Otherwise use the values above.
+
+        CASE A — Simple total (e.g. "What is YTD sales?", "YTD growth", "YTD sales this year"):
+        - Pull two scalars and emit with print:
+            let FiscalYearStart = datetime({_fy_start_str});
+            let AsOfDate        = datetime({_asof_str});
+            let LYFiscalStart   = datetime({_ly_fy_start_str});
+            let LYAsOfDate      = datetime({_ly_asof_str});
             let CYRevenue = toscalar(
-            SAPSalesInfos
-            | where fkdat between (FiscalYearStart .. AsOfDate)
-            | summarize sum(Revenue)
+                SAPSalesInfos
+                | where fkdat between (FiscalYearStart .. AsOfDate)
+                | summarize sum(Revenue)
             );
             let LYRevenue = toscalar(
-            SAPSalesInfos
-            | where fkdat between (
-                datetime_add('year', -1, FiscalYearStart)
-                .. datetime_add('year', -1, AsOfDate)
-                )
-            | summarize sum(Revenue)
+                SAPSalesInfos
+                | where fkdat between (LYFiscalStart .. LYAsOfDate)
+                | summarize sum(Revenue)
             );
-        - Emit them with `print`, naming each:
-            print 
-            YTDGrowth = (CYRevenue - LYRevenue) / LYRevenue * 100,
-            CYRevenue = CYRevenue,
-            LYRevenue = LYRevenue
-        | extend 
-            ErrorMessage = iff(isnull(YTDGrowth), "Error: missing data", ""),
-            GrowthType   = iff(isnull(YTDGrowth), "N/A", iff(YTDGrowth > 0, "positive growth", "negative growth"))
-        - **Do not** use `now()` in any `where` clauses—only use `AsOfDate` as defined above.
-        - If either scalar is null, return an appropriate error via `ErrorMessage`.
+            print
+                YTDGrowth = (CYRevenue - LYRevenue) / LYRevenue * 100,
+                CYRevenue = CYRevenue,
+                LYRevenue = LYRevenue
+            | extend
+                ErrorMessage = iff(isnull(YTDGrowth), "Error: missing data", ""),
+                GrowthType = iff(isnull(YTDGrowth), "N/A", iff(YTDGrowth > 0, "positive growth", "negative growth"));
+
+        CASE B — Grouped by dimension (e.g. "YTD sales by division", "YTD by brand", "YTD by zone", "YTD by depo"):
+        - Do NOT use toscalar or print. Use summarize ... by [dimension_column]:
+            let FiscalYearStart = datetime({_fy_start_str});
+            let AsOfDate        = datetime({_asof_str});
+            SAPSalesInfos
+            | where fkdat between (FiscalYearStart .. AsOfDate)
+            | summarize CYRevenue = sum(Revenue), TotalQuantity = sum(fkimg) by [dimension_column]
+            | order by CYRevenue desc
+            | take 100;
+
+        Choose the correct case based on the user request.
+        IMPORTANT: Copy the datetime literals exactly as shown above. Do NOT recompute or guess any dates.
         """
         prompt += f"\n\nUser request: {user_req}"
 
@@ -1550,9 +1607,12 @@ def generate_kql(user_req: str, conversation_uuid: Optional[str] = None, strict=
             return "// Could not detect which dimension to use for contribution."
         dim_col = FIELD_MAP_LOWER[dim_key]
 
-        # 3. Extract segment value robustly (remove dimension, remove date/month phrases)
+        # 3. Extract segment value — try multiple patterns
         seg_m = re.search(
-            r'contribution (?:of|from)\s+(.*?)(?:\s+in|\s+for|\s+from|\s+by|\s+on|$)', user_req, re.IGNORECASE)
+            r'contribution (?:of|from|by)\s+(.*?)(?:\s+in|\s+for|\s+from|\s+by|\s+on|$)', user_req, re.IGNORECASE)
+        if not seg_m:
+            # "What % of sales did Brand A contribute?"
+            seg_m = re.search(r'did\s+(.*?)\s+contribute', user_req, re.IGNORECASE)
         if not seg_m:
             return "// Could not parse the segment name."
         raw_segment = seg_m.group(1).strip()
@@ -1561,36 +1621,46 @@ def generate_kql(user_req: str, conversation_uuid: Optional[str] = None, strict=
         segment = strip_dim.sub('', raw_segment).strip()
         # Remove trailing month/year phrases
         segment = re.sub(r'(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4}$', '', segment, flags=re.IGNORECASE).strip()
+        # Strip trailing/leading punctuation users may type (e.g. "APE CLASSIC,")
+        segment = segment.strip('.,;:"\' ').strip()
 
-        # 4. Build filter clause (handles gsber/depo mapping if needed)
+        # 4. Build filter clause with correct types
+        _contains_cols = {"cname", "arktx", "wgbez", "spart_text", "matkl"}
         segment_display = segment
         gsber_key, code = None, None
         if dim_col == "gsber":
             gsber_key, code = find_gsber_code(segment, GSBER_MAPPING)
-            print("gsber_key ",gsber_key)
-            print("code ",code)
+            print("gsber_key ", gsber_key)
+            print("code ", code)
             if gsber_key and code:
-                filter_clause = f'{dim_col} == "{code}"'
+                filter_clause = f'{dim_col} == {int(code)}'   # numeric — no quotes
                 segment_display = gsber_key
             else:
-                filter_clause = f'{dim_col} == "{segment}"'
+                try:
+                    filter_clause = f'{dim_col} == {int(segment)}'
+                except ValueError:
+                    filter_clause = f'{dim_col} == {segment}'
                 segment_display = segment
-        else:
-            filter_clause = f'{dim_col} == "{segment}"'
+        elif dim_col in _contains_cols:
+            filter_clause = f'{dim_col} contains "{segment}"'
             segment_display = segment
-        
-        # 5. KQL Template
+        else:
+            filter_clause = f'{dim_col} =~ "{segment}"'
+            segment_display = segment
+
+        # 5. KQL Template — inject scope filter so restricted users can't bypass
+        _scope_line = f"\n            {_mandatory_where_clause.strip()}" if _mandatory_where_clause else ""
+
         return f"""
-       
         let StartDate = datetime({start_date});
         let EndDate   = datetime({end_date});
         let TotalRevenue = toscalar(
-            {TABLE_NAME}
+            {TABLE_NAME}{_scope_line}
             | where fkdat >= StartDate and fkdat <= EndDate
             | summarize TotalRevenue = sum(Revenue)
         );
         let SegmentRevenue = toscalar(
-            {TABLE_NAME}
+            {TABLE_NAME}{_scope_line}
             | where fkdat >= StartDate and fkdat <= EndDate and {filter_clause}
             | summarize SegmentRevenue = sum(Revenue)
         );
@@ -1808,8 +1878,14 @@ def detect_date_filter_using_llm(user_prompt: str) -> tuple:
             return None, None
 
 def format_dates(kql_query: str) -> str:
-    """Ensure all date-like strings are properly formatted as datetime literals."""
-    return re.sub(r'(\d{4}-\d{2}-\d{2})', r'datetime(\1)', kql_query)
+    """Wrap bare YYYY-MM-DD dates with datetime(), skipping ones already wrapped."""
+    def _wrap(m):
+        # If already inside datetime(...), return unchanged
+        start = m.start()
+        if start >= 9 and kql_query[start - 9:start] == 'datetime(':
+            return m.group(0)
+        return f'datetime({m.group(0)})'
+    return re.sub(r'\d{4}-\d{2}-\d{2}', _wrap, kql_query)
 
 # Detect trend from user prompt (e.g., increasing, declining, etc.)
 def detect_trend(user_prompt: str) -> str:
@@ -1945,9 +2021,14 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None, u
     # -----------------------------
     # 2) Sales queries → generate KQL
     # -----------------------------
-    start_date, end_date = detect_date_filter_using_llm(user_prompt)
-    if start_date and end_date:
-        user_prompt += f" from {start_date:%Y-%m-%d} to {end_date:%Y-%m-%d}"
+    # Skip date detection for YTD/MTD — they manage their own date logic internally.
+    # Appending an explicit date range to these queries causes the LLM to hardcode
+    # potentially incorrect dates instead of using startofmonth(now())-1d etc.
+    if not MTD_RE.search(user_prompt) and not YTD_RE.search(user_prompt):
+        start_date, end_date = detect_date_filter_using_llm(user_prompt)
+        if start_date and end_date:
+            if not re.search(r'from \d{4}-\d{2}-\d{2} to \d{4}-\d{2}-\d{2}', user_prompt):
+                user_prompt += f" from {start_date:%Y-%m-%d} to {end_date:%Y-%m-%d}"
 
     kql = generate_kql(user_prompt, conversation_id)
     kql = format_dates(kql)
@@ -2066,7 +2147,9 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None, u
         + "        - 2,902,212,694.1105475 BDT (~2.90 billion BDT)\n"
         + "        - 75,123,456.78 BDT (~75.12 million BDT)\n"
         + "    - Do NOT replace the full number with only 'about X billion'; always show the full value first, then the rounded value in brackets.\n"
-        + "- Replace 'gsber' with 'Depo/Sales Office'.\n"
+        + "- Replace 'gsber' with 'Depo/Sales Office', and translate gsber numeric codes to names using this mapping: "
+        + ", ".join(f"{v}={k}" for k, v in GSBER_MAPPING.items())
+        + ". If a code is not in the mapping, show it as-is.\n"
         + "- If 'vtweg' is found, show:\n"
         + "    - '10' → Dealer (10)\n"
         + "    - '20' → Customer (20)\n"
@@ -2134,7 +2217,7 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None, u
         },
         {"role": "user", "content": result_prompt},
     ]
-    return llm.invoke(messages).content
+    return analysis_llm.invoke(messages).content
 
     # try:
     #     return analysis_llm.invoke([{"role": "user", "content": result_prompt}]).content
