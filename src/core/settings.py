@@ -245,6 +245,10 @@ ADX_DATABASE = os.getenv('ADX_DATABASE')
 ADX_CLUSTER_DEV = os.getenv('ADX_CLUSTER_DEV')
 ADX_DATABASE_DEV = os.getenv('ADX_DATABASE_DEV')
 
+AZURE_TENANT_ID     = os.getenv('AZURE_TENANT_ID')
+AZURE_CLIENT_ID     = os.getenv('AZURE_CLIENT_ID')
+AZURE_CLIENT_SECRET = os.getenv('AZURE_CLIENT_SECRET')
+
 #ms sql
 DB_ENGINE       = os.getenv('DB_ENGINE', 'mssql')
 DB_NAME         = os.getenv('DB_NAME')
