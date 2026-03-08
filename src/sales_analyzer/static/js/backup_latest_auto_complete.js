@@ -23,18 +23,13 @@
   const Z_GHOST    = 10060;  // suggestions
   const MIN_GAP    = 12;
 
-  $ghostPortal.css({
-    position: 'fixed',
-    zIndex: Z_GHOST,
-    display: 'none',
-    pointerEvents: 'auto'
-  });
-  $inputArea.css({
-    transition: 'transform 160ms ease, opacity 160ms ease',
-    willChange: 'transform'
-  });
+  $ghostPortal.css({ position: 'fixed', zIndex: Z_GHOST, display: 'none', pointerEvents: 'auto' });
+  $inputArea.css({ transition: 'transform 160ms ease, opacity 160ms ease', willChange: 'transform' });
 
+  // Cancellable requests
+  const __inflight = Object.create(null); // ns -> jqXHR
   let __epoch = 0;
+  function __cancelNS(ns){ const h = __inflight[ns]; if (h && h.abort) { try{h.abort();}catch{} } __inflight[ns]=null; }
 
   /* =================== Helpers =================== */
   const FIELD_LABELS = [
@@ -47,6 +42,7 @@
     .map((s)=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|');
 
   const PREP_WORDS = ['from','of','in','by','within','for'];
+  const PREP_RX = new RegExp(`\\b(?:${PREP_WORDS.join('|')})\\b`, 'i');
 
   const DIVISION_NAMES = [
     'Decorative','Industrial Paints','Adhesive & Chemicals','Powder Coating','Wood Coating','Marine Paints',
@@ -69,35 +65,15 @@
   }
 
   function escapeRx(s){ return String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
-
-  function hl(t, term){
-    if (!term) return t;
-    try {
-      return t.replace(new RegExp(`(${escapeRx(term)})`,'ig'), '<span class="hl">$1</span>');
-    } catch {
-      return t;
-    }
-  }
-
+  function hl(t, term){ if (!term) return t; try { return t.replace(new RegExp(`(${escapeRx(term)})`,'ig'), '<span class="hl">$1</span>'); } catch { return t; } }
   function setSendDisabled(v){ $(SEND_BTN_SELECTOR).prop('disabled', !!v); }
-
-  function getWrapRect(){
-    return $wrapper[0]?.getBoundingClientRect?.() || { top:0,left:0,width:0,bottom:0 };
-  }
-
-  function setInputLift(px){
-    $inputArea.css('transform', `translateY(${-Math.max(0,px)}px)`);
-  }
-
-  function hideGhost(){
-    $ghostPortal.stop(true,true).fadeOut(120);
-  }
+  function getWrapRect(){ return $wrapper[0]?.getBoundingClientRect?.() || { top:0,left:0,width:0,bottom:0 }; }
+  function setInputLift(px){ $inputArea.css('transform', `translateY(${-Math.max(0,px)}px)`); }
+  function hideGhost(){ $ghostPortal.stop(true,true).fadeOut(120); }
 
   // Keep previous selections in the textarea, merge by label
   function insertLabeled(label, value){
-    const $i = $ta;
-    let full = $i.val();
-    const pos = $i[0].selectionStart;
+    const $i = $ta; let full = $i.val(); const pos = $i[0].selectionStart;
     let before = full.slice(0,pos).replace(/(?:^|[\s,])([^\s,]+)$/,'').trim();
     const after = full.slice(pos).trim();
 
@@ -118,50 +94,34 @@
     const MULTI = new Set(['Division','Division Code','Material Group','Territory','Sales Zone']);
     const parts = before ? before.split(',').map(s=>squish(s)).filter(Boolean) : [];
 
-    const groups = {};
-    const order = [];
+    const groups = {}; const order = [];
     for (const p of parts){
       const m = p.match(new RegExp(`^(${fieldAlt})\\s+(.+)$`,'i'));
       if (!m) continue;
-      const lbl = canonLabel(m[1]);
-      const val = squish(m[2]);
+      const lbl = canonLabel(m[1]); const val = squish(m[2]);
       if (!groups[lbl]){ groups[lbl]=[]; order.push(lbl); }
       if (!groups[lbl].includes(val)) groups[lbl].push(val);
     }
 
     if (!groups[L]){ groups[L]=[V]; order.push(L); }
-    else {
-      if (MULTI.has(L)){
-        if (!groups[L].includes(V)) groups[L].push(V);
-      } else {
-        groups[L]=[V];
-      }
-    }
+    else { if (MULTI.has(L)){ if (!groups[L].includes(V)) groups[L].push(V); } else { groups[L]=[V]; } }
 
     let out = '';
-    for (const lbl of order){
-      if (groups[lbl]?.length) out += `${lbl} ${groups[lbl].join(', ')}, `;
-    }
+    for (const lbl of order){ if (groups[lbl]?.length) out += `${lbl} ${groups[lbl].join(', ')}, `; }
     return out + (after ? after + ' ' : '');
   }
 
   function specialReplace(label, item){
     const L = normalizeFieldName(String(label||'').trim());
-    const pickRaw = (x)=>!x ? '' : (typeof x === 'string'
-      ? x
-      : (x.commit || x.text || x.value || x.id || ''));
+    const pickRaw = (x)=>!x ? '' : (typeof x === 'string' ? x : (x.commit || x.text || x.value || x.id || ''));
     let commit = pickRaw(item);
 
     if (/^Dealer$/i.test(L)){
-      commit = (commit||'')
-        .replace(/\s*[-–—|]\s.*$/, '')
-        .replace(/,\s*$/, '')
-        .trim();
+      commit = (commit||'').replace(/\s*[-–—|]\s.*$/, '').replace(/,\s*$/, '').trim();
     }
 
-    const $i = $ta;
-    let full = $i.val();
-    const pos = $i[0].selectionStart;
+    // Replace active "<Label> <term>" if cursor is there; else merge
+    const $i = $ta; let full = $i.val(); const pos = $i[0].selectionStart;
     const left  = full.slice(0, pos);
     const right = full.slice(pos);
     const rx = new RegExp(`(^|[\\s,])\\s*(${escapeRx(L)})\\s*:?\\s*([^,\\n]*)$`, 'i');
@@ -179,6 +139,7 @@
 
   /* =================== Field/Term detection =================== */
 
+  // Cleaners to strip filler words that might precede a value after a field label
   const LEADING_FILLER_RX = new RegExp(
     '^\\s*(?:list|who\\s+(?:is|are|bought|buy|purchased|has|have)|who|that|which|with|having|bought|buy|purchased|has|have|of|from|in|by|within|for|and)\\s+',
     'i'
@@ -186,6 +147,7 @@
 
   function cleanLeadingFiller(s){
     let out = String(s || '');
+    // strip multiple times if stacked fillers exist
     for (let i=0;i<4;i++){
       const prev = out;
       out = out.replace(LEADING_FILLER_RX, '');
@@ -206,19 +168,16 @@
     const tail = text;
     let m = tail.match(/(?:^|[\s,])(Z\d{1,})$/i);
     if (m) return { field:'Sales Zone', q:m[1].toUpperCase() };
-
     m = tail.match(/(?:^|[\s,])(T\d{1,})$/i);
     if (m) return { field:'Territory', q:m[1].toUpperCase() };
-
     m = tail.match(/(?:^|[\s,])((?:[Ff]\d+|[Bb][Pp]\d+|[Mm][Vv]\d+|[Bb]\d+|[Ss](?:[Oo])?\d+|\d{3,6}))$/);
     if (m) return { field:'Material Group', q:m[1] };
-
     const w = (tail.match(/([A-Za-z][A-Za-z\s]{2,})$/)||[])[1] || '';
     if (startsWithAnyIgnoreCase(w, DIVISION_NAMES)) return { field:'Division', q:w.trim() };
-
     return null;
   }
 
+  // Find the last mention of any field label anywhere in the left text
   function findLastFieldMention(text){
     let best = null;
     for (const name of FIELD_LABELS){
@@ -231,62 +190,51 @@
     return best;
   }
 
+  // Extract the term following a field label; stop at comma/newline or before next field label
   function extractTermFrom(text, startIdx){
     let s = text.slice(startIdx).replace(/^\s*:?\s*/, '');
 
+    // Cut at the next field label if present
     let cutAt = s.length;
     for (const name of FIELD_LABELS){
       const rx = new RegExp(`\\b${escapeRx(name)}\\b`, 'i');
       const m = rx.exec(s);
       if (m && m.index < cutAt) cutAt = m.index;
     }
-
+    // Cut at comma or newline (whichever comes first)
     const commaIdx = s.search(/[,\n]/);
     if (commaIdx >= 0 && commaIdx < cutAt) cutAt = commaIdx;
 
     s = s.slice(0, cutAt).trim();
 
+    // Remove leading filler (list, who bought, of, from, ...)
     s = cleanLeadingFiller(s);
 
     return s.trim();
   }
 
+  // Prefer: quick codes → last preposition clause (… of Brand AP) → last explicit label anywhere
   function parseActiveField(textLeft){
     // 1) quick tail wins
     const quick = detectQuickTail(textLeft);
     if (quick) return quick;
 
-    // 2) last explicit label anywhere
-    const lastLabel = findLastFieldMention(textLeft);
-
-    // 3) last preposition clause naming a field
+    // 2) last preposition clause that names a field
+    //    “… of Brand AP” or “… for Division Decorative” etc.
+    //    Search from the end by scanning matches and picking last
     let pref = null;
-    const prepClauseRx = new RegExp(
-      `\\b(?:${PREP_WORDS.join('|')})\\b\\s+(${fieldAlt})\\b\\s*:?\\s*([^,\\n]*)`,
-      'ig'
-    );
+    const prepClauseRx = new RegExp(`\\b(?:${PREP_WORDS.join('|')})\\b\\s+(${fieldAlt})\\b\\s*:?\\s*([^,\\n]*)`, 'ig');
     let m;
     while ((m = prepClauseRx.exec(textLeft))){
-      pref = {
-        field: normalizeFieldName(m[1]),
-        q: cleanLeadingFiller(m[2] || '').trim(),
-        idx: m.index
-      };
+      pref = { field: normalizeFieldName(m[1]), q: cleanLeadingFiller(m[2] || '').trim(), idx: m.index };
     }
+    if (pref && pref.q) return { field: pref.field, q: pref.q };
 
-    if (pref && pref.q){
-      // if a later label exists (e.g. "Brand" or "Division"), prefer that
-      if (lastLabel && lastLabel.index > pref.idx && lastLabel.field !== pref.field){
-        const q2 = extractTermFrom(textLeft, lastLabel.afterIdx);
-        if (q2) return { field: lastLabel.field, q: q2 };
-      }
-      return { field: pref.field, q: pref.q };
-    }
-
-    // 4) fallback to last explicit label
-    if (lastLabel){
-      const q = extractTermFrom(textLeft, lastLabel.afterIdx);
-      return { field: lastLabel.field, q };
+    // 3) else the last explicit label anywhere
+    const last = findLastFieldMention(textLeft);
+    if (last){
+      const q = extractTermFrom(textLeft, last.afterIdx);
+      return { field: last.field, q };
     }
 
     return null;
@@ -297,6 +245,7 @@
   let curField = null, curTerm = '', curPage = 1, hasMore = false, currentRequest = null;
 
   function hardResetAutocomplete(){
+    Object.keys(__inflight).forEach(ns => __cancelNS(ns));
     try { if (currentRequest && currentRequest.abort) currentRequest.abort(); } catch {}
     currentRequest = null;
     __epoch++;
@@ -313,13 +262,8 @@
   }
 
   function startAutocomplete(field, q){
-    if (!q) {
-      $('.textcomplete-dropdown').hide().empty();
-      return;
-    }
-    curField = field;
-    curTerm = q;
-    curPage = 1;
+    if (!q) { $('.textcomplete-dropdown').hide().empty(); return; }
+    curField = field; curTerm = q; curPage = 1;
 
     const epoch = ++__epoch;
     const $dd = ensureDropdown();
@@ -327,18 +271,12 @@
 
     const render = (items)=>{
       items.forEach(it=>{
-        const li = $(`
-          <li class="textcomplete-item">
-            <a>
-              <div class="card suggest-card">
-                <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center">
-                  <div class="suggest-title">${hl(it.text || it.id, curTerm)}</div>
-                  <small class="suggest-meta">${field}</small>
-                </div>
-              </div>
-            </a>
-          </li>
-        `);
+        const li = $(`<li class="textcomplete-item"><a>
+          <div class="card suggest-card"><div class="card-body py-2 px-3 d-flex justify-content-between align-items-center">
+            <div class="suggest-title">${hl(it.text || it.id, curTerm)}</div>
+            <small class="suggest-meta">${field}</small>
+          </div></div>
+        </a></li>`);
         li.on('mousedown', (e)=>{ e.preventDefault(); e.stopPropagation(); });
         li.on('click', ()=>{
           const result = specialReplace(field, it);
@@ -354,17 +292,13 @@
       .done((resp)=>{
         if (epoch !== __epoch) return;
         const items = (resp.results || []).map((r)=>({
-          id:r.id,
-          text:r.text,
-          meta:r.meta || null,
-          commit:r.commit || r.insert || r.value || r.id || null
+          id:r.id, text:r.text, meta:r.meta || null, commit:r.commit || r.insert || r.value || r.id || null
         }));
         render(items);
         hasMore = !!(resp.pagination && resp.pagination.more);
 
         requestAnimationFrame(()=>{
-          const dd = document.querySelector('.textcomplete-dropdown');
-          if (!dd) return;
+          const dd = document.querySelector('.textcomplete-dropdown'); if (!dd) return;
           dd.onscroll = function(){
             if (this.scrollTop + this.clientHeight + 8 >= this.scrollHeight) {
               if (!hasMore || epoch !== __epoch) return;
@@ -372,10 +306,7 @@
                 .done((r2)=>{
                   if (epoch !== __epoch) return;
                   const next = (r2.results || []).map((r)=>({
-                    id:r.id,
-                    text:r.text,
-                    meta:r.meta || null,
-                    commit:r.commit || r.insert || r.value || r.id || null
+                    id:r.id, text:r.text, meta:r.meta || null, commit:r.commit || r.insert || r.value || r.id || null
                   }));
                   hasMore = !!(r2.pagination && r2.pagination.more);
                   render(next);
@@ -385,43 +316,24 @@
           };
         });
       })
-      .fail(()=>{
-        if (epoch === __epoch) {
-          $('.textcomplete-dropdown').hide().empty();
-        }
-      });
+      .fail(()=>{ if (epoch === __epoch) { $('.textcomplete-dropdown').hide().empty(); } });
   }
 
-  /* =================== Input handler: Autocomplete =================== */
+  /* =================== Input handler =================== */
 
   $ta.on('input', function(){
     const v = (this.value || '');
     setSendDisabled(!v.trim());
 
-    if (!v.trim()) { hideGhost(); }
+    // keep AI ghost active
+    if (!v.trim()){ hideGhost(); }
 
-    const caret = this.selectionStart || 0;
-    const prevChar = caret > 0 ? v.charAt(caret - 1) : '';
-
-    // If user just typed a comma => end this filter chunk, reset
-    if (prevChar === ',') {
-      hardResetAutocomplete();
-      curField = null;
-      curTerm  = '';
-      curPage  = 1;
-      hasMore  = false;
-      return;
-    }
-
-    const textLeft = v.slice(0, caret);
+    const textLeft = v.slice(0, this.selectionStart);
     const detected = parseActiveField(textLeft);
-    if (!detected) return;
+    if (!detected){ return; }
 
     const nextField = detected.field;
     const nextQ     = (detected.q || '').trim();
-
-    // ignore very short junk
-    if (!nextQ || nextQ.length < 2) return;
 
     // If switching field or query changed -> reset & start new call
     if (nextField !== curField || nextQ !== curTerm){
@@ -430,7 +342,7 @@
     }
   });
 
-  /* =================== AI Suggestions (unchanged behaviour) =================== */
+  /* =================== AI Suggestions (unchanged) =================== */
 
   let aiTimer = null, lastQuery = '';
   function fallbackGhost(text){
@@ -441,35 +353,23 @@
       `Break down ${key}'s sales by product category.`
     ];
   }
-
   function renderGhostHTML(sugs){
     return `
       <div class="card ai-suggest-card shadow-sm" style="max-height:200px; overflow-y:auto; overflow-x:hidden; pointer-events:auto;">
         <div class="card-body py-2 px-3">
           <div class="fw-semibold mb-2 text-secondary small">Suggestions</div>
-          ${sugs.map(s => `
-            <div class="ai-suggest-item py-1 px-2 rounded-2 mb-1 text-truncate" title="${s}" style="cursor:pointer;">
-              ${s}
-            </div>`).join('')}
+          ${sugs.map(s => `<div class="ai-suggest-item py-1 px-2 rounded-2 mb-1 text-truncate" title="${s}" style="cursor:pointer;">${s}</div>`).join('')}
         </div>
       </div>`;
   }
-
   function placeGhostAboveInput(){
     if (!$ghostPortal.is(':visible')) return;
     $ghostPortal.css({ visibility:'hidden', display:'block' });
     const r = getWrapRect();
     const gh = $ghostPortal.outerHeight();
     const top = Math.max(8, r.top - MIN_GAP - gh);
-    $ghostPortal.css({
-      top,
-      left:r.left,
-      width:r.width,
-      visibility:'visible',
-      zIndex: Z_GHOST
-    });
+    $ghostPortal.css({ top, left:r.left, width:r.width, visibility:'visible', zIndex: Z_GHOST });
   }
-
   async function fetchAISuggestions(text){
     const chatId = $('#chat-id-holder').data('current-conversation-id');
     const q = (text || '').trim();
@@ -488,8 +388,7 @@
 
     try{
       const resp = await $.ajax({
-        url: AI_SUGGEST_URL,
-        method: 'POST',
+        url: AI_SUGGEST_URL, method: 'POST',
         data: JSON.stringify({ input_text: q, conversation_id: chatId }),
         contentType: 'application/json'
       });
@@ -516,8 +415,6 @@
       placeGhostAboveInput();
     }
   }
-
-  // Second input handler: only for AI suggestions
   $ta.on('input', function(){
     const v = (this.value || '').trim();
     clearTimeout(aiTimer);
@@ -534,13 +431,7 @@
     const $dd = $('.textcomplete-dropdown:visible');
     if (!$dd.length || !$wrapper.length){ setInputLift(0); return; }
 
-    $dd.css({
-      position:'fixed',
-      visibility:'hidden',
-      display:'block',
-      height:'',
-      maxHeight:'360px'
-    });
+    $dd.css({ position:'fixed', visibility:'hidden', display:'block', height:'', maxHeight:'360px' });
 
     const r   = getWrapRect();
     const gap = 8;
@@ -552,36 +443,17 @@
 
     const gp = $('#ghost-portal:visible')[0];
     const ghostRect = gp ? gp.getBoundingClientRect() : null;
-    const maxLiftByGhost = ghostRect
-      ? Math.max(0, (r.top - MIN_GAP) - ghostRect.bottom)
-      : maxLift;
+    const maxLiftByGhost = ghostRect ? Math.max(0, (r.top - MIN_GAP) - ghostRect.bottom) : maxLift;
 
     const lift = Math.min(liftNeeded, maxLift, maxLiftByGhost);
     setInputLift(lift);
 
     const top = r.bottom - lift + gap;
-    const finalMaxH = Math.min(
-      360,
-      Math.max(160, window.innerHeight - top - 8)
-    );
-    $dd.css({
-      top,
-      left:r.left,
-      width:r.width + 'px',
-      maxHeight: finalMaxH + 'px',
-      visibility:'visible',
-      zIndex: Z_DROPDOWN
-    });
+    const finalMaxH = Math.min(360, Math.max(160, window.innerHeight - top - 8));
+    $dd.css({ top, left:r.left, width:r.width + 'px', maxHeight: finalMaxH + 'px', visibility:'visible', zIndex: Z_DROPDOWN });
   }
-
-  function layoutOverlays(){
-    placeDropdownBelowInput();
-    placeGhostAboveInput();
-  }
-
-  function layoutOverlaysNextPaint(){
-    requestAnimationFrame(()=>requestAnimationFrame(layoutOverlays));
-  }
+  function layoutOverlays(){ placeDropdownBelowInput(); placeGhostAboveInput(); }
+  function layoutOverlaysNextPaint(){ requestAnimationFrame(()=>requestAnimationFrame(layoutOverlays)); }
 
   $(window).on('resize scroll', layoutOverlaysNextPaint);
   $('.chat-content').on('scroll', layoutOverlaysNextPaint);
@@ -604,9 +476,6 @@
     w[key].observe(document.body, { childList: true, subtree: true });
   })();
 
-  $(function(){
-    hideGhost();
-    setSendDisabled(true);
-  });
+  $(function(){ hideGhost(); setSendDisabled(true); });
 
 })();

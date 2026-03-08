@@ -1,13 +1,26 @@
 from django.urls import path
-from rest_framework_simplejwt.views import TokenRefreshView, TokenObtainPairView
-from rest_framework.authtoken.views import obtain_auth_token
-from user_auth.views import CustomTokenObtainPairView
-from user_auth.views import LogoutAPIView
+from rest_framework_simplejwt.views import TokenRefreshView
+
+from user_auth.views import (
+    CustomTokenObtainPairView,
+    LoginInitiateView,
+    LogoutAPIView,
+    OTPVerifyView,
+    WhoAmIView,
+)
 
 urlpatterns = [
-    # Token obtain and refresh views for login and token refresh
-    path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
-    # path('token/', obtain_auth_token, name='token_obtain_pair'),
-    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-     path('logout/', LogoutAPIView.as_view(), name='logout'),
+    # ── MFA login flow (use these) ────────────────────────────────────────────
+    # Step 1: verify username/password via LDAPS → send OTP email
+    path("login/", LoginInitiateView.as_view(), name="login_initiate"),
+    # Step 2: verify OTP → receive JWT access + refresh tokens
+    path("otp/verify/", OTPVerifyView.as_view(), name="otp_verify"),
+
+    # ── Token management ──────────────────────────────────────────────────────
+    path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("logout/", LogoutAPIView.as_view(), name="logout"),
+    path("whoami/", WhoAmIView.as_view(), name="whoami"),
+
+    # ── Legacy single-step login (kept for backward compat — no OTP) ─────────
+    path("token/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
 ]
