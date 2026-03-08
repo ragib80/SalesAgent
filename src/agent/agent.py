@@ -55,7 +55,14 @@ logger = logging.getLogger(__name__)
 class ADXTool:
     def __init__(self, cluster: str, database: str):
         # use the cached az CLI token instead of device code
-        kcsb = KustoConnectionStringBuilder.with_az_cli_authentication(cluster)
+        # kcsb = KustoConnectionStringBuilder.with_az_cli_authentication(cluster)
+        kcsb = KustoConnectionStringBuilder.with_aad_application_key_authentication(
+            cluster,
+            aad_app_id=getattr(settings, "AZURE_CLIENT_ID", os.getenv("AZURE_CLIENT_ID")),
+            app_key=getattr(settings, "AZURE_CLIENT_SECRET", os.getenv("AZURE_CLIENT_SECRET")),
+            authority_id=getattr(settings, "AZURE_TENANT_ID", os.getenv("AZURE_TENANT_ID")),
+        )
+        
         self.client = KustoClient(kcsb)
         self.database = database
 
