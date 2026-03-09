@@ -1,4 +1,5 @@
 (function () {
+  'use strict';
   /* =================== Config =================== */
   const INPUT_SELECTOR = '#message-input';
   const SEND_BTN_SELECTOR = '#send-btn';
