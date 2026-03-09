@@ -12,7 +12,7 @@ from user_auth.views import (
 urlpatterns = [
     # ── MFA login flow (use these) ────────────────────────────────────────────
     # Step 1: verify username/password via LDAPS → send OTP email
-    path("login/", LoginInitiateView.as_view(), name="login_initiate"),
+    path("auth/", LoginInitiateView.as_view(), name="login_initiate"),
     # Step 2: verify OTP → receive JWT access + refresh tokens
     path("otp/verify/", OTPVerifyView.as_view(), name="otp_verify"),
 

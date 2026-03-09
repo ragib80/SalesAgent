@@ -205,6 +205,45 @@
 <script>
 $(document).ready(function () {
 
+    // ── Already-authenticated redirect ──────────────────────────────────────
+    (function checkAlreadyLoggedIn() {
+        const token   = localStorage.getItem('auth_token');
+        const refresh = localStorage.getItem('refresh_token');
+        if (!token && !refresh) return;  // nothing stored — show login form
+
+        function goToChat() { window.location.replace('/api/sales/index/'); }
+
+        function tryRefresh() {
+            if (!refresh) { localStorage.clear(); return; }
+            $.ajax({
+                url: '/api/user/token/refresh/',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ refresh: refresh }),
+                success: function (resp) {
+                    localStorage.setItem('auth_token',    resp.access);
+                    localStorage.setItem('refresh_token', resp.refresh);
+                    goToChat();
+                },
+                error: function () { localStorage.clear(); }  // stay on login
+            });
+        }
+
+        if (token) {
+            $.ajax({
+                url: '/api/user/whoami/',
+                method: 'GET',
+                headers: { Authorization: 'Bearer ' + token },
+                success: goToChat,
+                error: function (xhr) {
+                    if (xhr.status === 401) tryRefresh();
+                }
+            });
+        } else {
+            tryRefresh();
+        }
+    })();
+
     // ── State ──────────────────────────────────────────────────────────────
     let sessionToken = null;   // received from /api/user/login/
 
@@ -255,7 +294,7 @@ $(document).ready(function () {
         setLoading($btn, $spinner, $text, 'Checking...', true);
 
         $.ajax({
-            url: '/api/user/login/',
+            url: '/api/user/auth/',
             method: 'POST',
             contentType: 'application/json',
             data: JSON.stringify({

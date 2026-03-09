@@ -1,3 +1,4 @@
+'use strict';
 // ---------- Small helpers: loading spinner inside a button ----------
 function setBtnLoading($btn, loadingText = "Generating...") {
   if (!$btn.data("original-html")) {
@@ -121,7 +122,7 @@ $(function () {
             text: "Your session has expired. Please log in again.",
           }).then(() => {
             localStorage.clear();
-            window.location.href = "/login";
+            window.location.href = "/welcome";
           });
         } else if (options.error) {
           options.error(xhr, status, err);

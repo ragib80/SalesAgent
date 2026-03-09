@@ -11,6 +11,17 @@
 
   <!-- Custom CSS -->
   <link rel="stylesheet" href="{% static 'css/chat.css' %}">
+
+  <!-- Auth guard: redirect to login immediately if no valid session tokens -->
+  <script>
+    (function () {
+      var token   = localStorage.getItem('auth_token');
+      var refresh = localStorage.getItem('refresh_token');
+      if (!token && !refresh) {
+        window.location.replace('/welcome');
+      }
+    })();
+  </script>
 </head>
 <body>
   <!-- === Layout === -->

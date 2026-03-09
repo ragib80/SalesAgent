@@ -1,3 +1,4 @@
+'use strict';
  // Mobile menu toggle functionality
   $(document).ready(function () {
     $('#mobile-menu-btn').on('click', function () {
@@ -107,7 +108,7 @@
         },
         error() {
           localStorage.clear();
-          window.location.href = '/login';
+          window.location.href = '/welcome';
         },
       });
     }
@@ -115,7 +116,7 @@
     function sendAuthenticatedRequest(url, method, data, onSuccess, onError) {
       const token = getAuthToken();
       if (!token) {
-        window.location.href = '/login';
+        window.location.href = '/welcome';
         return;
       }
       $.ajax({
@@ -700,7 +701,7 @@
         localStorage.removeItem('auth_token');
         localStorage.removeItem('refresh_token');
         localStorage.clear();
-        window.location.href = '/login';
+        window.location.href = '/welcome';
       },
       error: function (xhr) {
         let detail;
@@ -713,7 +714,7 @@
           localStorage.removeItem('auth_token');
           localStorage.removeItem('refresh_token');
           localStorage.clear();
-          window.location.href = '/login';
+          window.location.href = '/welcome';
         } else {
           Swal.fire({
             icon: 'error',
