@@ -214,9 +214,6 @@ class ExistingConversationAPIView(APIView):
             return Response(response_ser.data, status=status.HTTP_200_OK)
 
         except Exception as e:
-            import traceback
-            print("[ExistingConversationAPIView] ERROR:", repr(e))
-            traceback.print_exc()
             out = {
                 'answer': (
                     "Sorry, I couldn't process your request. "
