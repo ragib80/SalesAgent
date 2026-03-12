@@ -830,7 +830,19 @@ AVG_SALES_RE = re.compile(
 FIELD_MAP_LOWER = {k.lower(): v for k, v in FIELD_MAPPINGS.items()}
 
 TREND_RE     = re.compile(r'\b(?:up[- ]?trending|trending)\b', re.IGNORECASE)
-DOWN_TREND_RE = re.compile(r'\b(?:down[- ]?trending|downtrend|negative trend|falling|declining|decreasing)\b', re.IGNORECASE) 
+DOWN_TREND_RE = re.compile(r'\b(?:down[- ]?trending|downtrend|negative trend|falling|declining|decreasing)\b', re.IGNORECASE)
+YOY_DECLINE_RE = re.compile(
+    r'(?:'
+    r'\b(?:declining|decreasing|negative\s+growth|falling|drop(?:ping)?)\b[^.]*?\b(?:last\s+year|compared\s+to\s+last|year\s+over\s+year|yoy|this\s+year)\b'
+    r'|'
+    r'\bmost\s+negative\s+growth\b'
+    r')',
+    re.IGNORECASE,
+)
+YOY_SKIP_RE = re.compile(
+    r'\b(?:compared?\s+to\s+last\s+year|year\s+over\s+year|yoy|negative\s+growth|most\s+negative)\b',
+    re.IGNORECASE,
+)
 EXCLUDE_KEYS = {"revenue", "sale", "quantity", "volume", "date", "fkdat"}
 
 # 3. Cleanup function for LLM-generated KQL
@@ -1117,24 +1129,411 @@ def _ci_set(values):
     return {str(v).strip().lower() for v in (values or [])}
 
 
+def _build_rich_system_prompt(
+    today, fy_start, fy_end, ly_fy_start, ly_fy_end,
+    ytd_end, ly_ytd_end,
+    mtd_start, mtd_end, ly_mtd_start, ly_mtd_end,
+    this_month_start, this_month_end,
+    week_start, last_week_start, last_week_end,
+    fq, fq_start, fq_end, prev_fq_start, prev_fq_end,
+) -> str:
+    """Single rich system prompt — covers ALL query types. No if/elif routing needed."""
+    return f"""You are an expert Azure Data Explorer (Kusto/ADX) analyst for SAP sales data.
+Convert ANY natural-language query about SAP sales into syntactically correct, optimised KQL.
+
+### OUTPUT RULES
+- Emit ONLY raw KQL (no markdown fences, no backticks, no explanations).
+- First line MUST be: // META {{"query_type":"...","dates":{{"start":"YYYY-MM-DD","end":"YYYY-MM-DD"}},"filters":{{...}}}}
+- Use real line breaks. End every statement with a semicolon.
+- Always limit results: use top N by ... or | take N.
+
+========================================================
+§1  TABLE, SCHEMA & FIELD MAPPINGS
+========================================================
+Table: {TABLE_NAME}
+
+Business term → column:
+{MAPPING_STR}
+
+Business Area / Depot (gsber) numeric codes:
+{GSBER_MAPPING_STR}
+
+Distribution Channel (vtweg) codes:
+{VTWEG_MAPPING_STR}
+
+Full schema:
+{KUSTO_SCHEMA}
+
+========================================================
+§2  REFERENCE DATE DICTIONARY
+Use ONLY these concrete datetime literals — NEVER call now(), ago(), startofyear(), startofmonth() for date boundaries.
+========================================================
+TODAY              = {today}
+THIS_WEEK_START    = {week_start}          (Monday of the current calendar week)
+LAST_WEEK_START    = {last_week_start}
+LAST_WEEK_END      = {last_week_end}
+THIS_MONTH_START   = {this_month_start}
+THIS_MONTH_END     = {this_month_end}
+LAST_MONTH_START   = {mtd_start}           (last fully completed month)
+LAST_MONTH_END     = {mtd_end}
+CURRENT_FY_START   = {fy_start}            (Fiscal Year: April 1 → March 31)
+CURRENT_FY_END     = {fy_end}
+LAST_FY_START      = {ly_fy_start}
+LAST_FY_END        = {ly_fy_end}
+YTD_CUTOFF         = {ytd_end}             (last completed month end — use as YTD end)
+LY_YTD_CUTOFF      = {ly_ytd_end}          (same cut-off shifted one fiscal year back)
+MTD_CY_START       = {mtd_start}
+MTD_CY_END         = {mtd_end}
+MTD_LY_START       = {ly_mtd_start}
+MTD_LY_END         = {ly_mtd_end}
+CURRENT_FQ         = Q{fq}  ({fq_start} to {fq_end})
+PREV_FQ_START      = {prev_fq_start}
+PREV_FQ_END        = {prev_fq_end}
+Fiscal quarters:  Q1 = Apr-Jun  |  Q2 = Jul-Sep  |  Q3 = Oct-Dec  |  Q4 = Jan-Mar
+
+========================================================
+§3  TIME EXPRESSION → DATE RANGE RESOLUTION
+Resolve before writing KQL. Always use concrete datetime() literals from §2.
+========================================================
+| User says                                     | StartDate                  | EndDate                   |
+|-----------------------------------------------|----------------------------|---------------------------|
+| "today"                                       | {today}           | {today}          |
+| "this week"                                   | {week_start}      | {today}          |
+| "last week"                                   | {last_week_start} | {last_week_end}  |
+| "this month"                                  | {this_month_start}| {this_month_end} |
+| "last month"                                  | {mtd_start}       | {mtd_end}        |
+| "this quarter" / "current quarter"            | {fq_start}        | {fq_end}         |
+| "last quarter" / "previous quarter"           | {prev_fq_start}   | {prev_fq_end}    |
+| "this year" / "current year" / "current FY"  | {fy_start}        | {fy_end}         |
+| "last year" / "previous year" / "last FY"    | {ly_fy_start}     | {ly_fy_end}      |
+| "YTD" / "year to date"                        | {fy_start}        | {ytd_end}        |
+| "MTD" / "month to date"                       | {mtd_start}       | {mtd_end}        |
+| "last year YTD" (comparison period)           | {ly_fy_start}     | {ly_ytd_end}     |
+| "last year MTD" / "LY MTD" (comparison)       | {ly_mtd_start}    | {ly_mtd_end}     |
+
+For user-specified explicit periods:
+- "fiscal year 2024" / "FY2024-25"   → datetime(2024-04-01) .. datetime(2025-03-31)
+- "calendar year 2024"               → datetime(2024-01-01) .. datetime(2024-12-31)
+- "January 2025"                     → datetime(2025-01-01) .. datetime(2025-01-31)
+- "Q1 fiscal 2025" (Apr-Jun)         → datetime(2025-04-01) .. datetime(2025-06-30)
+- "Q2 fiscal 2025" (Jul-Sep)         → datetime(2025-07-01) .. datetime(2025-09-30)
+- "Q3 fiscal 2025" (Oct-Dec)         → datetime(2025-10-01) .. datetime(2025-12-31)
+- "Q4 fiscal 2025" (Jan-Mar)         → datetime(2026-01-01) .. datetime(2026-03-31)
+Always use: | where fkdat between (StartDate .. EndDate)
+
+========================================================
+§4  QUERY PATTERN LIBRARY
+Apply the correct pattern automatically based on user intent.
+========================================================
+
+--- 4.1  MTD (Month-to-Date) ---
+Triggered by: "MTD", "month to date", "this month vs last year same month"
+
+CASE A — scalar total or CY vs LY growth comparison:
+  let MTD_Start = datetime({mtd_start});
+  let MTD_End   = datetime({mtd_end});
+  let LY_Start  = datetime({ly_mtd_start});
+  let LY_End    = datetime({ly_mtd_end});
+  let CY = toscalar({TABLE_NAME} | where fkdat between (MTD_Start .. MTD_End) | summarize sum(Revenue));
+  let LY = toscalar({TABLE_NAME} | where fkdat between (LY_Start  .. LY_End)  | summarize sum(Revenue));
+  print CY_MTD = CY, LY_MTD = LY,
+        GrowthPct = iff(LY == 0, real(null), (CY - LY) * 100.0 / LY)
+  | extend GrowthType = iff(isnull(GrowthPct), "N/A", iff(GrowthPct > 0, "positive growth", "negative growth"));
+
+CASE B — grouped by a dimension (e.g. "MTD by division", "MTD sales per depot"):
+  let MTD_Start = datetime({mtd_start});
+  let MTD_End   = datetime({mtd_end});
+  {TABLE_NAME}
+  | where fkdat between (MTD_Start .. MTD_End)
+  | summarize CY_Revenue = sum(Revenue), TotalQty = sum(fkimg) by [dimension_column]
+  | order by CY_Revenue desc
+  | take 100;
+
+NOTE: If user specifies a past month (e.g. "MTD of May 2025"), compute that month's exact
+first/last day and last year's equivalent — do NOT use MTD_CY_* values above.
+
+--- 4.2  YTD (Year-to-Date, fiscal year April 1 → March 31) ---
+Triggered by: "YTD", "year to date", "fiscal year to date"
+
+CASE A — scalar total or growth:
+  let FY_Start   = datetime({fy_start});
+  let YTD_End    = datetime({ytd_end});
+  let LY_Start   = datetime({ly_fy_start});
+  let LY_YTD_End = datetime({ly_ytd_end});
+  let CY = toscalar({TABLE_NAME} | where fkdat between (FY_Start .. YTD_End)    | summarize sum(Revenue));
+  let LY = toscalar({TABLE_NAME} | where fkdat between (LY_Start .. LY_YTD_End) | summarize sum(Revenue));
+  print CY_YTD = CY, LY_YTD = LY,
+        YTDGrowth = iff(LY == 0, real(null), (CY - LY) * 100.0 / LY)
+  | extend GrowthType = iff(isnull(YTDGrowth), "N/A", iff(YTDGrowth > 0, "positive growth", "negative growth"));
+
+CASE B — grouped by dimension (e.g. "YTD by division", "YTD revenue by brand"):
+  let FY_Start = datetime({fy_start});
+  let YTD_End  = datetime({ytd_end});
+  {TABLE_NAME}
+  | where fkdat between (FY_Start .. YTD_End)
+  | summarize CY_Revenue = sum(Revenue), TotalQty = sum(fkimg) by [dimension_column]
+  | order by CY_Revenue desc
+  | take 100;
+
+--- 4.3  Year-over-Year (YOY) Side-by-Side Comparison ---
+Triggered by: "compare this year vs last year", "show CY and LY", "year on year", "YOY"
+
+  let CY = {TABLE_NAME}
+  | where fkdat between (datetime({fy_start}) .. datetime({ytd_end}))
+  | summarize CY_Revenue = sum(Revenue), CY_Qty = sum(fkimg) by [dim];
+  let LY = {TABLE_NAME}
+  | where fkdat between (datetime({ly_fy_start}) .. datetime({ly_ytd_end}))
+  | summarize LY_Revenue = sum(Revenue) by [dim];
+  CY
+  | join kind=leftouter LY on [dim]
+  | extend GrowthPct = iff(isnull(LY_Revenue) or LY_Revenue == 0, real(null),
+                           (CY_Revenue - LY_Revenue) * 100.0 / LY_Revenue)
+  | project [dim], CY_Revenue, LY_Revenue, GrowthPct
+  | order by CY_Revenue desc
+  | take 100;
+
+--- 4.4  YOY Declining / Negative Growth (worst-performing entities) ---
+Triggered by: "declining revenue compared to last year", "most negative growth", "top N dealers with
+falling/declining sales", "which brands/dealers declined", "negative growth this year vs last year"
+
+Dealers example (adapt grouping: brands → wgbez, products → arktx, divisions → spart_text):
+  let CY = {TABLE_NAME}
+  | where fkdat between (datetime({fy_start}) .. datetime({ytd_end}))
+  | summarize CY_Revenue = sum(Revenue), CY_Qty = sum(fkimg) by kunrg, cname;
+  let LY = {TABLE_NAME}
+  | where fkdat between (datetime({ly_fy_start}) .. datetime({ly_ytd_end}))
+  | summarize LY_Revenue = sum(Revenue) by kunrg;
+  CY
+  | join kind=leftouter LY on kunrg
+  | extend GrowthPct = iff(isnull(LY_Revenue) or LY_Revenue == 0, real(null),
+                           (CY_Revenue - LY_Revenue) * 100.0 / LY_Revenue)
+  | where GrowthPct < 0
+  | project cname, kunrg, CY_Revenue, LY_Revenue, GrowthPct
+  | order by GrowthPct asc      -- most negative (worst decline) first
+  | take 10;
+
+--- 4.5  Trend Analysis (Up-trend / Down-trend) ---
+Triggered by: "uptrending", "downtrending", "trending up/down", "rising", "falling", "declining" over a period
+
+TWO-MONTH GROWTH (compare adjacent months):
+  let M1_Start = datetime(YYYY-MM-01); let M1_End = datetime(YYYY-MM-LD);  -- previous month
+  let M2_Start = datetime(YYYY-MM-01); let M2_End = datetime(YYYY-MM-LD);  -- current/target month
+  let Prev = {TABLE_NAME} | where fkdat between (M1_Start .. M1_End) | summarize PrevRev = sum(Revenue) by [dim];
+  let Curr = {TABLE_NAME} | where fkdat between (M2_Start .. M2_End) | summarize CurrRev = sum(Revenue) by [dim];
+  Prev
+  | join kind=inner Curr on [dim]
+  | extend GrowthPct = iff(PrevRev == 0, real(null), (CurrRev - PrevRev) * 100.0 / PrevRev)
+  | extend TrendType = iff(CurrRev > PrevRev, "up trend", "down trend")
+  | order by GrowthPct desc   -- use asc for down-trend queries
+  | take 50;
+
+MULTI-MONTH TIME SERIES (3+ months: show monthly revenue for top-N entities):
+  let StartDate = datetime(...); let EndDate = datetime(...);
+  let TopDims = {TABLE_NAME}
+  | where fkdat between (StartDate .. EndDate)
+  | summarize TotalRev = sum(Revenue) by [dim]
+  | top 10 by TotalRev desc;
+  {TABLE_NAME}
+  | where fkdat between (StartDate .. EndDate)
+  | where [dim] in ((TopDims | project [dim]))
+  | summarize Revenue = sum(Revenue) by [dim], Period = startofmonth(fkdat)
+  | order by [dim] asc, Period asc;
+
+--- 4.6  Sales Contribution (percentage share of a segment) ---
+Triggered by: "contribution of Brand X", "% contribution of division Y", "what % did dealer Z contribute"
+
+  let StartDate = datetime(...); let EndDate = datetime(...);
+  let Total   = toscalar({TABLE_NAME} | where fkdat between (StartDate .. EndDate) | summarize sum(Revenue));
+  let Segment = toscalar({TABLE_NAME} | where fkdat between (StartDate .. EndDate)
+                | where [filter_clause]      -- e.g. wgbez contains "APE CLASSIC"
+                | summarize sum(Revenue));
+  print
+    Segment         = "[segment_name]",
+    TotalRevenue    = Total,
+    SegmentRevenue  = Segment,
+    ContributionPct = iff(Total == 0, real(null), Segment * 100.0 / Total)
+  | extend Insight = strcat("Contribution: ", round(ContributionPct, 2), "%");
+
+--- 4.7  Average Sales (per period) ---
+Triggered by: "average monthly sales", "avg weekly revenue", "mean revenue per month by brand"
+
+Step 1: summarize total per period — put period inside summarize by clause (NOT via extend before summarize).
+Step 2: summarize avg() of those totals.
+
+  let StartDate = datetime(...); let EndDate = datetime(...);
+  {TABLE_NAME}
+  | where fkdat between (StartDate .. EndDate)
+  | summarize MonthlyRev = sum(Revenue) by wgbez, Month = startofmonth(fkdat)
+  | summarize AvgMonthlyRev = avg(MonthlyRev) by wgbez
+  | order by AvgMonthlyRev desc
+  | take 50;
+
+--- 4.8  At-Risk / Drop-Off Dealers (bought in Period A, NOT in Period B) ---
+Triggered by: "dealers who bought in May but not in June", "risk dealers", "who stopped buying"
+
+  let A = {TABLE_NAME}
+  | where fkdat between (PeriodA_Start .. PeriodA_End)
+  | where [filters]
+  | summarize Rev_A = sum(Revenue), Qty_A = sum(fkimg) by kunrg, cname, gsber, vtweg;
+  let B = {TABLE_NAME}
+  | where fkdat between (PeriodB_Start .. PeriodB_End)
+  | where [filters]
+  | summarize Rev_B = sum(Revenue) by kunrg;
+  A | join kind=leftanti B on kunrg
+  | project cname, kunrg, gsber, vtweg, Rev_A, Qty_A
+  | order by Rev_A desc
+  | take 500;
+
+--- 4.9  Multi-Period / "Individually" Comparison ---
+Triggered by: "show 2024 and 2025 individually", "compare years separately", "month-wise for each year"
+
+  let P1 = {TABLE_NAME}
+  | where fkdat between (datetime(YYYY-04-01) .. datetime(YYYY1-03-31))
+  | summarize Revenue = sum(Revenue), Qty = sum(fkimg) by [dims]
+  | extend Period = "FY YYYY-YY1";
+  let P2 = {TABLE_NAME}
+  | where fkdat between (datetime(YYYY1-04-01) .. datetime(YYYY2-03-31))
+  | summarize Revenue = sum(Revenue), Qty = sum(fkimg) by [dims]
+  | extend Period = "FY YY1-YY2";
+  union P1, P2
+  | project Period, [dims], Revenue, Qty
+  | order by Period asc, Revenue desc;
+
+--- 4.10  Simple Ranking / Top-N ---
+  {TABLE_NAME}
+  | where fkdat between (datetime(...) .. datetime(...))
+  | summarize TotalRevenue = sum(Revenue), TotalQty = sum(fkimg) by [dim]
+  | top N by TotalRevenue desc;
+
+========================================================
+§5  STRING & DATA TYPE RULES
+========================================================
+STRING columns  → contains (partial), =~ (exact), has_any (multiple). Always case-insensitive.
+NUMERIC columns → == or in (NO quotes). gsber, bukrs, kunrg, vtweg are NUMERIC.
+DATETIME        → datetime() wrappers only.
+
+- cname: ALWAYS use contains  (e.g. cname contains "Delwar Paint")
+- cname with code suffix "Dealer Name (24)": use cname contains "Dealer Name" OR kunrg == 24
+- wgbez / arktx / spart_text: contains for partial, =~ for exact
+- matkl like "F010 (RSE)": extract F-digits only → matkl =~ "F010"
+- gsber: NUMERIC — e.g. gsber == 4000  (never quote it)
+- vtweg: NUMERIC — 10=Dealer, 20=Customer, 30=Project Customer
+- NEVER use bin(fkdat, 1mo) → use startofmonth(fkdat)
+- NEVER use now() or ago() for business date ranges → use §2 concrete dates
+- Default result limit: | take 500 for summaries, | take 1000 for detail rows
+
+========================================================
+§6  TIME GROUPING (inside summarize by — never via extend before summarize)
+========================================================
+- Monthly:   by ..., Period = startofmonth(fkdat)
+- Quarterly: by ..., Period = startofquarter(fkdat)
+- Yearly:    by ..., Period = startofyear(fkdat)
+- Weekly:    by ..., Period = startofweek(fkdat)
+- Daily:     by ..., Period = startofday(fkdat)
+NEVER use bin(fkdat, 1mo) or bin(fkdat, 1y).
+
+========================================================
+§7  MULTI-TURN CONVERSATION RULES
+========================================================
+You are in a multi-turn conversation. Use the CONVERSATION SNAPSHOT below to inherit context.
+
+Context inheritance:
+1. No date range in current request → inherit the most recent date range from prior context.
+2. No filter (depot, division, brand, etc.) in current request → carry forward the same filter.
+3. "same period" / "same filters" / "same area" → reuse prior context explicitly.
+4. "change X to Y" / user gives a new value → override only that filter, keep the rest.
+5. "now show by division" / "break down by brand" → same date+filters, change grouping only.
+6. Always generate fully self-contained KQL — no references to prior result variables.
+
+========================================================
+§8  BUSINESS LOGIC NOTES
+========================================================
+- "lifting"   = total Volume + total Revenue of a product
+- "depo" / "depot" / "business area" → gsber column (NUMERIC)
+- "sales" / "revenue"  → Revenue column (real)
+- "quantity" / "units" → fkimg column (long)
+- "volume"             → volum column (real)
+- Fiscal year = April 1 → March 31 (NOT January–December)
+- "this year" without qualifier  = current fiscal year  ({fy_start} → {fy_end})
+- "last year" without qualifier  = previous fiscal year ({ly_fy_start} → {ly_fy_end})
+- "Q1" without qualifier         = fiscal Q1 = April–June
+- Apply ALL extra filters (brand, division, depot, etc.) in EVERY subquery of a multi-subquery KQL.
+"""
+
+
 def generate_kql(user_req: str, conversation_uuid: Optional[str] = None, strict=False) -> str:
     global LAST_KQL_META
-    
-    prompt = SYSTEM_PROMPT_KQL
-    
+
+    # ── 1. Pre-compute all reference dates (concrete — never let the LLM guess) ──────
+    _now = datetime.datetime.now()
+    _today = _now.strftime("%Y-%m-%d")
+
+    # Fiscal year: April 1 → March 31
+    _fy_start_year = _now.year - 1 if _now.month < 4 else _now.year
+    _fy_start    = f"{_fy_start_year}-04-01"
+    _fy_end      = f"{_fy_start_year + 1}-03-31"
+    _ly_fy_start = f"{_fy_start_year - 1}-04-01"
+    _ly_fy_end   = f"{_fy_start_year}-03-31"
+
+    # Last completed calendar month (YTD / MTD cut-off)
+    _asof = _now.replace(day=1) - datetime.timedelta(days=1)
+    _asof_str = _asof.strftime("%Y-%m-%d")
+    _ly_asof_days = calendar.monthrange(_asof.year - 1, _asof.month)[1]
+    _ly_asof = _asof.replace(year=_asof.year - 1, day=min(_asof.day, _ly_asof_days))
+    _ly_asof_str = _ly_asof.strftime("%Y-%m-%d")
+
+    # MTD windows
+    _mtd_start    = _asof.replace(day=1).strftime("%Y-%m-%d")
+    _mtd_end      = _asof_str
+    _ly_mtd_start = _ly_asof.replace(day=1).strftime("%Y-%m-%d")
+    _ly_mtd_end   = _ly_asof_str
+
+    # This month (current, may be incomplete)
+    _this_month_start = _now.replace(day=1).strftime("%Y-%m-%d")
+    _this_month_last  = calendar.monthrange(_now.year, _now.month)[1]
+    _this_month_end   = f"{_now.year}-{_now.month:02d}-{_this_month_last:02d}"
+
+    # This week (Mon–today) and last week (Mon–Sun)
+    _week_start      = (_now - datetime.timedelta(days=_now.weekday())).strftime("%Y-%m-%d")
+    _lw_end_dt       = _now - datetime.timedelta(days=_now.weekday() + 1)
+    _last_week_end   = _lw_end_dt.strftime("%Y-%m-%d")
+    _last_week_start = (_lw_end_dt - datetime.timedelta(days=6)).strftime("%Y-%m-%d")
+
+    # Current and previous fiscal quarter
+    _m = _now.month
+    if   _m in (4, 5, 6):
+        _fq, _fq_start, _fq_end = 1, f"{_fy_start_year}-04-01", f"{_fy_start_year}-06-30"
+        _prev_fq_start, _prev_fq_end = f"{_fy_start_year - 1}-01-01", f"{_fy_start_year - 1}-03-31"
+    elif _m in (7, 8, 9):
+        _fq, _fq_start, _fq_end = 2, f"{_fy_start_year}-07-01", f"{_fy_start_year}-09-30"
+        _prev_fq_start, _prev_fq_end = f"{_fy_start_year}-04-01", f"{_fy_start_year}-06-30"
+    elif _m in (10, 11, 12):
+        _fq, _fq_start, _fq_end = 3, f"{_fy_start_year}-10-01", f"{_fy_start_year}-12-31"
+        _prev_fq_start, _prev_fq_end = f"{_fy_start_year}-07-01", f"{_fy_start_year}-09-30"
+    else:  # Jan, Feb, Mar
+        _fq, _fq_start, _fq_end = 4, f"{_fy_start_year + 1}-01-01", f"{_fy_start_year + 1}-03-31"
+        _prev_fq_start, _prev_fq_end = f"{_fy_start_year}-10-01", f"{_fy_start_year}-12-31"
+
+    # ── 2. Build rich system prompt (all patterns + concrete dates injected) ─────────
+    prompt = _build_rich_system_prompt(
+        today=_today,
+        fy_start=_fy_start, fy_end=_fy_end,
+        ly_fy_start=_ly_fy_start, ly_fy_end=_ly_fy_end,
+        ytd_end=_asof_str, ly_ytd_end=_ly_asof_str,
+        mtd_start=_mtd_start, mtd_end=_mtd_end,
+        ly_mtd_start=_ly_mtd_start, ly_mtd_end=_ly_mtd_end,
+        this_month_start=_this_month_start, this_month_end=_this_month_end,
+        week_start=_week_start,
+        last_week_start=_last_week_start, last_week_end=_last_week_end,
+        fq=_fq, fq_start=_fq_start, fq_end=_fq_end,
+        prev_fq_start=_prev_fq_start, prev_fq_end=_prev_fq_end,
+    )
+
     prompt += build_schema_prompt_block()
-    # prompt += """
-    # OUTPUT FORMAT (must follow exactly):
-    # - First line MUST be a one-line comment with compact JSON, then raw KQL only:
-    # // META {"dates":{"start":"YYYY-MM-DD","end":"YYYY-MM-DD"},"filters":{"<column>":["<v1>","<v2>"]}}
-    # - `dates` should reflect the actual StartDate/EndDate you set (or null if not used).
-    # - `filters` must list only the columns and values you actually apply in WHERE, example:
-    # {"filters":{"spart_text":["Industrial Paints"], "cname":["Delwar Paint"], "gsber":["4110"]}}
-    # """
     prompt += "\n\n" + build_context_memory_contract() + "\n\n"
-    prompt += "### SNAPSHOT (use to infer current context)\n"
+    prompt += "### CONVERSATION SNAPSHOT (use to infer current context and inherit filters)\n"
     prompt += build_conversation_snapshot_block(conversation_uuid)
-    prompt += "\n\n### NEW USER MESSAGE\n" + user_req + "\n"
+    prompt += "\n\n### NEW USER REQUEST\n" + user_req + "\n"
 
     # Handle conversation history for multi-turn conversation
     # if conversation_uuid:
@@ -1349,439 +1748,7 @@ def generate_kql(user_req: str, conversation_uuid: Optional[str] = None, strict=
 
 
 
-    # ── Pre-compute concrete dates so the LLM never has to calculate them ──
-    _now = datetime.datetime.now()
-    # AsOfDate = last day of the most recently completed month
-    _asof = _now.replace(day=1) - datetime.timedelta(days=1)
-    _asof_str = _asof.strftime("%Y-%m-%d")
-    # LY AsOfDate = same month/day last year (handle Feb-28/29 edge via calendar)
-    _ly_asof_month_days = calendar.monthrange(_asof.year - 1, _asof.month)[1]
-    _ly_asof_day = min(_asof.day, _ly_asof_month_days)
-    _ly_asof = _asof.replace(year=_asof.year - 1, day=_ly_asof_day)
-    _ly_asof_str = _ly_asof.strftime("%Y-%m-%d")
-    # Default MTD month = last fully completed calendar month
-    _mtd_cy_start = _asof.replace(day=1).strftime("%Y-%m-%d")
-    _mtd_cy_end   = _asof_str
-    _mtd_ly_start = _ly_asof.replace(day=1).strftime("%Y-%m-%d")
-    _mtd_ly_end   = _ly_asof_str
-    # Current fiscal year: April 1 → March 31
-    _fy_start_year = _now.year - 1 if _now.month < 4 else _now.year
-    _fy_start_str  = f"{_fy_start_year}-04-01"
-    # LY fiscal year start
-    _ly_fy_start_str = f"{_fy_start_year - 1}-04-01"
 
-    # Detect if the user is asking for MTD sales or growth
-    # if "MTD" in user_req or "Month-to-Date" in user_req:
-    if MTD_RE.search(user_req):
-        prompt += f"""
-        Instruction — MTD (Month-to-Date):
-        - Identify the target month from the user request.
-        - If no specific month is given, default to the last fully completed month:
-            CYStart = {_mtd_cy_start}, CYEnd = {_mtd_cy_end}
-        - If the user specifies a past month (e.g. "May 2025"), use that month's exact first and last day.
-        - Use only datetime literals — NEVER use now(), startofmonth(), or endofmonth() for date boundaries.
-
-        CASE A — Simple total (e.g. "MTD sales of May 2025", "What is MTD sales?"):
-        - Use toscalar and print:
-            let CYStart = datetime(YYYY-MM-01);
-            let CYEnd   = datetime(YYYY-MM-LD);   // LD = last day of that month
-            let LYStart = datetime(YYYY-1-MM-01);
-            let LYEnd   = datetime(YYYY-1-MM-LD);
-            let CYRevenue = toscalar(SAPSalesInfos | where fkdat between (CYStart .. CYEnd) | summarize sum(Revenue));
-            let LYRevenue = toscalar(SAPSalesInfos | where fkdat between (LYStart .. LYEnd) | summarize sum(Revenue));
-            print
-                CYRevenue = CYRevenue,
-                LYRevenue = LYRevenue,
-                MTDGrowth = iff(LYRevenue == 0, real(null), (CYRevenue - LYRevenue) / LYRevenue * 100)
-            | extend GrowthType = iff(isnull(MTDGrowth), "N/A", iff(MTDGrowth > 0, "positive growth", "negative growth"));
-
-        CASE B — Grouped by dimension (e.g. "MTD sales by division", "MTD by brand", "MTD by depot"):
-        - Do NOT use toscalar or print. Use summarize ... by [dimension_column]:
-            let CYStart = datetime(YYYY-MM-01);
-            let CYEnd   = datetime(YYYY-MM-LD);   // LD = last day of that month
-            SAPSalesInfos
-            | where fkdat between (CYStart .. CYEnd)
-            | summarize CYRevenue = sum(Revenue), TotalQuantity = sum(fkimg) by [dimension_column]
-            | order by CYRevenue desc
-            | take 100;
-
-        Choose the correct case based on the user request.
-        IMPORTANT: Use only concrete datetime literals in the generated KQL. Do NOT use now(), startofmonth(), or endofmonth().
-        """
-
-
-    # elif "YTD" in user_req or "Year-to-Date" in user_req:
-    elif YTD_RE.search(user_req):
-        prompt += f"""
-        Instruction — YTD (Year-to-Date):
-        - Fiscal year runs April 1 → March 31.
-        - Current fiscal year start  : {_fy_start_str}
-        - YTD cut-off (AsOfDate)     : {_asof_str}  ← use this EXACT date, do NOT recompute it
-        - Last fiscal year start     : {_ly_fy_start_str}
-
-        RULES:
-        - Use the concrete dates provided above — do NOT call now(), startofmonth(), or endofmonth() in the query.
-        - Do NOT use now() in any where clauses — only use the literal datetime values given above.
-        - If the user asks for a PAST fiscal year (e.g. "ytd sales of 2023"), adjust FiscalYearStart accordingly
-          (e.g. 2023-04-01) and set AsOfDate to 2024-03-31 (end of that year). Otherwise use the values above.
-
-        CASE A — Simple total (e.g. "What is YTD sales?", "YTD growth", "YTD sales this year"):
-        - Pull two scalars and emit with print:
-            let FiscalYearStart = datetime({_fy_start_str});
-            let AsOfDate        = datetime({_asof_str});
-            let LYFiscalStart   = datetime({_ly_fy_start_str});
-            let LYAsOfDate      = datetime({_ly_asof_str});
-            let CYRevenue = toscalar(
-                SAPSalesInfos
-                | where fkdat between (FiscalYearStart .. AsOfDate)
-                | summarize sum(Revenue)
-            );
-            let LYRevenue = toscalar(
-                SAPSalesInfos
-                | where fkdat between (LYFiscalStart .. LYAsOfDate)
-                | summarize sum(Revenue)
-            );
-            print
-                YTDGrowth = (CYRevenue - LYRevenue) / LYRevenue * 100,
-                CYRevenue = CYRevenue,
-                LYRevenue = LYRevenue
-            | extend
-                ErrorMessage = iff(isnull(YTDGrowth), "Error: missing data", ""),
-                GrowthType = iff(isnull(YTDGrowth), "N/A", iff(YTDGrowth > 0, "positive growth", "negative growth"));
-
-        CASE B — Grouped by dimension (e.g. "YTD sales by division", "YTD by brand", "YTD by zone", "YTD by depo"):
-        - Do NOT use toscalar or print. Use summarize ... by [dimension_column]:
-            let FiscalYearStart = datetime({_fy_start_str});
-            let AsOfDate        = datetime({_asof_str});
-            SAPSalesInfos
-            | where fkdat between (FiscalYearStart .. AsOfDate)
-            | summarize CYRevenue = sum(Revenue), TotalQuantity = sum(fkimg) by [dimension_column]
-            | order by CYRevenue desc
-            | take 100;
-
-        Choose the correct case based on the user request.
-        IMPORTANT: Copy the datetime literals exactly as shown above. Do NOT recompute or guess any dates.
-        """
-        prompt += f"\n\nUser request: {user_req}"
-
-    
-
-    # TREND detection logic based on user query working for up trend
-    elif TREND_RE.search(user_req):
-        # 1) Extract explicit dates or default to last full month
-        m = re.search(r'from (\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})', user_req)
-        if m:
-            start_date, end_date = m.groups()
-        else:
-            now = datetime.datetime.now()
-            last_month_end = now.replace(day=1) - datetime.timedelta(days=1)
-            start_date = f"{last_month_end.year}-{last_month_end.month:02d}-01"
-            end_date   = f"{last_month_end.year}-{last_month_end.month:02d}-{last_month_end.day:02d}"
-
-        # 2) Pick the dimension dynamically
-        lowered = user_req.lower()
-        dim_key = next(
-            (k for k in FIELD_MAP_LOWER if k in lowered and k not in EXCLUDE_KEYS),
-            "product"
-        )
-        dim_col = FIELD_MAP_LOWER[dim_key]
-
-        # 3) Count how many months are in the range
-        sd = datetime.datetime.strptime(start_date, "%Y-%m-%d")
-        ed = datetime.datetime.strptime(end_date,   "%Y-%m-%d")
-        month_count = (ed.year - sd.year) * 12 + (ed.month - sd.month) + 1
-
-        if month_count == 2:
-            prompt += f"""
-            Instruction:
-            - The user requested a trend analysis for exactly two months: {start_date} to {end_date}.
-            - Identify the top 50 {dim_col} by percentage revenue growth between these two months.
-            - For each {dim_col}, calculate the revenue for each month (previous and current).
-            - Calculate GrowthPct = (CurrentMonthRevenue - PreviousMonthRevenue) / PreviousMonthRevenue * 100.
-            - Add a column TrendType: if CurrentMonthRevenue > PreviousMonthRevenue then "up trend", else "down trend".
-            - Output a table:
-                | {dim_col} | PreviousMonth | CurrentMonth | PrevRev | CurrRev | GrowthPct | TrendType |
-            - Use only `startofmonth(fkdat)` for extracting month, never `bin(fkdat, 1mo)`.
-            - Return only raw KQL, no markdown, no commentary.
-            """
-            prompt += f"\n\nUser request: {user_req}"
-
-        else:
-            prompt += f"""
-            Instruction:
-            - The user requested a trend analysis for more than two months.
-            - Identify the top 10 {dim_col} values (e.g., product, brand, dealer, etc.) by total revenue in the period {start_date} to {end_date}.
-            - For each of these top 10, return the month-wise revenue for every month in the range, with columns: `{dim_col}`, Period (first of month), Revenue.
-            - Use: group by `startofmonth(fkdat)` for each `{dim_col}`.
-            - The result should be a table like:
-                | {dim_col} | Period      | Revenue   |
-                |-----------|-------------|-----------|
-                | Example1  | 2025-04-01  | 1200.50   |
-                | Example1  | 2025-05-01  | 1350.90   |
-                | Example2  | 2025-04-01  | 900.75    |
-                | ...       | ...         | ...       |
-            - Do not use `bin(fkdat, 1mo)`, only use `startofmonth(fkdat)`.
-            - Return only raw KQL, no markdown, no commentary.
-            """
-            prompt += f"\n\nUser request: {user_req}"
-
-    elif DOWN_TREND_RE.search(user_req):
-   
-        m = re.search(r'from (\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})', user_req)
-        if m:
-            start_date, end_date = m.groups()
-        else:
-            now = datetime.datetime.now()
-            last_month_end = now.replace(day=1) - datetime.timedelta(days=1)
-            start_date = f"{last_month_end.year}-{last_month_end.month:02d}-01"
-            end_date   = f"{last_month_end.year}-{last_month_end.month:02d}-{last_month_end.day:02d}"
-
-        lowered = user_req.lower()
-        dim_key = next(
-            (k for k in FIELD_MAP_LOWER if k in lowered and k not in EXCLUDE_KEYS),
-            "product"
-        )
-        dim_col = FIELD_MAP_LOWER[dim_key]
-
-        sd = datetime.datetime.strptime(start_date, "%Y-%m-%d")
-        ed = datetime.datetime.strptime(end_date,   "%Y-%m-%d")
-        month_count = (ed.year - sd.year) * 12 + (ed.month - sd.month) + 1
-
-        if month_count == 2:
-            prompt += f"""
-            Instruction:
-            - The user requested a **downward trend** analysis for exactly two months: {start_date} to {end_date}.
-            - Identify the top 50 {dim_col} by **lowest** percentage revenue growth between these two months (negative growth or least positive).
-            - For each {dim_col}, calculate the revenue for each month (previous and current).
-            - Calculate GrowthPct = (CurrentMonthRevenue - PreviousMonthRevenue) / PreviousMonthRevenue * 100.
-            - Add a column TrendType: if CurrentMonthRevenue < PreviousMonthRevenue then "down trend", else "up trend".
-            - Output a table:
-                | {dim_col} | PreviousMonth | CurrentMonth | PrevRev | CurrRev | GrowthPct | TrendType |
-            - Use only `startofmonth(fkdat)` for extracting month, never `bin(fkdat, 1mo)`.
-            - Sort by GrowthPct **ascending** (lowest/most negative growth on top).
-            - Return only raw KQL, no markdown, no commentary.
-            """
-            prompt += f"\n\nUser request: {user_req}"
-
-        else:
-            prompt += f"""
-            Instruction:
-            - The user requested a **downward trend** analysis for more than two months.
-            - Identify the top 10 {dim_col} values (e.g., product, brand, dealer, etc.) by **lowest** total revenue growth trend over the period {start_date} to {end_date}.
-            - For each of these top 10, return the month-wise revenue for every month in the range, with columns: `{dim_col}`, Period (first of month), Revenue.
-            - Use: group by `startofmonth(fkdat)` for each `{dim_col}`.
-            - The result should be a table like:
-                | {dim_col} | Period      | Revenue   |
-                |-----------|-------------|-----------|
-                | Example1  | 2025-04-01  | 1200.50   |
-                | Example1  | 2025-05-01  | 1350.90   |
-                | Example2  | 2025-04-01  | 900.75    |
-                | ...       | ...         | ...       |
-            - Do not use `bin(fkdat, 1mo)`, only use `startofmonth(fkdat)`.
-            - Return only raw KQL, no markdown, no commentary.
-            """
-            prompt += f"\n\nUser request: {user_req}"
-
-
-    elif CONTRIBUTION_RE.search(user_req):
-        # 1. Parse date range
-        m = re.search(r'from (\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})', user_req)
-        if m:
-            start_date, end_date = m.groups()
-        else:
-            # Try "from April 2025 to June 2025"
-            month_range = re.search(r'from ([a-zA-Z]+ \d{4}) to ([a-zA-Z]+ \d{4})', user_req, re.IGNORECASE)
-            if month_range:
-                try:
-                    start_dt = dateutil.parser.parse("1 " + month_range.group(1))
-                    end_month_dt = dateutil.parser.parse("1 " + month_range.group(2))
-                    last_day = calendar.monthrange(end_month_dt.year, end_month_dt.month)[1]
-                    end_dt = end_month_dt.replace(day=last_day)
-                    start_date = start_dt.strftime("%Y-%m-%d")
-                    end_date = end_dt.strftime("%Y-%m-%d")
-                except Exception:
-                    return "// Could not parse month range. Use format like 'from April 2025 to June 2025'."
-            else:
-                now = datetime.datetime.now()
-                last_month_end = now.replace(day=1) - datetime.timedelta(days=1)
-                start_date = f"{last_month_end.year}-{last_month_end.month:02d}-01"
-                end_date = f"{last_month_end.year}-{last_month_end.month:02d}-{last_month_end.day:02d}"
-
-        # 2. Detect dimension (brand, division, etc)
-        lowered = user_req.lower()
-        dim_key = next((k for k in FIELD_MAP_LOWER if k in lowered and k not in EXCLUDE_KEYS), None)
-        if not dim_key:
-            return "// Could not detect which dimension to use for contribution."
-        dim_col = FIELD_MAP_LOWER[dim_key]
-
-        # 3. Extract segment value — try multiple patterns
-        seg_m = re.search(
-            r'contribution (?:of|from|by)\s+(.*?)(?:\s+in|\s+for|\s+from|\s+by|\s+on|$)', user_req, re.IGNORECASE)
-        if not seg_m:
-            # "What % of sales did Brand A contribute?"
-            seg_m = re.search(r'did\s+(.*?)\s+contribute', user_req, re.IGNORECASE)
-        if not seg_m:
-            return "// Could not parse the segment name."
-        raw_segment = seg_m.group(1).strip()
-        # Remove dimension keyword if present
-        strip_dim = re.compile(rf'\b{re.escape(dim_key)}\b', re.IGNORECASE)
-        segment = strip_dim.sub('', raw_segment).strip()
-        # Remove trailing month/year phrases
-        segment = re.sub(r'(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4}$', '', segment, flags=re.IGNORECASE).strip()
-        # Strip trailing/leading punctuation users may type (e.g. "APE CLASSIC,")
-        segment = segment.strip('.,;:"\' ').strip()
-
-        # 4. Build filter clause with correct types
-        _contains_cols = {"cname", "arktx", "wgbez", "spart_text", "matkl"}
-        segment_display = segment
-        gsber_key, code = None, None
-        if dim_col == "gsber":
-            gsber_key, code = find_gsber_code(segment, GSBER_MAPPING)
-            print("gsber_key ", gsber_key)
-            print("code ", code)
-            if gsber_key and code:
-                filter_clause = f'{dim_col} == {int(code)}'   # numeric — no quotes
-                segment_display = gsber_key
-            else:
-                try:
-                    filter_clause = f'{dim_col} == {int(segment)}'
-                except ValueError:
-                    filter_clause = f'{dim_col} == {segment}'
-                segment_display = segment
-        elif dim_col in _contains_cols:
-            filter_clause = f'{dim_col} contains "{segment}"'
-            segment_display = segment
-        else:
-            filter_clause = f'{dim_col} =~ "{segment}"'
-            segment_display = segment
-
-        # 5. KQL Template — inject scope filter so restricted users can't bypass
-        _scope_line = f"\n            {_mandatory_where_clause.strip()}" if _mandatory_where_clause else ""
-
-        return f"""
-        let StartDate = datetime({start_date});
-        let EndDate   = datetime({end_date});
-        let TotalRevenue = toscalar(
-            {TABLE_NAME}{_scope_line}
-            | where fkdat >= StartDate and fkdat <= EndDate
-            | summarize TotalRevenue = sum(Revenue)
-        );
-        let SegmentRevenue = toscalar(
-            {TABLE_NAME}{_scope_line}
-            | where fkdat >= StartDate and fkdat <= EndDate and {filter_clause}
-            | summarize SegmentRevenue = sum(Revenue)
-        );
-        print
-            Dimension       = "{dim_col}",
-            Segment         = "{segment_display}",
-            TotalRevenue    = TotalRevenue,
-            SegmentRevenue  = SegmentRevenue,
-            ContributionPct = iff(isnull(TotalRevenue) or TotalRevenue == 0, real(null), SegmentRevenue * 100.0 / TotalRevenue)
-        | extend
-            Insight = strcat("The contribution of {segment_display} under {dim_col} is ", round(ContributionPct, 2), "%.")
-        """.strip()
-
-
-    elif AVG_SALES_RE.search(user_req):
-        print("-*-------------------------------avg sales--------------------")
-        # 1. Extract date range
-        m = re.search(r'from (\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})', user_req)
-        if m:
-            start_date, end_date = m.groups()
-        else:
-            now = datetime.datetime.now()
-            start_date = now.replace(day=1).strftime("%Y-%m-%d")
-            last_day = calendar.monthrange(now.year, now.month)[1]
-            end_date = now.replace(day=last_day).strftime("%Y-%m-%d")
-
-        # 2. Detect dimension (brand, dealer, etc.)
-        lowered = user_req.lower()
-        dim_key = next(
-            (k for k in FIELD_MAP_LOWER if k in lowered and k not in EXCLUDE_KEYS),
-            None
-        )
-        dim_col = FIELD_MAP_LOWER[dim_key] if dim_key else None
-
-        # 3. Detect granularity
-        period = "monthly"
-        if "weekly" in lowered: period = "weekly"
-        elif "yearly" in lowered or "annual" in lowered: period = "yearly"
-        elif "daily" in lowered: period = "daily"
-
-        period_func = {
-            "monthly": "Month = startofmonth(fkdat)",
-            "weekly": "Week = startofweek(fkdat)",
-            "yearly": "Year = startofyear(fkdat)",
-            "daily": "Day = startofday(fkdat)"
-        }[period]
-        avg_col = {
-            "monthly": "AvgMonthlySales",
-            "weekly": "AvgWeeklySales",
-            "yearly": "AvgYearlySales",
-            "daily": "AvgDailySales"
-        }[period]
-
-        # 4. Build prompt for LLM
-        prompt += f"""
-            Hard rule: Never use the `extend` operator anywhere in this query. Never use `extend` for period extraction. All period extractions (Month, Week, etc.) must be done only inside the `summarize by` clause. Do not use or create a `TimePeriod` field.
-
-            Instruction:
-            - The user requested an average {period} sales analysis{f' by {dim_col}' if dim_col else ''} for the period {start_date} to {end_date}.
-            - Filter data between {start_date} and {end_date}{f' and by {dim_col}' if dim_col else ''}.
-            - Step 1: Summarize total revenue per {period} using `{period_func}` inside the `summarize by` clause.{f' Also include {dim_col} in the by clause if specified.' if dim_col else ''}
-            - Step 2: Calculate the average of these totals using `summarize {avg_col} = avg(TotalRevenue)`{f' by {dim_col}' if dim_col else ''}.
-            - After the first summarize, you may only use columns you have grouped by or calculated.
-            - Output columns: |{f' {dim_col} |' if dim_col else ''}{avg_col} |
-            - Example KQL:
-
-            let StartDate = datetime({start_date});
-            let EndDate = datetime({end_date});
-            SAPSalesInfos
-            | where fkdat >= StartDate and fkdat <= EndDate{f' and {dim_col} == "<value>"' if dim_col else ''}
-            | summarize TotalRevenue = sum(Revenue) by{f' {dim_col},' if dim_col else ''} {period_func}
-            | summarize {avg_col} = avg(TotalRevenue){f' by {dim_col}' if dim_col else ''}
-            """
-
-        prompt += f"\n\nUser request: {user_req}"
-
-        # 5. Call the LLM to generate KQL
-        # kql_generated = llm.invoke([{"role": "user", "content": prompt}]).content
-
-        # # 6. Clean up any forbidden 'extend' or 'TimePeriod'
-        # kql_generated = cleanup_kql(kql_generated)
-
-        # print("response from generate kql ", kql_generated)
-        # return _extract_kql(kql_generated)
-
-        kql_generated = llm.invoke([{"role": "user", "content": prompt}]).content
-        kql_generated = cleanup_kql(kql_generated)
-
-        # NEW — capture META if present
-        # global LAST_KQL_META
-        meta, kql_body = _extract_meta_line_and_strip(kql_generated)
-        LAST_KQL_META = meta
-  
-        return _extract_kql(kql_body)
-
-
-
-
-
-
-    
-    # Explicitly instruct LLM to avoid using `bin(fkdat, 1mo)` and instead use `startofmonth(fkdat)`
-    else:
-        prompt += """
-        Instruction: 
-        - Do not use the `bin(fkdat, 1mo)` operator for time-based grouping.
-        -If not data limit is given on the prompt take top 500 row.
-        - Instead, use `startofmonth(fkdat)` for monthly grouping (or other appropriate time functions based on the query).
-        - Ensure the query does not use `bin` and directly uses time-based functions for grouping.
-        - Group by the result of the time-based function using an `extend` statement, for example: `extend TimePeriod = startofmonth(fkdat)`
-        - Always use the named columns in the `summarize` statement.
-        """
-    
-    # prompt += f"\n\nUser request: {user_req}"
     prompt += (
         "\n\nOUTPUT FORMAT (strict):\n"
         "- First line: // META {compact-json-of-actually-applied dates, filters}\n"
@@ -1810,18 +1777,7 @@ def generate_kql(user_req: str, conversation_uuid: Optional[str] = None, strict=
         print("META save failed:", e)
 
     kql_clean = kql_body.replace("bin(fkdat, 1mo)", "startofmonth(fkdat)")
-    
-
-    if "summarize" in kql_clean and "by ," in kql_clean:
-        kql_clean = kql_clean.replace("by ,", "by TimePeriod")
-
-    if "summarize" in kql_clean and ", )" in kql_clean:
-        kql_clean = kql_clean.replace(", )", ", TimePeriod)")
-
-    if "summarize" in kql_clean and "by TimePeriod" not in kql_clean:
-        kql_clean = kql_clean.replace("summarize", "extend TimePeriod = startofmonth(fkdat)\n| summarize")
-
-    print("response from generate kql ", kql_clean)
+    print("response from generate kql", kql_clean)
     return _extract_kql(kql_clean)
 
     # Explicitly replace `bin(fkdat, 1mo)` with `startofmonth(fkdat)` or appropriate time function if found
@@ -2028,16 +1984,20 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None, u
     # -----------------------------
     # 2) Sales queries → generate KQL
     # -----------------------------
-    # Skip date detection for YTD/MTD — they manage their own date logic internally.
-    # Appending an explicit date range to these queries causes the LLM to hardcode
-    # potentially incorrect dates instead of using startofmonth(now())-1d etc.
-    if not MTD_RE.search(user_prompt) and not YTD_RE.search(user_prompt):
-        start_date, end_date = detect_date_filter_using_llm(user_prompt)
-        if start_date and end_date:
-            if not re.search(r'from \d{4}-\d{2}-\d{2} to \d{4}-\d{2}-\d{2}', user_prompt):
-                user_prompt += f" from {start_date:%Y-%m-%d} to {end_date:%Y-%m-%d}"
+    # Date detection via detect_date_filter_using_llm is NO LONGER needed:
+    # _build_rich_system_prompt already injects all concrete reference dates (§2) and a
+    # full time-expression → date-range resolution table (§3). Appending dates here would
+    # override that smart resolution and break multi-period queries (YOY, MTD vs LY, etc.).
 
-    kql = generate_kql(user_prompt, conversation_id)
+    try:
+        kql = generate_kql(user_prompt, conversation_id)
+    except Exception as _kql_err:
+        import traceback as _tb
+        print("[handle_user_query] generate_kql FAILED:", repr(_kql_err))
+        _tb.print_exc()
+        return "Sorry, I couldn't generate a query for that. Please try rephrasing."
+
+    print("[handle_user_query] generated KQL:", kql[:300])
     kql = format_dates(kql)
     kql = re.sub(r'ago\(3mo\)', 'ago(90d)', kql, flags=re.I)
     kql = re.sub(r'startofquarter\((.*?)\)', r'startofmonth(\1)', kql, flags=re.I)
@@ -2066,6 +2026,10 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None, u
     # -----------------------------
     # 5) Execute query (with retry)
     # -----------------------------
+    if not kql.strip():
+        print("[handle_user_query] KQL is empty — aborting ADX call")
+        return "No data found matching your criteria."
+
     for attempt in (1, 2):
         try:
             cols, rows = adx().run(kql)
@@ -2075,6 +2039,14 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None, u
                 kql = generate_kql(user_prompt, conversation_id, strict=True)
                 continue
             return "Please refine your query. I couldn't generate a valid KQL this time."
+        except Exception as _adx_err:
+            import traceback as _tb2
+            print("[handle_user_query] adx().run FAILED:", repr(_adx_err))
+            _tb2.print_exc()
+            if attempt == 1:
+                kql = generate_kql(user_prompt, conversation_id, strict=True)
+                continue
+            return "Please refine your query. I couldn't execute it this time."
 
     if not rows:
         return "No data found matching your criteria."
