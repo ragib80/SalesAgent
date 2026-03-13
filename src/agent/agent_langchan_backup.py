@@ -22,6 +22,7 @@ FIELD_SYNONYMS = {
     "category":             "matkl",
     "division":             "spart_text",
     "company code":         "bukrs",
+    "company":         "bukrs",
     "sales org":            "vkorg",
     "dist channel":         "vtweg",
     "distribution channel": "vtweg",

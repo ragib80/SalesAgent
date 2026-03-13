@@ -92,10 +92,12 @@ class ChatAPIView(APIView):
                 # Build a minimal first-turn answer so a bubble is saved
                 answer = self._fallback_answer_from_result(result, prompt) or \
                          "I prepared the results for you — see details below."
+            if "Sorry, I couldn't process" in answer:
+                answer = "sorry i am a baby now, day by day im learning from your prompt. for a better user experience."
 
             # persist messages
             self._create_message(conversation, "user", prompt)
-            self._create_message(conversation, "assistant", answer)
+            self._create_message(conversation, "bot", answer)
 
             out = {
                 "answer": answer,
@@ -108,7 +110,7 @@ class ChatAPIView(APIView):
         except Exception as e:
             print("[ChatAPIView] ERROR:", repr(e))
             out = {
-                "answer": "Sorry, I couldn't process that. Try adding a date/metric/SAP entity.",
+                "answer": "sorry i am a baby now, day by day im learning from your prompt. for a better user experience.",
                 "data": None,
                 "operation_plan": None,
                 "uuid": str(conversation.uuid) if conversation else None,
@@ -201,9 +203,11 @@ class ExistingConversationAPIView(APIView):
             result = handle_user_query(prompt, conversation_id=str(conversation.uuid),user=request.user)
 
             answer = result if isinstance(result, str) else result.get("answer", "")
+            if "Sorry, I couldn't process" in answer:
+                answer = "sorry i am a baby now, day by day im learning from your prompt. for a better user experience."
 
             self.create_message(conversation, 'user', prompt)
-            self.create_message(conversation, 'assistant', answer)
+            self.create_message(conversation, 'bot', answer)
 
             out = {
                 'answer': answer,
@@ -215,10 +219,7 @@ class ExistingConversationAPIView(APIView):
 
         except Exception as e:
             out = {
-                'answer': (
-                    "Sorry, I couldn't process your request. "
-                    "Please try a more specific question, such as including a date, metric, or SAP entity."
-                ),
+                'answer': "sorry i am a baby now, day by day im learning from your prompt. for a better user experience.",
                 'data': None,
                 'operation_plan': None
             }
