@@ -245,6 +245,14 @@
     const commaIdx = s.search(/[,\n]/);
     if (commaIdx >= 0 && commaIdx < cutAt) cutAt = commaIdx;
 
+    // If no cut point was found (cutAt == full length), the text ran to end with no field label
+    // or comma terminator — likely a natural-language sentence fragment, not an entity name.
+    // Limit to first 5 words; if the first word is a common filler/verb, suppress entirely.
+    if (cutAt === s.length) {
+      const words = s.trim().split(/\s+/).filter(Boolean);
+      if (words.length > 5) return '';           // sentence fragment → suppress
+    }
+
     s = s.slice(0, cutAt).trim();
 
     s = cleanLeadingFiller(s);
@@ -296,6 +304,10 @@
   /* =================== Autocomplete lifecycle =================== */
 
   let curField = null, curTerm = '', curPage = 1, hasMore = false, currentRequest = null;
+  // Tracks fields whose last API call returned no results for a given q prefix.
+  // Key: field name, Value: the q string that returned empty.
+  // If current q starts with the cached empty q → skip the API call.
+  const emptyResultCache = new Map();
 
   function hardResetAutocomplete(){
     try { if (currentRequest && currentRequest.abort) currentRequest.abort(); } catch {}
@@ -360,7 +372,17 @@
           meta:r.meta || null,
           commit:r.commit || r.insert || r.value || r.id || null
         }));
-        render(items);
+        if (items.length === 0) {
+          // Only mark as exhausted once the query reaches 5+ characters with no results.
+          // Below that threshold keep retrying — a longer prefix might still match.
+          if (q.length >= 5) {
+            emptyResultCache.set(field, q);
+          }
+          $('.textcomplete-dropdown').hide().empty();
+        } else {
+          emptyResultCache.delete(field);   // results found → clear any stale empty flag
+          render(items);
+        }
         hasMore = !!(resp.pagination && resp.pagination.more);
 
         requestAnimationFrame(()=>{
@@ -404,9 +426,10 @@
     const caret = this.selectionStart || 0;
     const prevChar = caret > 0 ? v.charAt(caret - 1) : '';
 
-    // If user just typed a comma => end this filter chunk, reset
+    // If user just typed a comma => end this filter chunk, full reset
     if (prevChar === ',') {
       hardResetAutocomplete();
+      emptyResultCache.clear();   // new filter segment — all fields get a fresh try
       curField = null;
       curTerm  = '';
       curPage  = 1;
@@ -423,6 +446,19 @@
 
     // ignore very short junk
     if (!nextQ || nextQ.length < 2) return;
+
+    // Suppress sentence fragments — entity names don't exceed 5 words.
+    // "name which sale is high by the dealer" → 8 words → skip.
+    if (nextQ.split(/\s+/).filter(Boolean).length > 5) return;
+
+    // Switching to a new field → give it a fresh try (clear its empty cache entry)
+    if (nextField !== curField) {
+      emptyResultCache.delete(nextField);
+    }
+
+    // Skip if this field already returned empty for this exact q prefix
+    const cachedEmpty = emptyResultCache.get(nextField);
+    if (cachedEmpty && nextQ.toLowerCase().startsWith(cachedEmpty.toLowerCase())) return;
 
     // If switching field or query changed -> reset & start new call
     if (nextField !== curField || nextQ !== curTerm){
