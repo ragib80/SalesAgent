@@ -94,90 +94,6 @@
     $ghostPortal.stop(true,true).fadeOut(120);
   }
 
-  // Keep previous selections in the textarea, merge by label
-  function insertLabeled(label, value){
-    const $i = $ta;
-    let full = $i.val();
-    const pos = $i[0].selectionStart;
-    let before = full.slice(0,pos).replace(/(?:^|[\s,])([^\s,]+)$/,'').trim();
-    const after = full.slice(pos).trim();
-
-    const squish = (s)=>(s||'').replace(/\s+/g,' ').trim();
-    const canonLabel = (s)=>{
-      s = squish(s);
-      if (/^zone$/i.test(s)) return 'Sales Zone';
-      if (/^sales\s*zone$/i.test(s)) return 'Sales Zone';
-      if (/^division\s*code$/i.test(s)) return 'Division Code';
-      if (/^division$/i.test(s)) return 'Division';
-      if (/^territory$/i.test(s)) return 'Territory';
-      if (/^material\s*group$/i.test(s)) return 'Material Group';
-      return s.replace(/\b\w/g, (c)=>c.toUpperCase());
-    };
-    const L = canonLabel(label);
-    const V = squish(value);
-
-    const MULTI = new Set(['Division','Division Code','Material Group','Territory','Sales Zone']);
-    const parts = before ? before.split(',').map(s=>squish(s)).filter(Boolean) : [];
-
-    const groups = {};
-    const order = [];
-    for (const p of parts){
-      const m = p.match(new RegExp(`^(${fieldAlt})\\s+(.+)$`,'i'));
-      if (!m) continue;
-      const lbl = canonLabel(m[1]);
-      const val = squish(m[2]);
-      if (!groups[lbl]){ groups[lbl]=[]; order.push(lbl); }
-      if (!groups[lbl].includes(val)) groups[lbl].push(val);
-    }
-
-    if (!groups[L]){ groups[L]=[V]; order.push(L); }
-    else {
-      if (MULTI.has(L)){
-        if (!groups[L].includes(V)) groups[L].push(V);
-      } else {
-        groups[L]=[V];
-      }
-    }
-
-    let out = '';
-    for (const lbl of order){
-      if (groups[lbl]?.length) out += `${lbl} ${groups[lbl].join(', ')}, `;
-    }
-    return out + (after ? after + ' ' : '');
-  }
-
-  function specialReplace(label, item){
-    const L = normalizeFieldName(String(label||'').trim());
-    const pickRaw = (x)=>!x ? '' : (typeof x === 'string'
-      ? x
-      : (x.commit || x.text || x.value || x.id || ''));
-    let commit = pickRaw(item);
-
-    if (/^Dealer$/i.test(L)){
-      commit = (commit||'')
-        .replace(/\s*[-–—|]\s.*$/, '')
-        .replace(/,\s*$/, '')
-        .trim();
-    }
-
-    const $i = $ta;
-    let full = $i.val();
-    const pos = $i[0].selectionStart;
-    const left  = full.slice(0, pos);
-    const right = full.slice(pos);
-    const rx = new RegExp(`(^|[\\s,])\\s*(${escapeRx(L)})\\s*:?\\s*([^,\\n]*)$`, 'i');
-    const m  = rx.exec(left);
-
-    if (m){
-      const prefix = left.slice(0, m.index);
-      const delim  = m[1] || ' ';
-      const replacedLeft = `${prefix}${delim}${L} ${String(commit||'').trim()}, `;
-      full = replacedLeft + right.replace(/^(\s*),\s*/, '$1');
-      return full;
-    }
-    return insertLabeled(L, String(commit||'').trim());
-  }
-
   /* =================== Field/Term detection =================== */
 
   const LEADING_FILLER_RX = new RegExp(
@@ -242,18 +158,26 @@
       if (m && m.index < cutAt) cutAt = m.index;
     }
 
+    const hadFieldCut = cutAt < s.length;   // true when a next field label was found
     const commaIdx = s.search(/[,\n]/);
-    if (commaIdx >= 0 && commaIdx < cutAt) cutAt = commaIdx;
 
-    // If no cut point was found (cutAt == full length), the text ran to end with no field label
-    // or comma terminator — likely a natural-language sentence fragment, not an entity name.
-    // Limit to first 5 words; if the first word is a common filler/verb, suppress entirely.
-    if (cutAt === s.length) {
-      const words = s.trim().split(/\s+/).filter(Boolean);
-      if (words.length > 5) return '';           // sentence fragment → suppress
+    if (commaIdx >= 0 && commaIdx < cutAt) {
+      if (hadFieldCut) {
+        // Comma sits before the next field label → it ends this field's single value.
+        s = s.slice(0, commaIdx).trim();
+      } else {
+        // No next field label → commas separate multiple values for the SAME field.
+        // The user is currently typing the segment AFTER the last comma.
+        s = s.slice(s.lastIndexOf(',') + 1).trimStart();
+      }
+    } else {
+      // No comma cut — guard against sentence fragments
+      if (!hadFieldCut) {
+        const words = s.slice(0, cutAt).trim().split(/\s+/).filter(Boolean);
+        if (words.length > 5) return '';   // natural-language fragment → suppress
+      }
+      s = s.slice(0, cutAt).trim();
     }
-
-    s = s.slice(0, cutAt).trim();
 
     s = cleanLeadingFiller(s);
 
@@ -284,8 +208,9 @@
     }
 
     if (pref && pref.q){
-      // if a later label exists (e.g. "Brand" or "Division"), prefer that
-      if (lastLabel && lastLabel.index > pref.idx && lastLabel.field !== pref.field){
+      // Prefer the LATER label even when it is the same field name.
+      // e.g. "Brand APE, verses Brand an" → second "Brand" should win over first.
+      if (lastLabel && lastLabel.index > pref.idx){
         const q2 = extractTermFrom(textLeft, lastLabel.afterIdx);
         if (q2) return { field: lastLabel.field, q: q2 };
       }
@@ -354,9 +279,32 @@
         `);
         li.on('mousedown', (e)=>{ e.preventDefault(); e.stopPropagation(); });
         li.on('click', ()=>{
-          const result = specialReplace(field, it);
-          $ta.val(result).trigger('input');
+          // Pick the raw commit value
+          const pickRaw = (x) => !x ? '' : (typeof x === 'string' ? x : (x.commit || x.text || x.value || x.id || ''));
+          let commit = pickRaw(it);
+          if (/^Dealer$/i.test(field)) {
+            commit = (commit||'').replace(/\s*[-–—|]\s.*$/, '').replace(/,\s*$/, '').trim();
+          }
+
+          const full    = $ta.val();
+          const caretPos = $ta[0].selectionStart;
+          const left    = full.slice(0, caretPos);
+          const right   = full.slice(caretPos);
+
+          // Replace the active search term at the end of `left` with the selected value.
+          // This correctly handles multi-value same-field input (e.g. "Brand APE, ap e" → selects APE2).
+          const rx = new RegExp(escapeRx(curTerm) + '\\s*$', 'i');
+          const newLeft = (curTerm && rx.test(left))
+            ? left.replace(rx, commit + ', ')
+            : left.trimEnd() + ' ' + commit + ', ';
+
+          $ta.val(newLeft + right.replace(/^\s*,?\s*/, '')).trigger('input');
           $('.textcomplete-dropdown').hide();
+
+          // Full reset — next keystroke starts fresh field detection
+          hardResetAutocomplete();
+          curField = null;
+          curTerm  = '';
         });
         $dd.append(li);
       });

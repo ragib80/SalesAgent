@@ -665,7 +665,7 @@ Use the exact dates from CURRENT DATE CONTEXT row "last quarter".
 **POSITIVE GROWTH VARIANT** — use this when user asks for top performers / highest growth (NOT declining):
 - Use `join kind=innerunique` (both periods must have sales for a meaningful growth figure).
 - Entity name col goes in CY summarize (both are present so either side works, but keep it in CY for positive variant).
-- Keep `| where CY_Revenue > 0` and `| where PY_Revenue > 0` to exclude SAP credit-memo artifacts in both periods.
+- Keep `| where CY_Revenue >= 100` and `| where PY_Revenue >= 100` to exclude SAP credit-memo artifacts AND near-zero phantom revenue in both periods. Using `> 0` is insufficient — a PY_Revenue of 0.001 BDT passes the filter but causes astronomically large growth percentages (e.g., 2,565,969,868,159,451,000%). The 100 BDT floor eliminates floating-point residuals and trivial one-off transactions that produce meaningless ratios.
 - Remove `| where CY_Revenue < PY_Revenue` (we want growers, not decliners).
 - Sort `| top 10 by GrowthPct desc` (most positive first).
 - Example triggers: "top 10 dealers by growth", "best performing brands", "highest revenue increase", "top performers this year vs last year"
