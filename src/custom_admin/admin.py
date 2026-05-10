@@ -83,14 +83,25 @@ class SalesAuthUserAdmin(UserAdmin):
 
     list_display = (
         "email", "username", "first_name", "last_name",
+        "identity_provider",
         "is_active", "is_staff", "is_superuser",
         "depo_count", "zone_count", "territory_count",
         "date_joined",
     )
-    list_filter = ("is_active", "is_staff", "is_superuser", "date_joined")
-    search_fields = ("email", "username", "first_name", "last_name")
+    list_filter = ("identity_provider", "is_active", "is_staff", "is_superuser", "date_joined")
+    search_fields = (
+        "email", "username", "first_name", "last_name",
+        "azure_ad_tenant_id", "azure_ad_object_id",
+    )
     ordering = ("-date_joined",)
-    readonly_fields = ("last_login", "date_joined")
+    readonly_fields = (
+        "identity_provider",
+        "azure_ad_tenant_id",
+        "azure_ad_object_id",
+        "last_microsoft_login",
+        "last_login",
+        "date_joined",
+    )
 
     # Correct counts via annotations on related_name; distinct avoids dupes
     def get_queryset(self, request):
@@ -121,6 +132,12 @@ class SalesAuthUserAdmin(UserAdmin):
     fieldsets = (
         (None, {"fields": ("username", "email", "first_name", "last_name")}),
         (_("Active Directory"), {"fields": ("sync_from_ad",)}),
+        (_("Microsoft Identity"), {"fields": (
+            "identity_provider",
+            "azure_ad_tenant_id",
+            "azure_ad_object_id",
+            "last_microsoft_login",
+        )}),
         (_("Permissions"), {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")}),
         (_("Important dates"), {"fields": ("last_login", "date_joined")}),
     )

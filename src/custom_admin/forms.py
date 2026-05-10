@@ -49,6 +49,7 @@ class SalesAuthUserCreateFromADForm(forms.ModelForm):
     def save(self, commit=True):
         user = super().save(commit=False)
         user.set_unusable_password()  # AD-only auth
+        user.identity_provider = getattr(User, "IDENTITY_PROVIDER_LEGACY_AD", "legacy_ad")
         if commit:
             user.save()
             if hasattr(self, "save_m2m"):

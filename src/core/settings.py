@@ -16,9 +16,24 @@ from pathlib import Path
 from dotenv import load_dotenv
 # add these two imports:
 
-load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / "core" / ".env")
+
+
+def env_bool(name, default=False):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def env_list(name, default=""):
+    value = os.getenv(name, default)
+    if not value:
+        return []
+    normalized = value.replace(",", " ")
+    return [item.strip() for item in normalized.split() if item.strip()]
 # env = environ.Env(
 #     # set default values and casting
 #     DEBUG=(bool, False)
@@ -37,7 +52,9 @@ AUTH_DEV_BYPASS_AD = False
 
 ALLOWED_HOSTS = ['172.16.0.5',
                  '127.0.0.1',
-                 'https://voiceofsales.bergerbd.com'
+                 'voiceofsales.bergerbd.com',
+                 'https://voiceofsales.bergerbd.com',
+                 'localhost'
                  ]
 
 USE_X_FORWARDED_HOST = True
@@ -87,8 +104,21 @@ AUTHENTICATION_BACKENDS = [
 
 
 
+# Microsoft Entra ID login and legacy auth controls
+MICROSOFT_AUTH_CLIENT_ID = os.getenv("MICROSOFT_AUTH_CLIENT_ID", "")
+MICROSOFT_AUTH_TENANT_ID = os.getenv("MICROSOFT_AUTH_TENANT_ID", "")
+MICROSOFT_AUTH_CLIENT_SECRET = os.getenv("MICROSOFT_AUTH_CLIENT_SECRET", "")
+MICROSOFT_AUTH_REDIRECT_URI = os.getenv("MICROSOFT_AUTH_REDIRECT_URI", "")
+MICROSOFT_AUTH_SCOPES = env_list("MICROSOFT_AUTH_SCOPES")
+MICROSOFT_AUTH_AUTO_CREATE_USERS = env_bool("MICROSOFT_AUTH_AUTO_CREATE_USERS", False)
+MICROSOFT_AUTH_PROMPT = os.getenv("MICROSOFT_AUTH_PROMPT", "").strip()
+
+AUTH_ENABLE_LEGACY_AD_PASSWORD_LOGIN = env_bool("AUTH_ENABLE_LEGACY_AD_PASSWORD_LOGIN", False)
+AUTH_ENABLE_PASSWORD_TOKEN_ENDPOINT = env_bool("AUTH_ENABLE_PASSWORD_TOKEN_ENDPOINT", False)
+AUTH_ENABLE_ADMIN_AD_LOGIN = env_bool("AUTH_ENABLE_ADMIN_AD_LOGIN", False)
+
 # Prod behavior: if you want to allow local-password fallback for some users
-AUTH_ALLOW_LOCAL_PASSWORD_FALLBACK = True  # set False to force AD for everyone (except ModelBackend superusers)
+AUTH_ALLOW_LOCAL_PASSWORD_FALLBACK = env_bool("AUTH_ALLOW_LOCAL_PASSWORD_FALLBACK", True)
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8000",
