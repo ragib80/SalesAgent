@@ -17,7 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import TemplateView
-from user_auth.views import login_template_view
+from user_auth.views import MicrosoftAuthorizeRepairView, login_template_view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -26,6 +26,11 @@ urlpatterns = [
     path('api/', include('conversation.urls')),
     path('api/user/', include('user_auth.urls')),
     path('welcome/', login_template_view, name='login-template'),
+    path(
+        '<str:tenant_id>/oauth2/v2.0/authorize',
+        MicrosoftAuthorizeRepairView.as_view(),
+        name='microsoft-authorize-repair',
+    ),
     path('', TemplateView.as_view(template_name="home.html"), name='home'),
 
 ]
