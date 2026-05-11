@@ -3,201 +3,157 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
+    <title>Voice of Sales Login</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <style>
         body {
-            background: linear-gradient(120deg, #f3f4f6 0%, #e9ecef 100%);
+            background: #f5f7fb;
+            color: #1f2937;
+            font-family: "Segoe UI", Arial, sans-serif;
             min-height: 100vh;
-            font-family: 'Segoe UI', 'Inter', Arial, sans-serif;
         }
+
         .login-card {
-            border-radius: 2rem;
-            box-shadow: 0 8px 32px 0 rgba(32,33,35,0.09);
-            background: #fff;
-            padding: 2.5rem 2rem;
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+            padding: 28px;
         }
+
         .login-title {
-            font-weight: 800;
-            font-size: 2.2rem;
-            letter-spacing: -0.5px;
-            color: #202123;
-            margin-bottom: 0.4rem;
+            color: #111827;
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 0.35rem;
         }
+
         .login-subtitle {
             color: #6b7280;
             font-size: 0.97rem;
-            margin-bottom: 1.8rem;
-        }
-        .form-label {
-            color: #202123;
-            font-weight: 500;
-        }
-        .form-control {
-            border-radius: 1.1rem;
-            min-height: 48px;
-            font-size: 1.08rem;
-            border: 1px solid #e5e7eb;
-        }
-        .form-control:focus {
-            border-color: #202123;
-            box-shadow: 0 0 0 0.2rem rgba(32,33,35,0.08);
-        }
-        /* OTP digit boxes */
-        .otp-inputs {
-            display: flex;
-            gap: 0.55rem;
-            justify-content: center;
-        }
-        .otp-inputs input {
-            width: 52px;
-            height: 56px;
-            font-size: 1.5rem;
-            font-weight: 700;
-            text-align: center;
-            border-radius: 0.9rem;
-            border: 1.5px solid #e5e7eb;
-            transition: border-color 0.15s;
-        }
-        .otp-inputs input:focus {
-            border-color: #202123;
-            box-shadow: 0 0 0 0.18rem rgba(32,33,35,0.10);
-            outline: none;
-        }
-        .btn-primary {
-            background: linear-gradient(90deg, #202123 60%, #343541 100%);
-            border: none;
-            border-radius: 1.5rem;
-            font-weight: 600;
-            font-size: 1.12rem;
-            transition: background 0.2s, box-shadow 0.2s;
-            padding: 0.8rem 0;
-            box-shadow: 0 2px 12px 0 rgba(32,33,35,0.07);
-        }
-        .btn-primary:hover, .btn-primary:focus {
-            background: linear-gradient(90deg, #343541 0%, #202123 100%);
-            box-shadow: 0 4px 24px 0 rgba(32,33,35,0.13);
-        }
-        .btn-link-back {
-            background: none;
-            border: none;
-            color: #6b7280;
-            font-size: 0.93rem;
-            padding: 0;
-            cursor: pointer;
-            text-decoration: underline;
-        }
-        .btn-link-back:hover { color: #202123; }
-        .alert-msg {
-            font-size: 0.97rem;
-            border-radius: 1rem;
-            padding: 0.65rem 1rem;
-        }
-        .step-indicator {
-            display: flex;
-            justify-content: center;
-            gap: 0.5rem;
             margin-bottom: 1.5rem;
         }
-        .step-dot {
-            width: 8px; height: 8px;
-            border-radius: 50%;
-            background: #e5e7eb;
-            transition: background 0.2s;
+
+        .btn-microsoft {
+            align-items: center;
+            background: #2563eb;
+            border: 1px solid #2563eb;
+            border-radius: 6px;
+            color: #ffffff;
+            display: flex;
+            font-weight: 650;
+            justify-content: center;
+            min-height: 46px;
+            text-decoration: none;
         }
-        .step-dot.active { background: #202123; }
-        @media (max-width: 600px) {
-            .login-title { font-size: 1.5rem; }
-            .login-card { padding: 1.3rem 0.7rem; }
-            .otp-inputs input { width: 42px; height: 48px; font-size: 1.2rem; }
+
+        .btn-microsoft:hover,
+        .btn-microsoft:focus {
+            background: #1d4ed8;
+            border-color: #1d4ed8;
+            color: #ffffff;
+        }
+
+        .account-switch {
+            color: #2563eb;
+            display: inline-block;
+            font-size: 0.92rem;
+            margin-top: 0.8rem;
+            text-decoration: none;
+        }
+
+        .account-switch:hover {
+            color: #1d4ed8;
+            text-decoration: underline;
+        }
+
+        .section-divider {
+            align-items: center;
+            color: #6b7280;
+            display: flex;
+            font-size: 0.82rem;
+            gap: 0.75rem;
+            margin: 1.5rem 0 1.25rem;
+            text-transform: uppercase;
+        }
+
+        .section-divider::before,
+        .section-divider::after {
+            background: #e5e7eb;
+            content: "";
+            flex: 1;
+            height: 1px;
+        }
+
+        .form-control {
+            border-color: #d1d5db;
+            border-radius: 6px;
+            min-height: 44px;
+        }
+
+        .form-control:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.12);
+        }
+
+        .btn-local {
+            border-radius: 6px;
+            font-weight: 650;
+            min-height: 44px;
+        }
+
+        .alert-msg {
+            border-radius: 6px;
+            font-size: 0.94rem;
+            padding: 0.65rem 0.85rem;
         }
     </style>
 </head>
 <body>
-<div class="container d-flex flex-column justify-content-center align-items-center min-vh-100">
-    <div class="col-12 col-sm-10 col-md-7 col-lg-5">
-        <div class="login-card mt-3">
-
-            <!-- Step indicators -->
-            <div class="step-indicator">
-                <div class="step-dot active" id="dot-1"></div>
-                <div class="step-dot" id="dot-2"></div>
+<div class="container d-flex flex-column justify-content-center align-items-center min-vh-100 py-4">
+    <div class="col-12 col-sm-10 col-md-7 col-lg-5 col-xl-4">
+        <div class="login-card">
+            <div class="text-center">
+                <div class="login-title">Voice of Sales</div>
+                <div class="login-subtitle">Sign in to continue</div>
             </div>
 
-            <!-- ── STEP 1: Username / Password ── -->
-            <div id="step-login">
-                <div class="text-center">
-                    <div class="login-title">Sign In</div>
-                    <div class="login-subtitle">Enter your credentials to continue</div>
-                </div>
+            <a id="microsoft-login" class="btn-microsoft w-100" href="/api/user/microsoft/login/">
+                Sign in with Microsoft
+            </a>
 
-                <form id="login-form" method="post">
-                    <div class="mb-3">
-                        <label for="username" class="form-label">Username</label>
-                        <input type="text" class="form-control" id="username"
-                               placeholder="Enter your username" required autocomplete="username">
-                    </div>
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="password"
-                               placeholder="Enter your password" required autocomplete="current-password">
-                    </div>
-
-                    <button type="submit" id="login-btn"
-                            class="btn btn-primary w-100 d-flex justify-content-center align-items-center">
-                        <span id="login-spinner"
-                              class="spinner-border spinner-border-sm text-light me-2 d-none"
-                              role="status" aria-hidden="true"></span>
-                        <span id="login-btn-text">Continue</span>
-                    </button>
-                </form>
-
-                <div id="login-error" class="alert alert-danger alert-msg mt-3 d-none"></div>
+            <div class="text-center">
+                <a id="microsoft-switch" class="account-switch" href="/api/user/microsoft/login/?prompt=select_account">
+                    Use another Microsoft account
+                </a>
             </div>
 
-            <!-- ── STEP 2: OTP Verification ── -->
-            <div id="step-otp" class="d-none">
-                <div class="text-center">
-                    <div class="login-title">Verify OTP</div>
-                    <div class="login-subtitle" id="otp-subtitle">
-                        Enter the 6-digit code sent to your email.
-                    </div>
+            <div id="login-error" class="alert alert-danger alert-msg mt-3 d-none"></div>
+
+            {% comment %} <div class="section-divider">Local account</div>
+
+            <form id="local-login-form" method="post">
+                <div class="mb-3">
+                    <label for="username" class="form-label">Username</label>
+                    <input type="text" class="form-control" id="username"
+                           placeholder="Enter local username" required autocomplete="username">
+                </div>
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" class="form-control" id="password"
+                           placeholder="Enter local password" required autocomplete="current-password">
                 </div>
 
-                <form id="otp-form" method="post">
-                    <div class="mb-4">
-                        <label class="form-label d-block text-center mb-3">One-Time Password</label>
-                        <div class="otp-inputs" id="otp-inputs">
-                            <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" data-index="0">
-                            <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" data-index="1">
-                            <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" data-index="2">
-                            <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" data-index="3">
-                            <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" data-index="4">
-                            <input type="text" inputmode="numeric" maxlength="1" class="otp-digit" data-index="5">
-                        </div>
-                    </div>
-
-                    <button type="submit" id="otp-btn"
-                            class="btn btn-primary w-100 d-flex justify-content-center align-items-center">
-                        <span id="otp-spinner"
-                              class="spinner-border spinner-border-sm text-light me-2 d-none"
-                              role="status" aria-hidden="true"></span>
-                        <span id="otp-btn-text">Verify &amp; Sign In</span>
-                    </button>
-                </form>
-
-                <div id="otp-error" class="alert alert-danger alert-msg mt-3 d-none"></div>
-                <div id="otp-success" class="alert alert-success alert-msg mt-3 d-none"></div>
-
-                <div class="text-center mt-3">
-                    <button class="btn-link-back" id="back-btn">
-                        &larr; Back to login
-                    </button>
-                </div>
-            </div>
-
-        </div><!-- /.login-card -->
+                <button type="submit" id="local-login-btn"
+                        class="btn btn-outline-dark btn-local w-100 d-flex justify-content-center align-items-center">
+                    <span id="local-login-spinner"
+                          class="spinner-border spinner-border-sm me-2 d-none"
+                          role="status" aria-hidden="true"></span>
+                    <span id="local-login-btn-text">Sign in with local password</span>
+                </button>
+            </form> {% endcomment %}
+        </div>
     </div>
 </div>
 
@@ -206,27 +162,81 @@
 $(document).ready(function () {
     'use strict';
 
-    // ── Already-authenticated redirect ──────────────────────────────────────
-    (function checkAlreadyLoggedIn() {
-        const token   = localStorage.getItem('auth_token');
-        const refresh = localStorage.getItem('refresh_token');
-        if (!token && !refresh) return;  // nothing stored — show login form
+    const params = new URLSearchParams(window.location.search);
 
-        function goToChat() { window.location.replace('/api/sales/index/'); }
+    function safeNext(raw) {
+        if (!raw || raw.indexOf('//') === 0 || raw.charAt(0) !== '/') {
+            return '/api/sales/index/';
+        }
+        return raw;
+    }
+
+    const nextUrl = safeNext(params.get('next'));
+
+    function buildMicrosoftUrl(prompt) {
+        const query = new URLSearchParams({ next: nextUrl });
+        if (prompt) {
+            query.set('prompt', prompt);
+        }
+        return '/api/user/microsoft/login/?' + query.toString();
+    }
+
+    $('#microsoft-login').attr('href', buildMicrosoftUrl(''));
+    $('#microsoft-switch').attr('href', buildMicrosoftUrl('select_account'));
+
+    function showError(msg) {
+        $('#login-error').text(msg).removeClass('d-none');
+    }
+
+    function hideError() {
+        $('#login-error').addClass('d-none').text('');
+    }
+
+    const microsoftError = params.get('auth_error');
+    if (microsoftError) {
+        showError(microsoftError);
+    }
+
+    function storeLoginPayload(res) {
+        localStorage.setItem('auth_token', res.access || '');
+        localStorage.setItem('refresh_token', res.refresh || '');
+        localStorage.setItem('full_name', res.full_name || '');
+        localStorage.setItem('designation', res.designation || '');
+        localStorage.setItem('username', res.username || '');
+        localStorage.setItem('user_uuid', res.user_uuid || '');
+    }
+
+    function goToApp() {
+        window.location.replace(nextUrl);
+    }
+
+    (function checkAlreadyLoggedIn() {
+        const token = localStorage.getItem('auth_token');
+        const refresh = localStorage.getItem('refresh_token');
+        if (!token && !refresh) {
+            return;
+        }
 
         function tryRefresh() {
-            if (!refresh) { localStorage.clear(); return; }
+            if (!refresh) {
+                localStorage.clear();
+                return;
+            }
             $.ajax({
                 url: '/api/user/token/refresh/',
                 method: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify({ refresh: refresh }),
                 success: function (resp) {
-                    localStorage.setItem('auth_token',    resp.access);
-                    localStorage.setItem('refresh_token', resp.refresh);
-                    goToChat();
+                    localStorage.setItem('auth_token', resp.access || '');
+                    if (resp.refresh) {
+                        localStorage.setItem('refresh_token', resp.refresh);
+                    }
+                    goToApp();
                 },
-                error: function () { localStorage.clear(); }  // stay on login
+                error: function () {
+                    localStorage.clear();
+                }
             });
         }
 
@@ -235,9 +245,11 @@ $(document).ready(function () {
                 url: '/api/user/whoami/',
                 method: 'GET',
                 headers: { Authorization: 'Bearer ' + token },
-                success: goToChat,
+                success: goToApp,
                 error: function (xhr) {
-                    if (xhr.status === 401) tryRefresh();
+                    if (xhr.status === 401) {
+                        tryRefresh();
+                    }
                 }
             });
         } else {
@@ -245,57 +257,20 @@ $(document).ready(function () {
         }
     })();
 
-    // ── State ──────────────────────────────────────────────────────────────
-    let sessionToken = null;   // received from /api/user/login/
-
-    // ── Helpers ────────────────────────────────────────────────────────────
-    function setLoading($btn, $spinner, $text, label, loading) {
-        $btn.prop('disabled', loading);
-        $spinner.toggleClass('d-none', !loading);
-        $text.text(loading ? label : $text.data('default'));
-    }
-
-    function showError($el, msg) {
-        $el.text(msg).removeClass('d-none');
-    }
-
-    function hideError($el) {
-        $el.addClass('d-none').text('');
-    }
-
-    function goToStep(step) {
-        if (step === 1) {
-            $('#step-login').removeClass('d-none');
-            $('#step-otp').addClass('d-none');
-            $('#dot-1').addClass('active');
-            $('#dot-2').removeClass('active');
-        } else {
-            $('#step-login').addClass('d-none');
-            $('#step-otp').removeClass('d-none');
-            $('#dot-1').removeClass('active');
-            $('#dot-2').addClass('active');
-            // Focus first OTP box
-            $('.otp-digit').first().focus();
-        }
-    }
-
-    // Store default button labels
-    $('#login-btn-text').data('default', 'Continue');
-    $('#otp-btn-text').data('default', 'Verify & Sign In');
-
-    // ── STEP 1: Login ───────────────────────────────────────────────────────
-    $('#login-form').on('submit', function (e) {
+    $('#local-login-form').on('submit', function (e) {
         e.preventDefault();
-        hideError($('#login-error'));
+        hideError();
 
-        const $btn     = $('#login-btn');
-        const $spinner = $('#login-spinner');
-        const $text    = $('#login-btn-text');
+        const $btn = $('#local-login-btn');
+        const $spinner = $('#local-login-spinner');
+        const $text = $('#local-login-btn-text');
 
-        setLoading($btn, $spinner, $text, 'Checking...', true);
+        $btn.prop('disabled', true);
+        $spinner.removeClass('d-none');
+        $text.text('Signing in...');
 
         $.ajax({
-            url: '/api/user/auth/',
+            url: '/api/user/login/',
             method: 'POST',
             contentType: 'application/json',
             data: JSON.stringify({
@@ -303,148 +278,22 @@ $(document).ready(function () {
                 password: $('#password').val()
             }),
             success: function (res) {
-                sessionToken = res.session_token;
-
-                // Dev mode: pre-fill OTP boxes if server returned it
-                if (res.dev_otp) {
-                    const digits = res.dev_otp.toString().split('');
-                    $('.otp-digit').each(function (i) {
-                        $(this).val(digits[i] || '');
-                    });
-                    $('#otp-subtitle').text('DEV MODE — OTP pre-filled (not emailed).');
-                } else {
-                    $('.otp-digit').val('');
-                    $('#otp-subtitle').text(
-                        'Enter the 6-digit code sent to your email.'
-                    );
-                }
-
-                goToStep(2);
+                storeLoginPayload(res);
+                goToApp();
             },
             error: function (xhr) {
                 const msg = xhr.responseJSON && xhr.responseJSON.detail
                     ? xhr.responseJSON.detail
                     : 'Login failed. Please check your credentials.';
-                showError($('#login-error'), msg);
+                showError(msg);
             },
             complete: function () {
-                setLoading($btn, $spinner, $text, '', false);
+                $btn.prop('disabled', false);
+                $spinner.addClass('d-none');
+                $text.text('Sign in with local password');
             }
         });
     });
-
-    // ── STEP 2: OTP verify ──────────────────────────────────────────────────
-    $('#otp-form').on('submit', function (e) {
-        e.preventDefault();
-        hideError($('#otp-error'));
-        $('#otp-success').addClass('d-none');
-
-        const otp = $('.otp-digit').map(function () {
-            return $(this).val();
-        }).get().join('');
-
-        if (otp.length !== 6 || !/^\d{6}$/.test(otp)) {
-            showError($('#otp-error'), 'Please enter the complete 6-digit code.');
-            return;
-        }
-
-        const $btn     = $('#otp-btn');
-        const $spinner = $('#otp-spinner');
-        const $text    = $('#otp-btn-text');
-
-        setLoading($btn, $spinner, $text, 'Verifying...', true);
-
-        $.ajax({
-            url: '/api/user/otp/verify/',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({
-                session_token: sessionToken,
-                otp_code: otp
-            }),
-            success: function (res) {
-                // Store tokens & user info
-                localStorage.setItem('auth_token',    res.access);
-                localStorage.setItem('refresh_token', res.refresh);
-                localStorage.setItem('full_name',     res.full_name    || '');
-                localStorage.setItem('designation',   res.designation  || '');
-                localStorage.setItem('username',      res.username     || '');
-                localStorage.setItem('user_uuid',     res.user_uuid    || '');
-
-                $('#otp-success').text('Verified! Redirecting…').removeClass('d-none');
-                setTimeout(function () {
-                    window.location.href = '/api/sales/index/';
-                }, 600);
-            },
-            error: function (xhr) {
-                const msg = xhr.responseJSON && xhr.responseJSON.detail
-                    ? xhr.responseJSON.detail
-                    : 'OTP verification failed. Please try again.';
-                showError($('#otp-error'), msg);
-                // Clear boxes so user re-types
-                $('.otp-digit').val('');
-                $('.otp-digit').first().focus();
-            },
-            complete: function () {
-                setLoading($btn, $spinner, $text, '', false);
-            }
-        });
-    });
-
-    // ── Back button ─────────────────────────────────────────────────────────
-    $('#back-btn').on('click', function () {
-        sessionToken = null;
-        hideError($('#otp-error'));
-        $('#otp-success').addClass('d-none');
-        hideError($('#login-error'));
-        $('#password').val('');
-        goToStep(1);
-    });
-
-    // ── OTP digit UX: auto-advance & backspace ───────────────────────────────
-    $(document).on('input', '.otp-digit', function () {
-        const val = $(this).val().replace(/\D/g, '');   // digits only
-        $(this).val(val.slice(-1));                      // keep last digit
-
-        if (val && $(this).data('index') < 5) {
-            $('.otp-digit[data-index="' + ($(this).data('index') + 1) + '"]').focus();
-        }
-        // Auto-submit when last box is filled
-        if ($('.otp-digit[data-index="5"]').val()) {
-            const all = $('.otp-digit').map(function () { return $(this).val(); }).get().join('');
-            if (/^\d{6}$/.test(all)) {
-                $('#otp-form').trigger('submit');
-            }
-        }
-    });
-
-    $(document).on('keydown', '.otp-digit', function (e) {
-        if (e.key === 'Backspace' && !$(this).val() && $(this).data('index') > 0) {
-            $('.otp-digit[data-index="' + ($(this).data('index') - 1) + '"]').focus().val('');
-        }
-        // Allow only digits, backspace, tab, arrows
-        if (!/^\d$/.test(e.key) && !['Backspace','Tab','ArrowLeft','ArrowRight','Delete'].includes(e.key)) {
-            e.preventDefault();
-        }
-    });
-
-    // Handle paste into any OTP box
-    $(document).on('paste', '.otp-digit', function (e) {
-        e.preventDefault();
-        const pasted = (e.originalEvent.clipboardData || window.clipboardData)
-                        .getData('text').replace(/\D/g, '').slice(0, 6);
-        if (!pasted) return;
-        const digits = pasted.split('');
-        $('.otp-digit').each(function (i) {
-            $(this).val(digits[i] || '');
-        });
-        const last = Math.min(digits.length, 5);
-        $('.otp-digit[data-index="' + last + '"]').focus();
-        if (/^\d{6}$/.test(pasted)) {
-            $('#otp-form').trigger('submit');
-        }
-    });
-
 });
 </script>
 </body>

@@ -1867,6 +1867,71 @@ def format_dates(kql_query: str) -> str:
     # Negative lookbehind: only wrap dates NOT already preceded by 'datetime('
     return re.sub(r'(?<!datetime\()(\d{4}-\d{2}-\d{2})', r'datetime(\1)', kql_query)
 
+
+def _fmt_date(d: str) -> str:
+    """Format YYYY-MM-DD as '14 Mar 2026'."""
+    try:
+        return datetime.datetime.strptime(d, "%Y-%m-%d").strftime("%d %b %Y").lstrip("0")
+    except Exception:
+        return d
+
+
+def _extract_kql_period_context(kql: str) -> str:
+    """
+    Return a human-readable period string extracted from the KQL.
+
+    Priority 1 — let-variable pattern (most explicit):
+        let CY_Start = datetime(2026-03-01); ...
+    Priority 2 — inline between (datetime(X) .. datetime(Y))
+    Priority 3 — fallback: min/max of all datetime() values
+    """
+    # Priority 1: let CY_Start / CY_End / PY_Start / PY_End
+    let_pat = re.compile(
+        r'let\s+(CY_Start|CY_End|PY_Start|PY_End)\s*=\s*datetime\((\d{4}-\d{2}-\d{2})\)',
+        re.IGNORECASE,
+    )
+    let_vars = {m.group(1).upper(): m.group(2) for m in let_pat.finditer(kql)}
+
+    if {"CY_START", "CY_END", "PY_START", "PY_END"}.issubset(let_vars):
+        return (
+            f"Current Period : {_fmt_date(let_vars['CY_START'])} to {_fmt_date(let_vars['CY_END'])}\n"
+            f"Previous Period: {_fmt_date(let_vars['PY_START'])} to {_fmt_date(let_vars['PY_END'])}"
+        )
+    if {"CY_START", "CY_END"}.issubset(let_vars):
+        return f"Period: {_fmt_date(let_vars['CY_START'])} to {_fmt_date(let_vars['CY_END'])}"
+
+    # Priority 2: between (datetime(X) .. datetime(Y))
+    between_pat = re.compile(
+        r'between\s*\(\s*datetime\((\d{4}-\d{2}-\d{2})\)\s*\.\.\s*datetime\((\d{4}-\d{2}-\d{2})\)\s*\)',
+        re.IGNORECASE,
+    )
+    pairs = list(dict.fromkeys(between_pat.findall(kql)))
+
+    if len(pairs) == 1:
+        s, e = pairs[0]
+        return f"Period: {_fmt_date(s)} to {_fmt_date(e)}"
+    if len(pairs) == 2:
+        sorted_pairs = sorted(pairs, key=lambda p: p[0])
+        py_s, py_e = sorted_pairs[0]
+        cy_s, cy_e = sorted_pairs[1]
+        return (
+            f"Current Period : {_fmt_date(cy_s)} to {_fmt_date(cy_e)}\n"
+            f"Previous Period: {_fmt_date(py_s)} to {_fmt_date(py_e)}"
+        )
+    if len(pairs) > 2:
+        return "\n".join(
+            f"Period {i+1}: {_fmt_date(s)} to {_fmt_date(e)}" for i, (s, e) in enumerate(pairs)
+        )
+
+    # Priority 3: all datetime() values → min/max
+    all_dates = sorted(set(re.findall(r'datetime\((\d{4}-\d{2}-\d{2})\)', kql)))
+    if len(all_dates) >= 2:
+        return f"Period: {_fmt_date(all_dates[0])} to {_fmt_date(all_dates[-1])}"
+    if all_dates:
+        return f"Date: {_fmt_date(all_dates[0])}"
+    return ""
+
+
 # Detect trend from user prompt (e.g., increasing, declining, etc.)
 def detect_trend(user_prompt: str) -> str:
     if any(word in user_prompt.lower() for word in ["declining", "downtrending", "negative growth", "falling", "decrease"]):
@@ -2094,12 +2159,15 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None, u
         title_suffix, insight_note = _build_scope_title_and_insight(_user_for_scope)
     #end scope
 
+    period_context = _extract_kql_period_context(kql)
+
     result_prompt = (
         (history_block + "\n" if history_block else "")
         + "Now, CURRENT USER MESSAGE:\n"
         + f"USER: {user_prompt}\n\n"
         + "Context Data (use ONLY this JSON for any numbers):\n"
         + f"{result_json}\n\n"
+        + (f"Analysis Period (MUST mention this clearly in the response):\n{period_context}\n\n" if period_context else "")
         + "Format the output in bulleted format.\n"
         + "After decimal take upto two places. Example: 1253.89"
         + "- Begin with a concise Title for the result.\n"

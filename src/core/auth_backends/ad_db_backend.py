@@ -8,8 +8,22 @@ from core.services.ad_service import ActiveDirectoryService
 
 logger = logging.getLogger(__name__)
 
+
+def _is_admin_request(request):
+    path = getattr(request, "path_info", "") or getattr(request, "path", "")
+    return path.startswith("/admin/")
+
+
 class ADDBBackend(BaseBackend):
     def authenticate(self, request, username=None, password=None, **kwargs):
+        allow_legacy_api_ad = getattr(settings, "AUTH_ENABLE_LEGACY_AD_PASSWORD_LOGIN", False)
+        allow_admin_ad = (
+            getattr(settings, "AUTH_ENABLE_ADMIN_AD_LOGIN", True)
+            and _is_admin_request(request)
+        )
+        if not (allow_legacy_api_ad or allow_admin_ad):
+            return None
+
         if not username:
             return None
 

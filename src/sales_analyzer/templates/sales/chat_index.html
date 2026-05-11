@@ -11,6 +11,376 @@
 
   <!-- Custom CSS -->
   <link rel="stylesheet" href="{% static 'css/chat.css' %}">
+  <style>
+    html {
+      height: 100%;
+    }
+
+    body {
+      width: 100%;
+      min-width: 0;
+      height: 100vh;
+      height: 100svh;
+      height: 100dvh;
+    }
+
+    .main-container {
+      width: 100%;
+      min-width: 0;
+      height: 100vh;
+      height: 100svh;
+      height: 100dvh;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .sidebar {
+      flex: 0 0 260px;
+      max-width: min(260px, 86vw);
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .main-content {
+      flex: 1 1 auto;
+      min-width: 0;
+      min-height: 0;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .chat-header {
+      flex: 0 0 auto;
+      gap: .75rem;
+      min-width: 0;
+    }
+
+    .chat-header .chat-title {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .chat-header .dropdown,
+    .chat-header #modelDropdown,
+    .chat-header #current-model {
+      max-width: 100%;
+      min-width: 0;
+    }
+
+    .chat-header #current-model {
+      display: inline-block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      vertical-align: bottom;
+      white-space: nowrap;
+    }
+
+    .chat-actions {
+      flex: 0 0 auto;
+    }
+
+    .chat-content {
+      width: 100%;
+      max-width: 100%;
+      min-height: 0;
+      padding-inline: clamp(1rem, 6vw, 5rem);
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    #messages-list,
+    .message,
+    .message-group {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+    }
+
+    .message-content {
+      min-width: 0;
+      max-width: 100%;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .message.user .message-content {
+      max-width: min(70%, 48rem);
+    }
+
+    .message.assistant .message-content {
+      max-width: 100%;
+    }
+
+    .message-content img,
+    .message-content video,
+    .message-content canvas,
+    .message-content iframe {
+      max-width: 100%;
+      height: auto;
+    }
+
+    .message-content table {
+      display: block;
+      max-width: 100%;
+      overflow-x: auto;
+    }
+
+    .code-block,
+    .message-content pre {
+      max-width: 100%;
+      overflow-x: auto;
+    }
+
+    .message-content pre {
+      white-space: pre-wrap;
+    }
+
+    .input-area {
+      flex: 0 0 auto;
+      padding: clamp(.75rem, 3vw, 1.5rem);
+      padding-bottom: max(clamp(.75rem, 3vw, 1.5rem), env(safe-area-inset-bottom));
+    }
+
+    .input-container {
+      width: min(100%, 768px);
+    }
+
+    .input-wrapper,
+    .message-input {
+      min-width: 0;
+    }
+
+    .message-input {
+      width: 100%;
+    }
+
+    .select2-container,
+    .textcomplete-dropdown,
+    #ghost-portal {
+      max-width: calc(100vw - 1rem);
+    }
+
+    @media (min-width: 1200px) {
+      .chat-content {
+        padding-inline: clamp(5rem, 9vw, 9rem);
+      }
+    }
+
+    @media (max-width: 991.98px) {
+      .chat-content {
+        padding-inline: clamp(1rem, 4vw, 2rem);
+      }
+
+      .message.user .message-content {
+        max-width: 82%;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .mobile-menu-btn {
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        top: max(10px, env(safe-area-inset-top));
+        left: max(10px, env(safe-area-inset-left));
+        font-size: 1.35rem;
+        line-height: 1;
+      }
+
+      .sidebar {
+        width: min(86vw, 320px);
+        max-width: min(86vw, 320px);
+        height: 100vh;
+        height: 100svh;
+        height: 100dvh;
+      }
+
+      .sidebar-overlay {
+        height: 100vh;
+        height: 100svh;
+        height: 100dvh;
+      }
+
+      .chat-header {
+        align-items: center;
+        gap: .5rem;
+        padding: calc(.75rem + env(safe-area-inset-top)) .875rem .75rem 3.75rem;
+      }
+
+      .chat-content {
+        gap: 1rem;
+        padding: 1rem;
+      }
+
+      .message {
+        gap: .625rem;
+        margin-bottom: 1rem;
+      }
+
+      .message-avatar {
+        width: 28px;
+        height: 28px;
+        font-size: .75rem;
+      }
+
+      .message.user .message-content {
+        max-width: 88%;
+        margin-right: 0;
+        border-radius: 16px;
+      }
+
+      .message.assistant .message-content {
+        font-size: .95rem;
+      }
+
+      .input-area {
+        padding: .75rem;
+        padding-bottom: max(.75rem, env(safe-area-inset-bottom));
+      }
+
+      .input-wrapper {
+        border-radius: 18px;
+        padding: .625rem .75rem;
+      }
+
+      .input-actions {
+        gap: .375rem;
+        margin-left: .5rem;
+      }
+
+      .input-btn {
+        flex: 0 0 36px;
+        width: 36px;
+        height: 36px;
+      }
+
+      .message-input {
+        max-height: 320px;
+        max-height: 35dvh;
+        font-size: 16px;
+      }
+
+      .textcomplete-dropdown {
+        right: .5rem !important;
+        left: .5rem !important;
+        width: calc(100vw - 1rem) !important;
+        max-height: 320px;
+        max-height: min(52dvh, 320px);
+      }
+
+      #ghost-portal .ai-suggest-card {
+        max-height: 220px;
+        max-height: min(40dvh, 220px);
+      }
+
+      .suggest-meta {
+        margin-left: 0;
+        white-space: normal;
+      }
+    }
+
+    @media (max-width: 575.98px) {
+      .chat-header .btn {
+        padding: .35rem .55rem;
+        font-size: .8125rem;
+      }
+
+      .chat-content {
+        gap: .875rem;
+        padding-inline: .75rem;
+      }
+
+      .message.user .message-content {
+        max-width: 92%;
+        padding: .625rem .875rem;
+      }
+
+      .message.assistant {
+        gap: .5rem;
+      }
+
+      .message.assistant .message-avatar {
+        width: 26px;
+        height: 26px;
+      }
+
+      .message-content ul,
+      .message-content ol {
+        padding-left: 1.15rem;
+      }
+
+      .code-block,
+      .message-content pre {
+        margin: .75rem 0;
+        padding: .75rem;
+        font-size: .8125rem;
+      }
+
+      .input-area {
+        padding-inline: .625rem;
+      }
+
+      .input-wrapper {
+        padding: .5rem .625rem;
+      }
+    }
+
+    @media (max-width: 380px) {
+      .mobile-menu-btn {
+        width: 36px;
+        height: 36px;
+      }
+
+      .chat-header {
+        padding-right: .625rem;
+        padding-left: 3.25rem;
+      }
+
+      .chat-header .btn {
+        max-width: 8rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .message.user .message-content {
+        max-width: 94%;
+      }
+    }
+
+    @media (max-height: 520px) and (orientation: landscape) {
+      .chat-header {
+        padding-top: .5rem;
+        padding-bottom: .5rem;
+      }
+
+      .chat-content {
+        gap: .75rem;
+        padding-top: .75rem;
+        padding-bottom: .75rem;
+      }
+
+      .input-area {
+        padding-top: .5rem;
+        padding-bottom: max(.5rem, env(safe-area-inset-bottom));
+      }
+
+      .message-input {
+        max-height: 160px;
+        max-height: 28dvh;
+      }
+    }
+
+    @media (hover: none) and (pointer: coarse) {
+      .chat-menu-btn {
+        opacity: 1;
+      }
+    }
+  </style>
 
   <!-- Auth guard: redirect to login immediately if no valid session tokens -->
   <script>
@@ -25,7 +395,7 @@
 </head>
 <body>
   <!-- === Layout === -->
-  <button class="mobile-menu-btn" id="mobile-menu-btn">☰</button>
+  <button class="mobile-menu-btn" id="mobile-menu-btn" type="button" aria-label="Toggle chat menu" aria-controls="sidebar">☰</button>
   <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
   <div class="main-container">
