@@ -13,11 +13,11 @@ logging.basicConfig(
 from core.wsgi import application
 
 if __name__ == '__main__':
-    print("Starting VoiceOfSales on port 8004...")
+    print("Starting VoiceOfSales on port 8002...")
     serve(
         application,
         host='127.0.0.1',
-        port=8004,
+        port=8002,
         threads=8,
         channel_timeout=120,
         cleanup_interval=30,

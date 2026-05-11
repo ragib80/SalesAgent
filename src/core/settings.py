@@ -31,7 +31,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-z350z@5$p*7=3ll0iw8n!7et86d-mw1zga94*q45^_b(so_#j4'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# DEBUG = True
+DEBUG = False
 # AUTH_DEV_BYPASS_AD = True
 AUTH_DEV_BYPASS_AD = False
 
@@ -92,7 +93,7 @@ AUTH_ALLOW_LOCAL_PASSWORD_FALLBACK = True  # set False to force AD for everyone 
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8000",
-    "http://172.16.0.5:8000",
+    "http://172.16.0.196:8000",
     "https://voiceofsales.bergerbd.com",
     "http://127.0.0.1:8000" # Frontend URL
 ]
@@ -100,7 +101,7 @@ CORS_ALLOWED_ORIGINS = [
 CSRF_TRUSTED_ORIGINS = [
     "https://voiceofsales.bergerbd.com",
     "http://voiceofsales.bergerbd.com",
-    "http://127.0.0.1:8004"  # include if HTTP is also used
+    "http://127.0.0.1:8002"  # include if HTTP is also used
 ]
 
 
