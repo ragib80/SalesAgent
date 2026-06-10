@@ -1,14 +1,16 @@
 # user_auth/views.py
 
+import json
 import logging
 import re
 import secrets
-from urllib.parse import urlencode, urlparse
+from urllib.parse import urlencode, urlparse, urlunparse
 
 import msal
 from django.conf import settings
 from django.contrib.auth import get_user_model, login as django_login
 from django.core.exceptions import ImproperlyConfigured
+from django.http import HttpResponse
 from django.core.mail import send_mail
 from django.db import transaction
 from django.db.models import Q
@@ -32,6 +34,8 @@ logger = logging.getLogger(__name__)
 
 MICROSOFT_PROVIDER = "microsoft"
 DEFAULT_LOGIN_NEXT = "/api/sales/index/"
+MICROSOFT_LOGIN_HOST = "login.microsoftonline.com"
+MICROSOFT_AUTHORIZE_PATH_RE = re.compile(r"^/[^/?#]+/oauth2/v2\.0/authorize/?$")
 
 
 def login_template_view(request):
@@ -133,7 +137,11 @@ def microsoft_app():
             "Missing Microsoft auth setting(s): " + ", ".join(missing)
         )
 
-    authority = f"https://login.microsoftonline.com/{tenant_id}"
+    authority = getattr(
+        settings,
+        "MICROSOFT_AUTH_AUTHORITY",
+        f"https://{MICROSOFT_LOGIN_HOST}/{tenant_id}",
+    )
     return msal.ConfidentialClientApplication(
         client_id=client_id,
         authority=authority,
@@ -146,6 +154,71 @@ def microsoft_redirect_uri():
     if not redirect_uri:
         raise ImproperlyConfigured("Missing MICROSOFT_AUTH_REDIRECT_URI")
     return redirect_uri
+
+
+def parse_authorization_url(raw_url):
+    raw_url = (raw_url or "").strip()
+    if raw_url.startswith("//"):
+        return urlparse(f"https:{raw_url}")
+    if "://" in raw_url:
+        return urlparse(raw_url)
+    if raw_url.lower().startswith(f"{MICROSOFT_LOGIN_HOST}/"):
+        return urlparse(f"https://{raw_url}")
+    if raw_url.startswith("/"):
+        return urlparse(raw_url)
+    return urlparse(f"/{raw_url}")
+
+
+def microsoft_authorization_url(raw_url):
+    parsed = parse_authorization_url(raw_url)
+    path = parsed.path or ""
+
+    if not MICROSOFT_AUTHORIZE_PATH_RE.match(path):
+        raise ImproperlyConfigured("MSAL generated an invalid Microsoft authorization URL.")
+
+    return urlunparse(
+        (
+            "https",
+            MICROSOFT_LOGIN_HOST,
+            path,
+            "",
+            parsed.query,
+            parsed.fragment,
+        )
+    )
+
+
+def microsoft_authorization_bridge_response(auth_url):
+    target_url = microsoft_authorization_url(auth_url)
+    target_json = (
+        json.dumps(target_url)
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("&", "\\u0026")
+        .replace("'", "\\u0027")
+    )
+    target_html = escape(target_url)
+    html = f"""<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="referrer" content="no-referrer">
+    <meta http-equiv="refresh" content="0;url={target_html}">
+    <title>Microsoft sign-in</title>
+</head>
+<body>
+    <script>
+        window.location.replace({target_json});
+    </script>
+    <noscript>
+        <a href="{target_html}">Continue to Microsoft sign-in</a>
+    </noscript>
+</body>
+</html>"""
+    response = HttpResponse(html, content_type="text/html; charset=utf-8")
+    response["Cache-Control"] = "no-store"
+    response["Referrer-Policy"] = "no-referrer"
+    return response
 
 
 def get_claim_email(claims):
@@ -339,7 +412,7 @@ class MicrosoftLoginView(APIView):
                 auth_kwargs["prompt"] = prompt
 
             auth_url = microsoft_app().get_authorization_request_url(**auth_kwargs)
-            return redirect(auth_url)
+            return microsoft_authorization_bridge_response(auth_url)
         except ImproperlyConfigured as exc:
             logger.exception("Microsoft auth is not configured")
             return auth_error_redirect(
@@ -354,6 +427,17 @@ class MicrosoftLoginView(APIView):
                 "Microsoft sign-in is unavailable. Try again later.",
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
+
+
+class MicrosoftAuthorizeRepairView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, tenant_id):
+        logger.warning(
+            "Repairing Microsoft authorize URL rewritten through local host for tenant %s",
+            tenant_id,
+        )
+        return microsoft_authorization_bridge_response(request.get_full_path())
 
 
 class MicrosoftCallbackView(APIView):

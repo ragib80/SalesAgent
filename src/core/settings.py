@@ -13,6 +13,7 @@ from datetime import timedelta
 import os
 # import environ
 from pathlib import Path
+from urllib.parse import urlparse
 from dotenv import load_dotenv
 # add these two imports:
 
@@ -34,6 +35,28 @@ def env_list(name, default=""):
         return []
     normalized = value.replace(",", " ")
     return [item.strip() for item in normalized.split() if item.strip()]
+
+
+MICROSOFT_LOGIN_HOST = "login.microsoftonline.com"
+
+
+def normalize_microsoft_authority(authority, tenant_id):
+    raw_authority = (authority or "").strip().rstrip("/")
+    tenant = (tenant_id or "").strip().strip("/")
+
+    if raw_authority:
+        if "://" in raw_authority:
+            parsed = urlparse(raw_authority)
+            parts = [part for part in parsed.path.split("/") if part]
+            tenant = parts[0] if parts else tenant
+        else:
+            parts = [part for part in raw_authority.strip("/").split("/") if part]
+            if parts and parts[0].lower() == MICROSOFT_LOGIN_HOST:
+                tenant = parts[1] if len(parts) > 1 else tenant
+            elif parts:
+                tenant = parts[0]
+
+    return f"https://{MICROSOFT_LOGIN_HOST}/{tenant}" if tenant else f"https://{MICROSOFT_LOGIN_HOST}"
 # env = environ.Env(
 #     # set default values and casting
 #     DEBUG=(bool, False)
@@ -55,6 +78,8 @@ ALLOWED_HOSTS = ['172.16.0.5',
                  '127.0.0.1',
                  'voiceofsales.bergerbd.com',
                  'https://voiceofsales.bergerbd.com',
+                 'financeexpiry.bergerbd.com',
+                 'https://financeexpiry.bergerbd.com',
                  'localhost'
                  ]
 
@@ -106,10 +131,14 @@ AUTHENTICATION_BACKENDS = [
 
 
 # Microsoft Entra ID login and legacy auth controls
-MICROSOFT_AUTH_CLIENT_ID = os.getenv("MICROSOFT_AUTH_CLIENT_ID", "")
-MICROSOFT_AUTH_TENANT_ID = os.getenv("MICROSOFT_AUTH_TENANT_ID", "")
+MICROSOFT_AUTH_CLIENT_ID = os.getenv("MICROSOFT_AUTH_CLIENT_ID", "").strip()
+MICROSOFT_AUTH_TENANT_ID = os.getenv("MICROSOFT_AUTH_TENANT_ID", "").strip().strip("/")
+MICROSOFT_AUTH_AUTHORITY = normalize_microsoft_authority(
+    os.getenv("MICROSOFT_AUTH_AUTHORITY", ""),
+    MICROSOFT_AUTH_TENANT_ID,
+)
 MICROSOFT_AUTH_CLIENT_SECRET = os.getenv("MICROSOFT_AUTH_CLIENT_SECRET", "")
-MICROSOFT_AUTH_REDIRECT_URI = os.getenv("MICROSOFT_AUTH_REDIRECT_URI", "")
+MICROSOFT_AUTH_REDIRECT_URI = os.getenv("MICROSOFT_AUTH_REDIRECT_URI", "").strip()
 MICROSOFT_AUTH_SCOPES = env_list("MICROSOFT_AUTH_SCOPES")
 MICROSOFT_AUTH_AUTO_CREATE_USERS = env_bool("MICROSOFT_AUTH_AUTO_CREATE_USERS", False)
 MICROSOFT_AUTH_PROMPT = os.getenv("MICROSOFT_AUTH_PROMPT", "").strip()
@@ -125,13 +154,16 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:8000",
     "http://172.16.0.196:8000",
     "https://voiceofsales.bergerbd.com",
+    "https://financeexpiry.bergerbd.com",
     "http://127.0.0.1:8000" # Frontend URL
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "https://voiceofsales.bergerbd.com",
     "http://voiceofsales.bergerbd.com",
-    "http://127.0.0.1:8002"  # include if HTTP is also used
+    "https://financeexpiry.bergerbd.com",
+    "http://financeexpiry.bergerbd.com",
+    "http://127.0.0.1:8004"  # include if HTTP is also used
 ]
 
 
