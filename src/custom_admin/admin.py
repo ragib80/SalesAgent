@@ -88,6 +88,7 @@ class SalesAuthUserAdmin(UserAdmin):
         "depo_count", "zone_count", "territory_count",
         "date_joined",
     )
+    list_per_page = 20
     list_filter = ("identity_provider", "is_active", "is_staff", "is_superuser", "date_joined")
     search_fields = (
         "email", "username", "first_name", "last_name",
