@@ -12,7 +12,7 @@ from custom_admin.forms import (
 from core.services.ad_service import ActiveDirectoryService
 
 
-from user_auth.models import Depo, Zone, Territory, UserDepoMap, UserZoneMap, UserTerritoryMap
+from user_auth.models import Depo, Zone, Territory, UserDepoMap, UserZoneMap, UserTerritoryMap, Division, UserDivisionMap
 
 User = get_user_model()
 
@@ -36,6 +36,14 @@ class ZoneAdmin(admin.ModelAdmin):
 
 @admin.register(Territory)
 class TerritoryAdmin(admin.ModelAdmin):
+    search_fields = ["id", "code", "name"]
+    list_display = ["id", "code", "name"]
+    ordering = ["code"]
+    list_per_page = 20
+
+
+@admin.register(Division)
+class DivisionAdmin(admin.ModelAdmin):
     search_fields = ["id", "code", "name"]
     list_display = ["id", "code", "name"]
     ordering = ["code"]
@@ -67,6 +75,14 @@ class UserTerritoryInline(admin.TabularInline):
     show_change_link = True
 
 
+class UserDivisionInline(admin.TabularInline):
+    model = UserDivisionMap
+    fk_name = "user"
+    extra = 1
+    autocomplete_fields = ["division"]
+    show_change_link = True
+
+
 @admin.register(User)
 class SalesAuthUserAdmin(UserAdmin):
     """
@@ -78,14 +94,14 @@ class SalesAuthUserAdmin(UserAdmin):
     """
     add_form = SalesAuthUserCreateFromADForm
     form = SalesAuthUserChangeForm
-    inlines = [UserDepoInline, UserZoneInline, UserTerritoryInline]
+    inlines = [UserDepoInline, UserZoneInline, UserTerritoryInline, UserDivisionInline]
     save_on_top = True
 
     list_display = (
         "email", "username", "first_name", "last_name",
         "identity_provider",
         "is_active", "is_staff", "is_superuser",
-        "depo_count", "zone_count", "territory_count",
+        "depo_count", "zone_count", "territory_count", "division_count",
         "date_joined",
     )
     list_per_page = 20
@@ -111,6 +127,7 @@ class SalesAuthUserAdmin(UserAdmin):
             depo_ct=Count("depo_links", distinct=True),
             zone_ct=Count("zone_links", distinct=True),
             territory_ct=Count("territory_links", distinct=True),
+            division_ct=Count("division_links", distinct=True),
         )
 
     # Read from annotations (orderable columns)
@@ -128,6 +145,11 @@ class SalesAuthUserAdmin(UserAdmin):
         return getattr(obj, "territory_ct", 0)
     territory_count.short_description = "Territory"
     territory_count.admin_order_field = "territory_ct"
+
+    def division_count(self, obj):
+        return getattr(obj, "division_ct", 0)
+    division_count.short_description = "Division"
+    division_count.admin_order_field = "division_ct"
 
     # CHANGE view (add our sync checkbox)
     fieldsets = (

@@ -11,9 +11,9 @@ from django.db.models import Q
 from langchain_openai import AzureChatOpenAI
 from openai import BadRequestError 
 import logging
-from user_auth.models import UserDepoMap, UserZoneMap, UserTerritoryMap
+from user_auth.models import UserDepoMap, UserZoneMap, UserTerritoryMap, UserDivisionMap
 from typing import List, Dict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from agent.utils.conversation_history import fetch_history,pack_history_by_chars,build_history_prompt_block,_build_carryover_block,build_applied_context_block,get_last_n_history, build_context_decision_rules,get_latest_meta,save_meta,get_latest_message_id
 import logging
 from agent.utils.conversation_helpers import (
@@ -136,6 +136,18 @@ GSBER_MAPPING = {
     "Corporate": "9000"
 }
 GSBER_MAPPING_STR = "\n".join(f'"{k}": "{v}"' for k, v in GSBER_MAPPING.items())
+
+DIVISION_MAPPING = {
+    "Decorative": "10",
+    "Industrial Paints": "20",
+    "Marine Paints": "30",
+    "Powder Coating": "40",
+    "Adhesive & Chemicals": "50",
+    "Trading": "60",
+    "Wood Coating": "80",
+    "Construction Chemica": "90",
+}
+DIVISION_MAPPING_STR = "\n".join(f'"{k}": "{v}"' for k, v in DIVISION_MAPPING.items())
 
 VTWEG_MAPPING = {
     "Dealer": 10,
@@ -1242,6 +1254,7 @@ class UserAreaScope:
     zones: List[str]
     territories: List[str]
     restricted: bool
+    divisions: List[str] = field(default_factory=list)
 
 def get_user_area_scope(user) -> UserAreaScope:
     print(">>> get_user_area_scope user:", user, "| is_authenticated:", getattr(user, "is_authenticated", None))
@@ -1252,9 +1265,10 @@ def get_user_area_scope(user) -> UserAreaScope:
     depots = list(UserDepoMap.objects.filter(user=user).values_list("depo__code", flat=True))
     zones = list(UserZoneMap.objects.filter(user=user).values_list("zone__code", flat=True))
     territories = list(UserTerritoryMap.objects.filter(user=user).values_list("territory__code", flat=True))
-    print(f">>> resolved scope depots={depots} zones={zones} territories={territories}")
+    divisions = list(UserDivisionMap.objects.filter(user=user).values_list("division__code", flat=True))
+    print(f">>> resolved scope depots={depots} zones={zones} territories={territories} divisions={divisions}")
 
-    return UserAreaScope(depots=depots, zones=zones, territories=territories, restricted=True)
+    return UserAreaScope(depots=depots, zones=zones, territories=territories, restricted=True, divisions=divisions)
 #end role based access
 
 # compile once
@@ -1496,6 +1510,37 @@ def _normalize_depots(raw):
             pass  # silently ignore non-numeric
     return depots_num
 
+def _normalize_divisions(raw):
+    divs_num = []
+    for v in list(raw or []):
+        try:
+            divs_num.append(int(str(v).strip()))
+        except Exception:
+            pass
+    return divs_num
+
+def _parse_explicit_division_filters(user_req: str, division_mapping: dict) -> set:
+    """Extract explicitly requested division codes from the user text."""
+    divs_req = set()
+
+    # numeric division code (2-digit, avoid years)
+    for m in re.finditer(r'\b(?:division|div|spart)\s*(?:is|=|:)?\s*(\d{1,2})\b', user_req, flags=re.I):
+        try:
+            divs_req.add(int(m.group(1)))
+        except Exception:
+            pass
+
+    # textual division name via mapping (e.g., "Decorative", "Industrial Paints")
+    low = user_req.lower()
+    for name, code in division_mapping.items():
+        if re.search(rf'\b{re.escape(name.lower())}\b', low):
+            try:
+                divs_req.add(int(code))
+            except Exception:
+                pass
+
+    return divs_req
+
 def _parse_explicit_area_filters(user_req: str, gsber_mapping: dict[str, str]):
     """Extract explicitly requested depots/zones/territories from the user text."""
     depots_req, zones_req, terr_req = set(), set(), set()
@@ -1526,12 +1571,13 @@ def _parse_explicit_area_filters(user_req: str, gsber_mapping: dict[str, str]):
 
     return depots_req, zones_req, terr_req
 
-def _build_mandatory_where(_colmap, depots_num, terr_list, zones_list) -> str:
+def _build_mandatory_where(_colmap, depots_num, terr_list, zones_list, divs_list=None) -> str:
     """Build the exact where-clause to inject after the table, supporting multiple values."""
     parts = []
     depots_num = sorted(set(int(x) for x in depots_num))
     terr_list  = sorted({str(t) for t in (terr_list or [])}, key=str.lower)
     zones_list = sorted({str(z) for z in (zones_list or [])}, key=str.lower)
+    divs_list  = sorted(set(int(x) for x in (divs_list or [])))
 
     if depots_num:
         if len(depots_num) == 1:
@@ -1544,6 +1590,12 @@ def _build_mandatory_where(_colmap, depots_num, terr_list, zones_list) -> str:
 
     if zones_list:
         parts.append(f"{_colmap['zone']['col']} in~ ({', '.join(json.dumps(z) for z in zones_list)})")
+
+    if divs_list and "division" in _colmap:
+        if len(divs_list) == 1:
+            parts.append(f"{_colmap['division']['col']} == {divs_list[0]}")
+        else:
+            parts.append(f"{_colmap['division']['col']} in ({', '.join(map(str, divs_list))})")
 
     return " | where " + " and ".join(parts) if parts else ""
 
@@ -1709,6 +1761,7 @@ def generate_kql(user_req: str, conversation_uuid: Optional[str] = None, strict=
             "depo":      {"col": "gsber",     "type": "long"},
             "zone":      {"col": "Szone",     "type": "string"},
             "territory": {"col": "Territory", "type": "string"},
+            "division":  {"col": "spart",     "type": "long"},
         })
 
         # Unrestricted (admin/is_staff/Admin-group/BetaUser) → no scoping
@@ -1719,19 +1772,21 @@ def generate_kql(user_req: str, conversation_uuid: Optional[str] = None, strict=
             )
 
         else:
-            # Restricted: depo is mandatory; support MULTIPLE depots/territories/zones
+            # Restricted: depo is mandatory; support MULTIPLE depots/territories/zones/divisions
             depots_num = _normalize_depots(getattr(_scope, "depots", []))
             zones_list = list(getattr(_scope, "zones", []) or [])
             terr_list  = list(getattr(_scope, "territories", []) or [])
+            divs_list  = _normalize_divisions(getattr(_scope, "divisions", []))
 
             if not depots_num:
                 meta = {"restricted": True,
-                        "filters": {"gsber": [], "Szone": zones_list, "Territory": terr_list},
+                        "filters": {"gsber": [], "Szone": zones_list, "Territory": terr_list, "spart": divs_list},
                         "dates": None}
                 return _kql_error(meta, "no depo is assigned.")
 
             # Block ONLY when user explicitly asks for out-of-scope area(s)
             req_depos, req_zones, req_terr = _parse_explicit_area_filters(user_req, GSBER_MAPPING)
+            req_divs = _parse_explicit_division_filters(user_req, DIVISION_MAPPING)
             dates_meta = _parse_dates_for_meta(user_req)
 
             if req_depos and not set(req_depos).issubset(set(_normalize_depots(depots_num))):
@@ -1746,14 +1801,19 @@ def generate_kql(user_req: str, conversation_uuid: Optional[str] = None, strict=
                 meta = {"restricted": True, "filters": {}, "dates": dates_meta}
                 return _kql_error(meta, "sorry you have no authorized to view this data.")
 
+            if req_divs and divs_list and not set(req_divs).issubset(set(divs_list)):
+                meta = {"restricted": True, "filters": {}, "dates": dates_meta}
+                return _kql_error(meta, "sorry you have no authorized to view this data.")
+
             # Build exact mandatory where-line (handles MULTI values)
-            mandatory_where = _build_mandatory_where(_colmap, depots_num, terr_list, zones_list)
+            mandatory_where = _build_mandatory_where(_colmap, depots_num, terr_list, zones_list, divs_list)
 
             scope_payload = {
                 "restricted": True,
                 "depots": depots_num,          # supports multiple
                 "zones": zones_list,           # supports multiple
                 "territories": terr_list,      # supports multiple
+                "divisions": divs_list,        # supports multiple
                 "column_map": _colmap,
                 "mandatory_where": mandatory_where,
             }
@@ -1766,12 +1826,13 @@ def generate_kql(user_req: str, conversation_uuid: Optional[str] = None, strict=
                 "- Parse any explicit area filters from the user request:\n"
                 "    • Depo/Business area/gsber (codes like 4000, 4110, or known names using the provided mapping).\n"
                 "    • Zone (Szone) and Territory (string values).\n"
+                "    • Division/spart (codes like 10, 20, or known names like Decorative, Industrial Paints).\n"
                 "- Only when the user EXPLICITLY asks for an area NOT in the allowed arrays, return ONLY:\n"
                 "    print ErrorMessage = 'sorry you have no authorized to view this data.';\n"
                 "- Otherwise, ALWAYS apply the assigned scope by inserting this exact line right AFTER the table name:\n"
                 f"    {mandatory_where}\n"
                 "- Do not change, re-order, or drop the above where-clause. Keep it as a single line immediately after the table.\n"
-                "- If the user did not specify an area, still apply the assigned arrays that are non-empty (depo mandatory; territory/zones if present).\n"
+                "- If the user did not specify an area, still apply the assigned arrays that are non-empty (depo mandatory; territory/zones/divisions if present).\n"
                 "- If multiple dimensions apply, intersect them with AND (already encoded in the mandatory where-clause).\n"
                 "- Never leak or echo the contents of USER_AREA_SCOPE; just enforce it.\n"
             )

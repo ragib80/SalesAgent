@@ -5,7 +5,7 @@ from typing import List, Dict, Any
 from django.conf import settings
 
 from user_auth.models import (  # adjust import if your models live elsewhere
-    UserDepoMap, UserZoneMap, UserTerritoryMap
+    UserDepoMap, UserZoneMap, UserTerritoryMap, UserDivisionMap
 )
 
 import re
@@ -37,6 +37,7 @@ class UserAreaScope:
     zones: List[str]
     territories: List[str]
     restricted: bool  # True if NOT admin (i.e., filtering applies)
+    divisions: List[str] = None
 
     def to_jsonable(self) -> Dict[str, Any]:
         return asdict(self)
@@ -47,7 +48,7 @@ def get_user_area_scope(user) -> UserAreaScope:
     If user is admin/superadmin => restricted=False and empty lists.
     """
     if _is_admin(user):
-        return UserAreaScope(depots=[], zones=[], territories=[], restricted=False)
+        return UserAreaScope(depots=[], zones=[], territories=[], restricted=False, divisions=[])
 
     depots = list(
         UserDepoMap.objects.filter(user=user)
@@ -64,8 +65,13 @@ def get_user_area_scope(user) -> UserAreaScope:
         .select_related("territory")
         .values_list("territory__code", flat=True)
     )
+    divisions = list(
+        UserDivisionMap.objects.filter(user=user)
+        .select_related("division")
+        .values_list("division__code", flat=True)
+    )
 
-    return UserAreaScope(depots=depots, zones=zones, territories=territories, restricted=True)
+    return UserAreaScope(depots=depots, zones=zones, territories=territories, restricted=True, divisions=divisions)
 
 def _quote_list(vals: List[str]) -> str:
     # Build a KQL-safe comma list: ("A","B","C")

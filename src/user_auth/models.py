@@ -203,3 +203,44 @@ class UserTerritoryMap(models.Model):
             models.Index(fields=['user'], name='ix_utm_user'),
             models.Index(fields=['territory'], name='ix_utm_territory'),
         ]
+
+
+class Division(models.Model):
+    id = models.BigIntegerField(db_column='id', primary_key=True)
+    code = models.CharField(db_column='Code', max_length=255)
+    name = models.CharField(db_column='Name', max_length=255)
+
+    def __str__(self):
+        if self.code and self.name:
+            return f"{self.code} — {self.name}"
+        return self.name or self.code or str(self.id)
+
+    class Meta:
+        db_table = 'Division'
+        managed = False
+
+
+class UserDivisionMap(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        db_column='user_id',
+        on_delete=models.CASCADE,
+        related_name='division_links',
+    )
+    division = models.ForeignKey(
+        Division,
+        db_column='division_id',
+        on_delete=models.CASCADE,
+        related_name='user_links',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'UserDivisionMap'
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'division'], name='uq_user_division')
+        ]
+        indexes = [
+            models.Index(fields=['user'], name='ix_udivmap_user'),
+            models.Index(fields=['division'], name='ix_udivmap_div'),
+        ]
