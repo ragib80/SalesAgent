@@ -6,7 +6,7 @@ import datetime
 from django.conf import settings
 from azure.kusto.data import KustoClient, KustoConnectionStringBuilder
 from azure.kusto.data.exceptions import KustoApiError
-from typing import Optional
+from typing import Optional, Any
 from django.db.models import Q
 from langchain_openai import AzureChatOpenAI
 from openai import BadRequestError 
@@ -25,6 +25,10 @@ from agent.utils.conversation_helpers import (
     build_context_memory_contract,
 
 )
+from agent.kql.repair import normalize_kql_for_execution, repair_kql
+from agent.kql.validator import validate_kql
+from agent.planner.schemas import QueryPlan
+from agent.rag.retriever import format_rag_context_for_prompt
 
 from core.middleware.current_user import get_current_chat_user ,set_current_chat_user
 
@@ -1558,7 +1562,48 @@ def _ci_set(values):
     return {str(v).strip().lower() for v in (values or [])}
 
 
-def generate_kql(user_req: str, conversation_uuid: Optional[str] = None, strict=False) -> str:
+def _format_query_plan_for_prompt(
+    query_plan: QueryPlan | dict[str, Any] | None,
+) -> str:
+    """Render the Phase 2 query plan as advisory KQL prompt context."""
+
+    if not query_plan:
+        return ""
+
+    if isinstance(query_plan, QueryPlan):
+        plan_payload = query_plan.to_dict()
+    elif isinstance(query_plan, dict):
+        plan_payload = QueryPlan.from_dict(query_plan).to_dict()
+    else:
+        return ""
+
+    return (
+        "\n\n### STRUCTURED QUERY PLAN (Phase 2 advisory context)\n"
+        "Use this plan to ground KQL generation, but the NEW USER MESSAGE, "
+        "schema rules, date context, and USER_AREA_SCOPE are authoritative if "
+        "there is any conflict.\n"
+        + json.dumps(plan_payload, ensure_ascii=False, indent=2, default=str)
+        + "\n"
+    )
+
+
+def _format_rag_context_for_kql_prompt(rag_context: dict[str, Any] | None) -> str:
+    """Render Phase 4 RAG context for KQL generation."""
+
+    return format_rag_context_for_prompt(
+        rag_context,
+        max_documents=5,
+        max_chars=6000,
+    )
+
+
+def generate_kql(
+    user_req: str,
+    conversation_uuid: Optional[str] = None,
+    strict=False,
+    query_plan: QueryPlan | dict[str, Any] | None = None,
+    rag_context: dict[str, Any] | None = None,
+) -> str:
     global LAST_KQL_META
 
     # ── 1. Static system knowledge + dynamic date context ──
@@ -1570,6 +1615,8 @@ def generate_kql(user_req: str, conversation_uuid: Optional[str] = None, strict=
     prompt += "\n\n" + build_context_memory_contract() + "\n\n"
     prompt += "### SNAPSHOT (use to infer current context)\n"
     prompt += build_conversation_snapshot_block(conversation_uuid)
+    prompt += _format_rag_context_for_kql_prompt(rag_context)
+    prompt += _format_query_plan_for_prompt(query_plan)
     prompt += "\n\n### NEW USER MESSAGE\n" + user_req + "\n"
 
     # Handle conversation history for multi-turn conversation
@@ -2013,9 +2060,113 @@ def _build_scope_title_and_insight(user) -> tuple[str, str]:
 
 #end 
 
+def _query_plan_to_dict(
+    query_plan: QueryPlan | dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Normalize a query plan for repair prompt context."""
+
+    if isinstance(query_plan, QueryPlan):
+        return query_plan.to_dict()
+    if isinstance(query_plan, dict):
+        return QueryPlan.from_dict(query_plan).to_dict()
+    return None
+
+
+def _post_process_generated_kql(kql: str, user_prompt: str) -> str:
+    """Apply existing post-generation KQL fixes in one place."""
+
+    processed = format_dates(kql)
+    processed = re.sub(r'ago\(3mo\)', 'ago(90d)', processed, flags=re.I)
+    processed = re.sub(r'startofquarter\((.*?)\)', r'startofmonth(\1)', processed, flags=re.I)
+
+    for territory, gsber_value in GSBER_MAPPING.items():
+        if territory.lower() in user_prompt.lower():
+            processed = re.sub(
+                r"where\s+Territory\s*==\s*['\"]?.+?['\"]?",
+                f"where gsber == {gsber_value}",
+                processed,
+            )
+            break
+
+    return processed
+
+
+def _validate_or_repair_kql(
+    kql: str,
+    *,
+    user_prompt: str,
+    query_plan: QueryPlan | dict[str, Any] | None = None,
+    rag_context: dict[str, Any] | None = None,
+    execution_error: str | None = None,
+) -> str | None:
+    """Validate generated KQL and repair it when validation or ADX feedback fails."""
+
+    schema_types = get_schema_types_from_static()
+
+    try:
+        normalized_kql = normalize_kql_for_execution(kql, table_name=TABLE_NAME)
+        validation = validate_kql(
+            normalized_kql,
+            table_name=TABLE_NAME,
+            schema_types=schema_types,
+        )
+
+        if validation.is_valid and not execution_error:
+            if validation.warnings:
+                logger.info("KQL validation warnings: %s", validation.as_repair_context())
+            return normalized_kql
+
+        if validation.errors:
+            logger.warning("KQL validation failed: %s", validation.as_repair_context())
+        if execution_error:
+            logger.warning("Repairing KQL after ADX execution error.")
+
+        repaired_kql = repair_kql(
+            normalized_kql,
+            user_prompt=user_prompt,
+            table_name=TABLE_NAME,
+            schema_types=schema_types,
+            validation_result=validation,
+            llm_client=llm,
+            query_plan=_query_plan_to_dict(query_plan),
+            rag_context=rag_context,
+            execution_error=execution_error,
+        )
+        repaired_kql = _post_process_generated_kql(repaired_kql, user_prompt)
+        repaired_kql = normalize_kql_for_execution(repaired_kql, table_name=TABLE_NAME)
+
+        repaired_validation = validate_kql(
+            repaired_kql,
+            table_name=TABLE_NAME,
+            schema_types=schema_types,
+        )
+        if repaired_validation.is_valid:
+            if repaired_validation.warnings:
+                logger.info(
+                    "Repaired KQL validation warnings: %s",
+                    repaired_validation.as_repair_context(),
+                )
+            return repaired_kql
+
+        logger.warning(
+            "KQL repair failed validation: %s",
+            repaired_validation.as_repair_context(),
+        )
+        return None
+    except Exception:
+        logger.exception("KQL validation and repair failed.")
+        return None
+
 # Handle user queries dynamically and generate the corresponding KQL query
 
-def handle_user_query(user_prompt: str, *, conversation_id: str | None = None, user: Optional["User"] = None,) -> str:
+def handle_user_query(
+    user_prompt: str,
+    *,
+    conversation_id: str | None = None,
+    user: Optional["User"] = None,
+    query_plan: QueryPlan | dict[str, Any] | None = None,
+    rag_context: dict[str, Any] | None = None,
+) -> str:
     """
     Dynamically handle SAP Sales prompts with multi-turn conversation support,
     ensuring correct KQL generation, and mapping business area/territory to the correct 'gsber' code.
@@ -2067,34 +2218,59 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None, u
     # 2) Sales queries → generate KQL
     # (date/period resolution handled by _build_date_context() inside generate_kql)
     # -----------------------------
-    kql = generate_kql(user_prompt, conversation_id)
-    kql = format_dates(kql)
-    kql = re.sub(r'ago\(3mo\)', 'ago(90d)', kql, flags=re.I)
-    kql = re.sub(r'startofquarter\((.*?)\)', r'startofmonth(\1)', kql, flags=re.I)
+    kql = generate_kql(
+        user_prompt,
+        conversation_id,
+        query_plan=query_plan,
+        rag_context=rag_context,
+    )
+    kql = _post_process_generated_kql(kql, user_prompt)
+    kql = _validate_or_repair_kql(
+        kql,
+        user_prompt=user_prompt,
+        query_plan=query_plan,
+        rag_context=rag_context,
+    )
+    if not kql:
+        return "Please refine your query. I couldn't generate a valid KQL this time."
 
     # -----------------------------
-    # 3) Territory → gsber mapping
-    # -----------------------------
-    for territory, gsber_value in GSBER_MAPPING.items():
-        if territory.lower() in user_prompt.lower():
-            kql = re.sub(
-                r"where\s+Territory\s*==\s*['\"]?.+?['\"]?",
-                f"where gsber == {gsber_value}",
-                kql
-            )
-            break
-
-    # -----------------------------
-    # 4) Execute query (with retry)
+    # 3) Validate, repair, and execute query
     # -----------------------------
     for attempt in (1, 2):
         try:
             cols, rows = adx().run(kql)
             break
-        except KustoApiError:
+        except KustoApiError as exc:
             if attempt == 1:
-                kql = generate_kql(user_prompt, conversation_id, strict=True)
-                continue
+                repaired_kql = _validate_or_repair_kql(
+                    kql,
+                    user_prompt=user_prompt,
+                    query_plan=query_plan,
+                    rag_context=rag_context,
+                    execution_error=str(exc),
+                )
+                if repaired_kql and repaired_kql != kql:
+                    kql = repaired_kql
+                    continue
+
+                strict_kql = generate_kql(
+                    user_prompt,
+                    conversation_id,
+                    strict=True,
+                    query_plan=query_plan,
+                    rag_context=rag_context,
+                )
+                strict_kql = _post_process_generated_kql(strict_kql, user_prompt)
+                kql = _validate_or_repair_kql(
+                    strict_kql,
+                    user_prompt=user_prompt,
+                    query_plan=query_plan,
+                    rag_context=rag_context,
+                    execution_error=str(exc),
+                )
+                if kql:
+                    continue
             return "Please refine your query. I couldn't generate a valid KQL this time."
 
     if not rows:

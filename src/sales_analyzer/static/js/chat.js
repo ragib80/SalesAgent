@@ -507,85 +507,134 @@
       .data('current-conversation-id', chatId);
     }
 
-    function sendMessage() {
-      const $input = $('#message-input');
-      const text = $input.val().trim();
-
-      if (!text || isSubmitting) return;
-
-      isSubmitting = true;
-      $('#message-input').val('').css('height', 'auto');
+    function _sseFinalize(answer, uuid, originalText) {
+      if (typingIndicator) { typingIndicator.remove(); typingIndicator = null; }
+      isSubmitting = false;
       updateSendButton();
-      $input.prop('disabled', true);
+      $('#message-input').prop('disabled', false).focus();
 
-      // Append user's message immediately
+      ensureMessageShell();
       const $list = $('#messages-list').length ? $('#messages-list') : $('#chat-content');
-      $list.append(
-        renderMessageEl({
-          sender: userName, // so it renders on the right
-          text: text,
-        })
-      );
+      $list.append(renderMessageEl({ sender: 'assistant', text: answer }));
       scrollToBottom();
 
-      // Typing indicator
+      if (!currentChatId && uuid) {
+        currentChatId = uuid;
+        fetchChats(false, () => selectChat(currentChatId));
+      }
+    }
+
+    async function sendMessage() {
+      const $input = $('#message-input');
+      const text = $input.val().trim();
+      if (!text || isSubmitting) return;
+
+      const token = getAuthToken();
+      if (!token) { window.location.href = '/welcome'; return; }
+
+      isSubmitting = true;
+      $input.val('').css('height', 'auto').prop('disabled', true);
+      updateSendButton();
+
+      // User bubble
+      ensureMessageShell();
+      const $list = $('#messages-list').length ? $('#messages-list') : $('#chat-content');
+      $list.append(renderMessageEl({ sender: userName, text }));
+      scrollToBottom();
+
+      // Typing indicator with live status line
       typingIndicator = $(`
-        <div class="message assistant">
+        <div class="message assistant" id="sse-typing">
           <div class="message-avatar assistant">AI</div>
-          <div class="message-content typing-indicator">
-            <span class="dot"></span>
-            <span class="dot"></span>
-            <span class="dot"></span>
+          <div class="message-content">
+            <div class="typing-indicator">
+              <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            </div>
+            <div id="sse-status" style="font-size:.8rem;color:#888;margin-top:4px;min-height:1em;"></div>
           </div>
         </div>`);
       $list.append(typingIndicator);
       scrollToBottom();
 
-      const url = currentChatId ? `/sales/query/existing/${currentChatId}/` : '/sales/query/';
-      const payload = JSON.stringify({ prompt: text });
+      const body = { prompt: text };
+      if (currentChatId) body.conversation_id = currentChatId;
 
-      sendAuthenticatedRequest(
-        url,
-        'POST',
-        payload,
-        (resp) => {
-          isSubmitting = false;
-          typingIndicator.remove();
-          
-          updateSendButton();
-          $('#message-input').val('').css('height', 'auto').prop('disabled', false).focus();
+      try {
+        const resp = await fetch(apiBase + '/sales/query/stream/', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(body),
+        });
 
-          if (!currentChatId && resp.uuid) {
-            currentChatId = resp.uuid;
-            // reload chats from page 1 so the new chat appears at the top
-            fetchChats(false, () => selectChat(currentChatId));
-          }
-
-          if (resp.assistant_message?.text) {
-            $('#messages-list').append(
-              renderMessageEl({
-                sender: 'assistant', // will render as assistant (!= userName)
-                text: resp.assistant_message.text,
-              })
-            );
-            scrollToBottom();
-          } else if (currentChatId) {
-            // refresh latest page to reflect canonical timeline
-            fetchMessages(currentChatId, 'reset');
-          }
-        },
-        () => {
-          isSubmitting = false;
-          typingIndicator.remove();
-          updateSendButton();
-          $input.prop('disabled', false).focus();
-          Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to send message.' });
+        if (!resp.ok) {
+          if (resp.status === 401) { refreshToken(); return; }
+          throw new Error('HTTP ' + resp.status);
         }
-      );
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        let eventName = 'message';
+        let dataStr = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+
+          const lines = buf.split('\n');
+          buf = lines.pop(); // keep incomplete trailing line
+
+          for (const line of lines) {
+            if (line.startsWith('event:')) {
+              eventName = line.slice(6).trim();
+            } else if (line.startsWith('data:')) {
+              dataStr = line.slice(5).trim();
+            } else if (line === '') {
+              // blank line = dispatch event
+              if (!dataStr) { eventName = 'message'; dataStr = ''; continue; }
+              let payload;
+              try { payload = JSON.parse(dataStr); } catch { eventName = 'message'; dataStr = ''; continue; }
+
+              if (eventName === 'status') {
+                $('#sse-status').text(payload.message || '');
+                scrollToBottom();
+
+              } else if (eventName === 'final') {
+                const answer = (payload.answer || '').trim() ||
+                  'I prepared the results for you — see details below.';
+                _sseFinalize(answer, payload.uuid, text);
+
+              } else if (eventName === 'error') {
+                const msg = (payload.message || 'Something went wrong.').trim();
+                _sseFinalize(msg, payload.uuid, text);
+              }
+
+              eventName = 'message';
+              dataStr = '';
+            }
+          }
+        }
+
+        // Stream ended without a final event — recover gracefully
+        if (isSubmitting) {
+          _sseFinalize('I prepared the results — please check the conversation.', null, text);
+        }
+
+      } catch (err) {
+        if (typingIndicator) { typingIndicator.remove(); typingIndicator = null; }
+        isSubmitting = false;
+        updateSendButton();
+        $input.prop('disabled', false).focus();
+        Swal.fire({ icon: 'error', title: 'Error', text: 'Connection failed. Please try again.' });
+      }
     }
 
     // Event bindings
-    $('#send-btn').on('click', sendMessage);
+    $('#send-btn').on('click', () => sendMessage());
 
     $('#message-input').on('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
