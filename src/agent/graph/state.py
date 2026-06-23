@@ -19,3 +19,4 @@ class SalesAgentState(TypedDict, total=False):
     answer: str
     error: str
     events: list[dict[str, Any]]
+    on_token: Any

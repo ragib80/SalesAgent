@@ -377,16 +377,44 @@ OTP_EXPIRY_MINUTES  = int(os.getenv("OTP_EXPIRY_MINUTES", "5"))
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "%(asctime)s %(levelname)s %(name)s %(process)d %(thread)d %(message)s",
+        },
+        "simple": {
+            "format": "%(asctime)s %(levelname)s %(name)s %(message)s",
+        },
+    },
     "handlers": {
-        "console": {"class": "logging.StreamHandler"},
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
     },
     "root": {
         "handlers": ["console"],
         "level": "INFO",
     },
     "loggers": {
-        "core": {"handlers": ["console"], "level": "DEBUG", "propagate": True},
-        # ldap3 can be noisy; enable if needed:
-        # "ldap3": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "core": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+        # agent logger: INFO in production, DEBUG when AGENT_LOG_LEVEL=DEBUG
+        "agent": {
+            "handlers": ["console"],
+            "level": os.getenv("AGENT_LOG_LEVEL", "INFO"),
+            "propagate": False,
+        },
+        # audit sub-logger — always INFO so write failures are visible
+        "agent.observability": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        # silence noisy Azure SDK / urllib3 at WARNING
+        "azure": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+        "urllib3": {"handlers": ["console"], "level": "WARNING", "propagate": False},
     },
 }

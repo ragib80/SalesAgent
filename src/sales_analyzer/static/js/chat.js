@@ -460,9 +460,10 @@
           // Keep viewport anchored when prepending
           const c = document.getElementById('chat-content');
           const before = c.scrollHeight;
+          const prevScrollTop = c.scrollTop;
           $list.prepend(ascending.map(renderMessageEl).join(''));
           const after = c.scrollHeight;
-          c.scrollTop = after - before;
+          c.scrollTop = prevScrollTop + (after - before);
         }
 
         // Update next (older) page path
@@ -507,20 +508,73 @@
       .data('current-conversation-id', chatId);
     }
 
-    function _sseFinalize(answer, uuid, originalText) {
+    // Holds raw text accumulating during token streaming
+    let streamingText = '';
+    let $streamBubble = null;
+    let _rafPending = false;   // requestAnimationFrame gate
+
+    function _ensureStreamBubble() {
+      if ($streamBubble && $streamBubble.length) return;
       if (typingIndicator) { typingIndicator.remove(); typingIndicator = null; }
+      ensureMessageShell();
+      const $list = $('#messages-list').length ? $('#messages-list') : $('#chat-content');
+      $streamBubble = $(`
+        <div class="message assistant">
+          <div class="message-avatar assistant">AI</div>
+          <div class="message-content" id="stream-content"></div>
+        </div>`);
+      $list.append($streamBubble);
+    }
+
+    // Throttled render — at most once per animation frame (~60 fps)
+    function _scheduleStreamRender() {
+      if (_rafPending) return;
+      _rafPending = true;
+      requestAnimationFrame(function () {
+        _rafPending = false;
+        const $c = $('#stream-content');
+        if (!$c.length) return;
+        $c.html(
+          marked.parse(streamingText) +
+          '<span class="stream-cursor"></span>'
+        );
+        scrollToBottom();
+      });
+    }
+
+    function _sseFinalize(answer, uuid) {
+      _rafPending = false; // cancel any pending frame
+
+      if ($streamBubble && $streamBubble.length) {
+        // Final clean render — remove cursor, fix any partial markdown
+        $('#stream-content').html(marked.parse(answer || streamingText));
+        $streamBubble = null;
+      } else {
+        if (typingIndicator) { typingIndicator.remove(); typingIndicator = null; }
+        ensureMessageShell();
+        const $list = $('#messages-list').length ? $('#messages-list') : $('#chat-content');
+        $list.append(renderMessageEl({ sender: 'assistant', text: answer }));
+      }
+
+      streamingText = '';
       isSubmitting = false;
       updateSendButton();
       $('#message-input').prop('disabled', false).focus();
-
-      ensureMessageShell();
-      const $list = $('#messages-list').length ? $('#messages-list') : $('#chat-content');
-      $list.append(renderMessageEl({ sender: 'assistant', text: answer }));
-      scrollToBottom();
+      // Defer scroll until after the browser paints the full markdown content
+      // (large response cards like Sales Summary can shift layout mid-render).
+      requestAnimationFrame(() => scrollToBottom());
 
       if (!currentChatId && uuid) {
         currentChatId = uuid;
-        fetchChats(false, () => selectChat(currentChatId));
+        fetchChats(false, () => {
+          // Activate the new chat in the sidebar without reloading messages —
+          // they are already correctly rendered in the DOM from the live stream.
+          $('.chat-item').removeClass('active');
+          $(`.chat-item[data-chat-id="${currentChatId}"]`).addClass('active');
+          $('#chat-id-holder')
+            .attr('data-current-conversation-id', currentChatId)
+            .data('current-conversation-id', currentChatId);
+        });
       }
     }
 
@@ -533,6 +587,8 @@
       if (!token) { window.location.href = '/welcome'; return; }
 
       isSubmitting = true;
+      streamingText = '';
+      $streamBubble = null;
       $input.val('').css('height', 'auto').prop('disabled', true);
       updateSendButton();
 
@@ -594,7 +650,6 @@
             } else if (line.startsWith('data:')) {
               dataStr = line.slice(5).trim();
             } else if (line === '') {
-              // blank line = dispatch event
               if (!dataStr) { eventName = 'message'; dataStr = ''; continue; }
               let payload;
               try { payload = JSON.parse(dataStr); } catch { eventName = 'message'; dataStr = ''; continue; }
@@ -603,14 +658,22 @@
                 $('#sse-status').text(payload.message || '');
                 scrollToBottom();
 
+              } else if (eventName === 'token') {
+                const chunk = payload.chunk || '';
+                if (chunk) {
+                  streamingText += chunk;
+                  _ensureStreamBubble();
+                  _scheduleStreamRender(); // throttled — max 60fps, cursor included
+                }
+
               } else if (eventName === 'final') {
-                const answer = (payload.answer || '').trim() ||
+                const answer = (payload.answer || streamingText || '').trim() ||
                   'I prepared the results for you — see details below.';
-                _sseFinalize(answer, payload.uuid, text);
+                _sseFinalize(answer, payload.uuid);
 
               } else if (eventName === 'error') {
                 const msg = (payload.message || 'Something went wrong.').trim();
-                _sseFinalize(msg, payload.uuid, text);
+                _sseFinalize(msg, payload.uuid);
               }
 
               eventName = 'message';
@@ -619,13 +682,15 @@
           }
         }
 
-        // Stream ended without a final event — recover gracefully
+        // Stream ended without a final event — recover
         if (isSubmitting) {
-          _sseFinalize('I prepared the results — please check the conversation.', null, text);
+          _sseFinalize(streamingText || 'I prepared the results — please check the conversation.', null);
         }
 
       } catch (err) {
+        if ($streamBubble) { $streamBubble = null; }
         if (typingIndicator) { typingIndicator.remove(); typingIndicator = null; }
+        streamingText = '';
         isSubmitting = false;
         updateSendButton();
         $input.prop('disabled', false).focus();
@@ -691,6 +756,26 @@
     fetchChats(false); // first page
     startNewChat();
     updateSendButton();
+
+    // ===== Search chats =====
+    $('#search-chats-btn').on('click', function () {
+      const $wrap = $('#chat-search-wrap');
+      $wrap.toggle();
+      if ($wrap.is(':visible')) {
+        $('#chat-search-input').val('').trigger('input').focus();
+      } else {
+        // restore all items when closed
+        $('.chats-section .chat-item').show();
+      }
+    });
+
+    $('#chat-search-input').on('input', function () {
+      const q = $(this).val().trim().toLowerCase();
+      $('.chats-section .chat-item').each(function () {
+        const title = $(this).find('.chat-title').text().toLowerCase();
+        $(this).toggle(!q || title.includes(q));
+      });
+    });
   });
 
   // Dropdown & Misc Handlers
@@ -707,10 +792,37 @@
   }
 
   function renameChat(chatId) {
-    const el = $(`.chat-item[data-chat-id="${chatId}"] .chat-title`);
-    const newTitle = prompt('Enter new chat title:', el.text());
-    if (newTitle) el.text(newTitle);
     $('.chat-dropdown').removeClass('show');
+    const $item = $(`.chat-item[data-chat-id="${chatId}"]`);
+    const $title = $item.find('.chat-title');
+    const current = $title.text();
+
+    // Replace title span with an input
+    const $input = $(`<input type="text" class="chat-rename-input"
+      value="${current.replace(/"/g, '&quot;')}"
+      style="width:100%;border:1px solid #19c37d;border-radius:4px;padding:2px 6px;
+             font-size:13px;outline:none;background:#fff;color:#374151;" />`);
+    $title.replaceWith($input);
+    $input.focus().select();
+
+    function saveRename() {
+      const newTitle = $input.val().trim() || current;
+      $input.replaceWith(`<div class="chat-title">${newTitle}</div>`);
+      if (newTitle === current) return;
+      const token = localStorage.getItem('auth_token');
+      $.ajax({
+        url: apiBase + `/conversations/${chatId}/`,
+        method: 'PUT',
+        headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+        data: JSON.stringify({ title: newTitle }),
+      });
+    }
+
+    $input.on('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); saveRename(); }
+      if (e.key === 'Escape') { $input.replaceWith(`<div class="chat-title">${current}</div>`); }
+    });
+    $input.on('blur', saveRename);
   }
 
   function archiveChat(chatId) {

@@ -60,6 +60,7 @@ def stream_sales_analysis_graph(
     *,
     conversation_id: str | None = None,
     user: Any = None,
+    on_token: Any = None,
 ) -> Iterator[dict[str, Any]]:
     """Yield workflow events for SSE callers as graph nodes complete."""
 
@@ -69,6 +70,7 @@ def stream_sales_analysis_graph(
         "conversation_id": conversation_id,
         "user": user,
         "events": [],
+        "on_token": on_token,
     }
 
     for update in get_sales_analysis_workflow().stream(initial_state):

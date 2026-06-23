@@ -128,6 +128,7 @@ def execute_existing_agent_node(state: SalesAgentState) -> SalesAgentState:
             user=state.get("user"),
             query_plan=state.get("query_plan"),
             rag_context=state.get("rag_context"),
+            on_token=state.get("on_token"),
         )
     except Exception as exc:
         logger.exception("Sales agent graph execution failed.")

@@ -240,7 +240,9 @@ def _build_curated_prompt_documents(synced_at: str) -> list[dict[str, Any]]:
         _pattern_declining_negative_growth(synced_at),
         _pattern_positive_growth(synced_at),
         _pattern_mtd_growth(synced_at),
+        _pattern_mtd_specific_month(synced_at),
         _pattern_ytd_growth(synced_at),
+        _pattern_ytd_specific_year(synced_at),
         _pattern_contribution(synced_at),
         _pattern_average_sales(synced_at),
         _pattern_trend_analysis(synced_at),
@@ -585,6 +587,39 @@ def _pattern_mtd_growth(synced_at: str) -> dict[str, Any]:
     )
 
 
+def _pattern_mtd_specific_month(synced_at: str) -> dict[str, Any]:
+    pattern = (
+        "When the user names a specific month and year (e.g. 'MTD sales of April 2026' or "
+        "'sales in March 2025'), treat the full calendar month as the Analysis Period. "
+        "Set CY_Start = datetime(YYYY-MM-01) using the named month and year. "
+        "Set CY_End = endofmonth(CY_Start). "
+        "Set PY_Start = datetime_add('year', -1, CY_Start) and PY_End = endofmonth(PY_Start). "
+        "This gives CY = 1 Apr 2026 to 30 Apr 2026 and PY = 1 Apr 2025 to 30 Apr 2025 for 'April 2026'. "
+        "Do NOT use ago() or the CURRENT DATE CONTEXT for the analysis period — use the explicit month/year from the user query. "
+        "Build CY and PY subqueries filtered to their respective date windows, then join or compare as requested."
+    )
+    return _pattern_doc(
+        doc_id="pattern-mtd-specific-month",
+        title="MTD for a specific named month and year",
+        summary="When user names a month+year for MTD, use that full month as CY and same month prior year as PY.",
+        content=pattern,
+        synced_at=synced_at,
+        aliases=[
+            "MTD of April 2026", "MTD sales of April", "sales in April 2026",
+            "April 2026 sales", "sales of march 2025", "specific month MTD",
+            "named month sales", "month year sales comparison",
+        ],
+        keywords=[
+            "specific month", "named month", "datetime_add year -1",
+            "endofmonth", "CY_Start", "PY_Start", "MTD",
+        ],
+        sap_columns=["fkdat", "Revenue", "fkimg", "volum"],
+        kpi_names=["MTD", "monthly sales"],
+        intent_tags=["mtd", "specific_month", "date_resolution", "kql_generation"],
+        kql_pattern=pattern,
+    )
+
+
 def _pattern_ytd_growth(synced_at: str) -> dict[str, Any]:
     pattern = (
         "For YTD growth, use fiscal year April to March. YTD ends at the last complete month, "
@@ -602,6 +637,42 @@ def _pattern_ytd_growth(synced_at: str) -> dict[str, Any]:
         sap_columns=["fkdat", "Revenue", "fkimg"],
         kpi_names=["YTD growth"],
         intent_tags=["ytd", "growth", "date_resolution", "kql_generation"],
+        kql_pattern=pattern,
+    )
+
+
+def _pattern_ytd_specific_year(synced_at: str) -> dict[str, Any]:
+    pattern = (
+        "When the user names a specific fiscal year for YTD (e.g. 'YTD sales of FY2025', "
+        "'sales in fiscal year 2025', or 'FY2025 performance'), resolve CY and PY from the named year. "
+        "For fiscal year N (April N to March N+1): "
+        "CY_Start = datetime(N-04-01), CY_End = datetime(N+1-03-31). "
+        "PY_Start = datetime(N-1-04-01), PY_End = datetime(N-04-01) minus 1 day. "
+        "Example for FY2025: CY = datetime(2025-04-01) to datetime(2026-03-31), "
+        "PY = datetime(2024-04-01) to datetime(2025-03-31). "
+        "If the user says a calendar year (e.g. 'YTD of 2026'), use fiscal interpretation "
+        "unless they explicitly say calendar year. "
+        "Do NOT use ago() or CURRENT DATE CONTEXT for the analysis period — "
+        "use the explicit year from the user query."
+    )
+    return _pattern_doc(
+        doc_id="pattern-ytd-specific-year",
+        title="YTD for a specific named fiscal year",
+        summary="When user names a fiscal year for YTD, use that full fiscal year as CY and prior fiscal year as PY.",
+        content=pattern,
+        synced_at=synced_at,
+        aliases=[
+            "YTD of FY2025", "YTD sales of fiscal 2025", "FY2025 YTD", "fiscal year 2025 sales",
+            "specific year YTD", "named year sales", "FY sales comparison",
+            "year 2025 performance", "full year 2024 sales",
+        ],
+        keywords=[
+            "FY", "fiscal year", "specific year", "CY_Start", "PY_Start",
+            "YTD", "April", "March", "named year",
+        ],
+        sap_columns=["fkdat", "Revenue", "fkimg", "volum"],
+        kpi_names=["YTD", "fiscal year sales"],
+        intent_tags=["ytd", "specific_year", "date_resolution", "kql_generation"],
         kql_pattern=pattern,
     )
 
