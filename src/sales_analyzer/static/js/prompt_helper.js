@@ -1,311 +1,262 @@
 'use strict';
-// ---------- Small helpers: loading spinner inside a button ----------
-function setBtnLoading($btn, loadingText = "Generating...") {
-  if (!$btn.data("original-html")) {
-    $btn.data("original-html", $btn.html());
-  }
-  $btn.prop("disabled", true).html(
-    '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>' +
-    loadingText
-  );
-}
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  Helpers
+// ─────────────────────────────────────────────────────────────────────────────
 function norm(s) {
   return (s || "").toLowerCase().replace(/\s+/g, " ").trim();
 }
 function startsWithNormalized(text, prefix) {
-  if (!prefix) return false;
-  return norm(text).startsWith(norm(prefix));
+  return prefix ? norm(text).startsWith(norm(prefix)) : false;
 }
-// Looks like a pure filter summary (starts with a Label:, e.g., Dealer:, Brand:, Product Name:)
 function looksLikeLabelStart(s) {
   return /^[A-Za-z][A-Za-z0-9 _/-]*:\s/i.test((s || "").trimStart());
 }
-// Merge manual prefix with a server prompt, but only when it needs it.
 function mergePrefix(prefix, txt) {
   if (!prefix) return txt;
-  const t = (txt || "");
-  // If the returned prompt already begins with the manual prefix (case/space insensitive) → don't add it again
+  const t = txt || "";
   if (startsWithNormalized(t, prefix)) return t;
-  // If it starts with a label block (Dealer:, Brand:, etc.) → it's a pure summary, so prepend prefix
   if (looksLikeLabelStart(t)) {
-    const needsSpace = prefix.length > 0 && !/\s$/.test(prefix);
-    return `${prefix}${needsSpace ? " " : ""}${t}`;
+    return `${prefix}${/\s$/.test(prefix) ? "" : " "}${t}`;
   }
-  // Otherwise it's already a full sentence (e.g., "What are the sales for ...") → don't prepend
   return t;
 }
 
-
+function setBtnLoading($btn, text = "Generating…") {
+  $btn.data("original-html", $btn.html()).prop("disabled", true).html(
+    `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>${text}`
+  );
+}
 function unsetBtnLoading($btn) {
-  const original = $btn.data("original-html") || $btn.text() || "Generate";
-  $btn.prop("disabled", false).html(original);
+  $btn.prop("disabled", false).html($btn.data("original-html") || "Generate");
 }
 
-// ---------- Manual prefix cache ----------
+// ─────────────────────────────────────────────────────────────────────────────
+//  Manual-prefix cache (synced from chat input or live textarea)
+// ─────────────────────────────────────────────────────────────────────────────
 let manualPrefixCache = "";
 
-// If your chat input has a different selector, add it here:
 const PREFIX_INPUT_SELECTORS = [
-  "#message-input",
-  "#chat-input",
-  "#prompt-input",
-  "#composer",
-  "textarea[name='message']",
-  "input[name='message']",
+  "#message-input", "#chat-input", "#prompt-input",
+  "#composer", "textarea[name='message']", "input[name='message']",
 ].join(", ");
 
-// Extract "manual part" (text before first filter label) from any string
 function extractManualPrefix(text) {
   const s = (text || "").toString();
-  // Match common filter patterns like "Label: value" or "Label:  value"
-  const firstLabelIdx = s.search(/[A-Z][A-Za-z0-9 _/-]*:\s+/);
-  return firstLabelIdx >= 0 ? s.slice(0, firstLabelIdx).trim() : s.trim();
+  const idx = s.search(/[A-Z][A-Za-z0-9 _/-]*:\s+/);
+  return idx >= 0 ? s.slice(0, idx).trim() : s.trim();
 }
-
-// Snapshot prefix source -> cache
 function refreshManualPrefixCache() {
-  // Prefer existing textarea's manual part (user might have edited there)
-  const $ta = $("#generatedPromptsContainer textarea").first();
-  if ($ta.length) {
-    manualPrefixCache = extractManualPrefix($ta.val());
-    return;
-  }
-
-  // Try visible chat inputs in order
   const $inputs = $(PREFIX_INPUT_SELECTORS).filter(":visible");
   for (let i = 0; i < $inputs.length; i++) {
     const val = $inputs.eq(i).val();
-    if (val && val.toString().length) {
-      manualPrefixCache = extractManualPrefix(val);
-      return;
-    }
+    if (val && val.length) { manualPrefixCache = extractManualPrefix(val); return; }
   }
-  // If nothing found, keep existing cache (last good value) instead of wiping it
 }
-
-// Always use cache unless a textarea exists (from which we can live-read)
 function getManualPrefix() {
-  const $ta = $("#generatedPromptsContainer textarea").first();
-  if ($ta.length) return extractManualPrefix($ta.val());
-
-  // Fallback: ensure cache is fresh before using it
   if (!manualPrefixCache) refreshManualPrefixCache();
   return manualPrefixCache || "";
 }
 
-$(function () {
-  // ---------- Auth wrapper ----------
-  function getAuthToken() {
-    return localStorage.getItem("auth_token");
-  }
+// ─────────────────────────────────────────────────────────────────────────────
+//  Render a generated prompt as a card (no editable textarea)
+// ─────────────────────────────────────────────────────────────────────────────
+let _cardIdx = 0;
+function renderPromptCard(text) {
+  const id = `ph-card-${++_cardIdx}`;
+  return `
+    <div class="ph-prompt-card" id="${id}" data-prompt="${text.replace(/"/g, '&quot;')}">
+      <p class="ph-prompt-card-text mb-0">${text}</p>
+      <div class="ph-prompt-card-actions">
+        <button class="ph-card-btn ph-card-use" data-card="${id}" title="Insert into chat">
+          <i class="bi bi-arrow-right-circle me-1"></i>Use
+        </button>
+        <button class="ph-card-btn ph-card-copy" data-card="${id}" title="Copy to clipboard">
+          <i class="bi bi-clipboard me-1"></i>Copy
+        </button>
+      </div>
+    </div>`;
+}
 
-  function sendAuthenticatedRequest(options) {
-    const token = getAuthToken();
-    if (!token) {
-      Swal.fire({
-        icon: "warning",
-        title: "Not logged in",
-        text: "Please log in to use Prompt Helper.",
-      });
-      return;
+// ─────────────────────────────────────────────────────────────────────────────
+//  Insert prompt into chat input (no auto-send)
+// ─────────────────────────────────────────────────────────────────────────────
+function usePrompt(text) {
+  const $input = $("#message-input");
+  $input.val(text).trigger("input");
+  // Enable send button
+  $("#send-btn").prop("disabled", false);
+  // Close offcanvas
+  const el = document.getElementById("promptHelperCanvas");
+  if (el) bootstrap.Offcanvas.getOrCreateInstance(el).hide();
+  // Focus the input so user can review before hitting Enter
+  $input.focus();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Auth wrapper
+// ─────────────────────────────────────────────────────────────────────────────
+function getAuthToken() { return localStorage.getItem("auth_token"); }
+
+function sendAuthenticatedRequest(options) {
+  const token = getAuthToken();
+  if (!token) {
+    Swal.fire({ icon: "warning", title: "Not logged in", text: "Please log in to use Prompt Helper." });
+    return;
+  }
+  $.ajax({
+    ...options,
+    headers: { Authorization: "Bearer " + token },
+    error: function (xhr, status, err) {
+      if (xhr.status === 401) {
+        Swal.fire({ icon: "error", title: "Unauthorized", text: "Session expired. Please log in again." })
+          .then(() => { localStorage.clear(); window.location.href = "/welcome"; });
+      } else if (options.error) {
+        options.error(xhr, status, err);
+      }
+    },
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Filter-preview builder (live update while user picks filter values)
+// ─────────────────────────────────────────────────────────────────────────────
+function buildFilterSummary() {
+  const parts = [];
+  const selectedCols = $("#availableColumns").val() || [];
+  selectedCols.forEach((col) => {
+    if (col === "fkdat") {
+      const from = $("#date-from").val(), to = $("#date-to").val();
+      if (from || to) parts.push(`Date: ${from && to ? from + " to " + to : from || to}`);
+    } else {
+      const vals = $(`#select-${col}`).val();
+      if (vals && vals.length) {
+        const label = $(`#availableColumns option[value='${col}']`).text() || col;
+        parts.push(`${label}: ${vals.join(", ")}`);
+      }
     }
+  });
+  return parts.join(", ");
+}
 
-    $.ajax({
-      ...options,
-      headers: { Authorization: "Bearer " + token },
-      error: function (xhr, status, err) {
-        if (xhr.status === 401) {
-          Swal.fire({
-            icon: "error",
-            title: "Unauthorized",
-            text: "Your session has expired. Please log in again.",
-          }).then(() => {
-            localStorage.clear();
-            window.location.href = "/welcome";
-          });
-        } else if (options.error) {
-          options.error(xhr, status, err);
-        }
-      },
-    });
-  }
+// ─────────────────────────────────────────────────────────────────────────────
+//  Main DOM-ready
+// ─────────────────────────────────────────────────────────────────────────────
+$(function () {
 
-  // ---------- Capture/refresh prefix at the right moments ----------
+  // ── Tab switching ──────────────────────────────────────────────────────────
+  $(document).on("click", ".ph-tab-btn", function () {
+    const tab = $(this).data("tab");
+    $(".ph-tab-btn").removeClass("active");
+    $(this).addClass("active");
+    $(".ph-tab-panel").hide();
+    $(`#ph-tab-${tab}`).show();
+  });
+
+  // ── Capture prefix when offcanvas opens ───────────────────────────────────
   const offcanvasEl = document.getElementById("promptHelperCanvas");
   if (offcanvasEl) {
     offcanvasEl.addEventListener("show.bs.offcanvas", refreshManualPrefixCache);
     offcanvasEl.addEventListener("shown.bs.offcanvas", refreshManualPrefixCache);
   }
-
-  // Keep cache synced as user types in the chat input
   $(document).on("input", PREFIX_INPUT_SELECTORS, refreshManualPrefixCache);
 
-  // Keep cache synced if user edits the generated textarea
-  $(document).on("input", "#generatedPromptsContainer textarea", function () {
-    manualPrefixCache = extractManualPrefix($(this).val());
-  });
-
-  // ---------- Init the "available columns" selector ----------
+  // ── Init the column multi-select ──────────────────────────────────────────
   $("#availableColumns").select2({
-    placeholder: "Select columns...",
+    placeholder: "Choose filter columns…",
     closeOnSelect: false,
     allowClear: true,
     width: "100%",
   });
 
-  // ---------- Live preview builder (kept top-level & bound once) ----------
-  function updateGeneratedPromptPreview() {
-    // Final fallback: ensure we have the latest prefix before building
-    refreshManualPrefixCache();
+  // ── Quick Template chips ───────────────────────────────────────────────────
+  $(document).on("click", ".ph-chip", function () {
+    const $chip = $(this);
+    const metric = $chip.data("tpl-metric");
+    const col    = $chip.data("tpl-col");
+    const text   = $chip.data("tpl-text");
 
-    const filters = {};
-    const selectedCols = $("#availableColumns").val() || [];
+    // Highlight active chip
+    $(".ph-chip").removeClass("active");
+    $chip.addClass("active");
 
-    // Build dictionary of active filters
-    selectedCols.forEach((col) => {
-      if (col === "fkdat") {
-        const from = $("#date-from").val();
-        const to = $("#date-to").val();
-        if (from || to) {
-          const dateRange = from && to ? `${from} to ${to}` : (from || to);
-          filters[col] = [dateRange];
-        }
-      } else {
-        const values = $(`#select-${col}`).val();
-        if (values && values.length > 0) filters[col] = values;
+    // Pre-fill metric
+    if (metric) $("#metricSelect").val(metric);
+
+    // Pre-select column (if any)
+    if (col) {
+      const current = $("#availableColumns").val() || [];
+      if (!current.includes(col)) {
+        current.push(col);
+        $("#availableColumns").val(current).trigger("change");
       }
-    });
-
-    // Manual prefix from existing textarea or from cached chat input
-    let baseTextRaw = getManualPrefix();
-
-    // Human-readable summary with proper formatting
-    const readableParts = [];
-    for (const [col, vals] of Object.entries(filters)) {
-      const label = $(`#availableColumns option[value='${col}']`).text() || col;
-      readableParts.push(`${label}: ${vals.join(", ")}`);
-    }
-    const filterSummary = readableParts.join(", ");
-
-    // Build combined text: "manual prefix" + " " + "filters"
-    let combined = baseTextRaw;
-    if (filterSummary) {
-      // Add space after base text if it doesn't end with space
-      if (combined && !combined.endsWith(" ")) {
-        combined += " ";
-      }
-      combined += filterSummary;
     }
 
-    const promptBox = $("#generatedPromptsContainer textarea").first();
-    if (promptBox.length) {
-      // Only update if content actually changed to avoid cursor jump
-      const currentText = promptBox.val() || "";
-      if (combined !== currentText) {
-        promptBox.val(combined);
-      }
-    } else {
-      // Create the box with base + filters
-      $("#generatedPromptsWrapper").show();
-      $("#generatedPromptsContainer").html(`
-        <div class="mb-3">
-          <textarea class="form-control prompt-textarea mb-2" rows="3">${combined}</textarea>
-          <div class="d-flex gap-2 flex-wrap align-items-center">
-            <button class="btn btn-sm btn-outline-secondary copy-btn">📋 Copy</button>
-            <button class="btn btn-sm btn-outline-success use-prompt-btn">➡️ Use Prompt</button>
-            <button class="btn btn-sm btn-outline-danger clear-prompt-btn">🗑️ Clear</button>
-          </div>
-        </div>
-      `);
-    }
-  }
+    // Populate and show the preview immediately
+    _showPreviewCard(text);
+  });
 
-  // ---------- Render per-column filters when columns change ----------
+  // ── Column change → render filter blocks ──────────────────────────────────
   $("#availableColumns").on("change", function () {
     const selectedCols = $(this).val() || [];
     const container = $("#selectedFiltersContainer");
 
-    // Remove deselected filters
+    // Remove deselected
     container.children(".filter-block").each(function () {
-      const col = $(this).data("col");
-      if (!selectedCols.includes(col)) {
-        $(this).remove();
-      }
+      if (!selectedCols.includes($(this).data("col"))) $(this).remove();
     });
 
-    // Add newly selected filters
+    // Add new
     selectedCols.forEach((col) => {
-      if (container.find(`.filter-block[data-col="${col}"]`).length === 0) {
-        const label = $(`#availableColumns option[value="${col}"]`).text();
+      if (container.find(`.filter-block[data-col="${col}"]`).length) return;
+      const label = $(`#availableColumns option[value="${col}"]`).text();
 
-        if (col === "fkdat") {
-          container.append(`
-            <div class="filter-block mb-3 p-3 border rounded bg-light shadow-sm" data-col="${col}">
-              <label class="form-label fw-semibold mb-2">${label} (From - To)</label>
-              <div class="row g-2">
-                <div class="col">
-                  <input type="date" class="form-control" id="date-from" />
-                </div>
-                <div class="col">
-                  <input type="date" class="form-control" id="date-to" />
-                </div>
-              </div>
+      if (col === "fkdat") {
+        container.append(`
+          <div class="filter-block mb-3 p-3 border rounded" data-col="${col}">
+            <label class="form-label fw-semibold small mb-2">${label} (From – To)</label>
+            <div class="row g-2">
+              <div class="col"><input type="date" class="form-control form-control-sm" id="date-from"></div>
+              <div class="col"><input type="date" class="form-control form-control-sm" id="date-to"></div>
             </div>
-          `);
-        } else {
-          container.append(`
-            <div class="filter-block mb-3 p-3 border rounded bg-light shadow-sm" data-col="${col}">
-              <label class="form-label fw-semibold mb-2">${label}</label>
-              <select id="select-${col}" class="form-select" multiple></select>
-            </div>
-          `);
+          </div>`);
+      } else {
+        container.append(`
+          <div class="filter-block mb-3 p-3 border rounded" data-col="${col}">
+            <label class="form-label fw-semibold small mb-2">${label}</label>
+            <select id="select-${col}" class="form-select form-select-sm" multiple></select>
+          </div>`);
 
-          $(`#select-${col}`).select2({
-            placeholder: `Choose ${label}...`,
-            allowClear: true,
-            width: "100%",
-            ajax: {
-              transport: function (params, success, failure) {
-                sendAuthenticatedRequest({
-                  url: `/api/sales/filters/${col}/`,
-                  method: "GET",
-                  dataType: "json",
-                  data: params.data,
-                  success: success,
-                  error: failure,
-                });
-              },
-              delay: 250,
-              processResults: function (data) {
-                return {
-                  results: data.results || [],
-                  pagination: { more: data.pagination?.more || false },
-                };
-              },
+        $(`#select-${col}`).select2({
+          placeholder: `Choose ${label}…`,
+          allowClear: true,
+          width: "100%",
+          ajax: {
+            transport: function (params, success, failure) {
+              sendAuthenticatedRequest({
+                url: `/api/sales/filters/${col}/`,
+                method: "GET",
+                dataType: "json",
+                data: params.data,
+                success: success,
+                error: failure,
+              });
             },
-          });
-        }
+            delay: 250,
+            processResults: (data) => ({
+              results: data.results || [],
+              pagination: { more: data.pagination?.more || false },
+            }),
+          },
+        });
       }
     });
-
-    // After adding/removing blocks, update preview once
-    updateGeneratedPromptPreview();
   });
 
-  // ---------- Watchers (bind once globally) ----------
-  $(document).on("change", ".form-select", updateGeneratedPromptPreview);
-  $(document).on("select2:select select2:unselect", ".form-select", updateGeneratedPromptPreview);
-  $(document).on("change", "#date-from, #date-to", updateGeneratedPromptPreview);
-
-  // ---------- Apply / Generate ----------
+  // ── Generate Prompt button ─────────────────────────────────────────────────
   $("#applyFiltersBtn").on("click", function () {
     const $btn = $(this);
-    
-    // FIRST: Capture the manual prefix before we do anything else
     refreshManualPrefixCache();
-    
-    setBtnLoading($btn, "Generating...");
 
     const selectedCols = $("#availableColumns").val() || [];
     const filters = {};
@@ -313,171 +264,159 @@ $(function () {
 
     selectedCols.forEach((col) => {
       if (col === "fkdat") {
-        const from = $("#date-from").val();
-        const to = $("#date-to").val();
-
+        const from = $("#date-from").val(), to = $("#date-to").val();
         if (!from && !to) {
-          Swal.fire({
-            icon: "warning",
-            title: "Date filter missing",
-            text: "Please select at least one date or remove the Date filter.",
-          });
-          abort = true;
-          return;
+          Swal.fire({ icon: "warning", title: "Date filter missing", text: "Select at least one date or remove the Date filter." });
+          abort = true; return;
         }
-
-        function formatDate(d) {
+        const fmt = (d) => {
           if (!d) return null;
-          const date = new Date(d);
-          const options = { day: "2-digit", month: "long", year: "numeric" };
-          return date.toLocaleDateString("en-GB", options);
-        }
-
-        if (from && !to) {
-          filters[col] = [formatDate(from)];
-        } else {
-          filters[col] = [`${formatDate(from)} to ${formatDate(to)}`];
-        }
+          return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
+        };
+        filters[col] = from && to ? [`${fmt(from)} to ${fmt(to)}`] : [fmt(from) || fmt(to)];
       } else {
-        const values = $(`#select-${col}`).val();
-        if (values && values.length > 0) {
-          filters[col] = values;
-        }
+        const vals = $(`#select-${col}`).val();
+        if (vals && vals.length) filters[col] = vals;
       }
     });
 
-    if (abort) {
-      unsetBtnLoading($btn);
+    if (abort) return;
+
+    const metric = $("#metricSelect").val();
+    if (!metric && !Object.keys(filters).length) {
+      Swal.fire({ icon: "info", title: "Nothing selected", text: "Choose a metric or at least one filter to generate a prompt." });
       return;
     }
 
-    const metric = $("#metricSelect").val();
-    const generatedPrompt = $(".prompt-textarea").val();
+    setBtnLoading($btn, "Generating…");
 
     sendAuthenticatedRequest({
       url: "/api/sales/apply-filters/",
       method: "POST",
       contentType: "application/json",
-      data: JSON.stringify({ filters, metric, generatedPrompt }),
+      data: JSON.stringify({ filters, metric, generatedPrompt: buildFilterSummary() }),
       success: function (resp) {
-        const container = $("#generatedPromptsContainer");
+        const savedPrefix = manualPrefixCache || "";
+        const container = $("#generatedPromptsContainer").empty();
         $("#generatedPromptsWrapper").show();
 
-        // latest saved manual prefix (e.g., "what is the sales of  ")
-        const savedPrefix = manualPrefixCache || "";
-
-        // helper to render one prompt block
-        const renderBlock = (text, idx = 0) => {
-          container.append(`
-            <div class="mb-3">
-              <textarea class="form-control prompt-textarea mb-2" rows="3" id="prompt-${idx}">${text}</textarea>
-              <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-outline-secondary copy-btn" data-target="prompt-${idx}">📋 Copy</button>
-                <button class="btn btn-sm btn-outline-success use-prompt-btn" data-target="prompt-${idx}">➡️ Use Prompt</button>
-                <button class="btn btn-sm btn-outline-danger clear-prompt-btn" data-target="prompt-${idx}">🗑️ Clear</button>
-              </div>
-            </div>
-          `);
-        };
-
-        if (Array.isArray(resp.prompts) && resp.prompts.length > 0) {
-          if (resp.prompts.length > 1) {
-            // MULTIPLE: clear first, then append each
-            container.find("textarea.prompt-textarea").val(""); // visual clear (optional)
-            container.empty();
-
-            resp.prompts.forEach((p, idx) => {
-              const finalText = mergePrefix(savedPrefix, p);
-              renderBlock(finalText, idx);
-            });
-          } else {
-            // SINGLE: update existing textarea if present; otherwise render one fresh
-            const finalText = mergePrefix(savedPrefix, resp.prompts[0]);
-            const existing = container.find("textarea.prompt-textarea").first();
-
-            if (existing.length) {
-              existing.val(finalText);
-            } else {
-              container.empty();
-              renderBlock(finalText, 0);
-            }
-          }
-        } else {
-          container.empty().append(
-            `<div class="text-muted">No prompt could be generated. Please adjust your filters.</div>`
-          );
+        const prompts = Array.isArray(resp.prompts) && resp.prompts.length ? resp.prompts : [];
+        if (!prompts.length) {
+          container.html('<p class="text-muted small">No prompts generated. Adjust your filters and try again.</p>');
+          return;
         }
+        prompts.forEach((p) => container.append(renderPromptCard(mergePrefix(savedPrefix, p))));
       },
-      error: function (xhr, status, err) {
-        console.error(err);
+      error: function (xhr) {
+        Swal.fire({ icon: "error", title: "Error", text: xhr.responseJSON?.message || "Failed to generate prompts." });
       },
-      complete: function () {
-        unsetBtnLoading($btn);
-      },
+      complete: function () { unsetBtnLoading($btn); },
     });
   });
 
-  // ---------- Delegated actions: Copy / Use Prompt / Clear All ----------
-  // COPY
-  $(document).on("click", ".copy-btn", function () {
-    const targetId = $(this).data("target");
-    const $ta = targetId ? $(`#${targetId}`) : $(this).closest(".mb-3").find("textarea");
-    const text = ($ta.val() || "").toString();
+  // ── Helper: show a single preview card immediately (used by templates) ─────
+  function _showPreviewCard(text) {
+    const container = $("#generatedPromptsContainer").empty();
+    $("#generatedPromptsWrapper").show();
+    container.append(renderPromptCard(text));
+  }
 
-    navigator.clipboard.writeText(text).then(() => {
-      Swal.fire({
-        icon: "success",
-        title: "Copied!",
-        text: "Prompt copied to clipboard.",
-        timer: 1500,
-        showConfirmButton: false,
-      });
+  // ── Clear all ──────────────────────────────────────────────────────────────
+  $(document).on("click", "#clearAllPromptsBtn", function () {
+    Swal.fire({
+      title: "Clear all prompts?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Clear",
+      cancelButtonText: "Cancel",
+    }).then((r) => {
+      if (!r.isConfirmed) return;
+      $("#availableColumns").val(null).trigger("change");
+      $("#selectedFiltersContainer").empty();
+      $("#metricSelect").val("");
+      $("#generatedPromptsContainer").empty();
+      $("#generatedPromptsWrapper").hide();
+      $(".ph-chip").removeClass("active");
+      manualPrefixCache = "";
     });
   });
 
-  // USE PROMPT
-  $(document).on("click", ".use-prompt-btn", function () {
-    const targetId = $(this).data("target");
-    const $ta = targetId ? $(`#${targetId}`) : $(this).closest(".mb-3").find("textarea");
-    const text = ($ta.val() || "").toString();
+  // ── Card: Use ──────────────────────────────────────────────────────────────
+  $(document).on("click", ".ph-card-use", function () {
+    const cardId = $(this).data("card");
+    const text = $(`#${cardId}`).data("prompt") || $(`#${cardId}`).find(".ph-prompt-card-text").text().trim();
+    usePrompt(text);
+  });
 
-    $("#message-input").val(text);
-    $("#use-prompt-btn").prop("disabled", false).trigger("click");
-    $("#send-btn").prop("disabled", false).trigger("click");
+  // ── Card: Copy ─────────────────────────────────────────────────────────────
+  $(document).on("click", ".ph-card-copy", function () {
+    const cardId = $(this).data("card");
+    const text = $(`#${cardId}`).data("prompt") || $(`#${cardId}`).find(".ph-prompt-card-text").text().trim();
+    navigator.clipboard.writeText(text).then(() =>
+      Swal.fire({ icon: "success", title: "Copied!", timer: 1200, showConfirmButton: false })
+    );
+  });
 
-    const offcanvasEl2 = document.getElementById("promptHelperCanvas");
-    if (offcanvasEl2) {
-      const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl2);
-      offcanvas.hide();
+  // ─────────────────────────────────────────────────────────────────────────
+  //  SUGGEST TAB — AI prompt suggestions
+  // ─────────────────────────────────────────────────────────────────────────
+  $(document).on("click", "#ph-suggest-btn", function () {
+    const $btn = $(this);
+    const input = $("#ph-suggest-input").val().trim();
+    if (!input) {
+      Swal.fire({ icon: "info", title: "Nothing to suggest", text: "Type a partial question first." });
+      return;
+    }
+
+    setBtnLoading($btn, "Thinking…");
+    const conversationId = $("#chat-id-holder").data("current-conversation-id") || null;
+
+    sendAuthenticatedRequest({
+      url: "/api/sales/prompt-suggestions/",
+      method: "POST",
+      contentType: "application/json",
+      data: JSON.stringify({ input_text: input, conversation_id: conversationId }),
+      success: function (resp) {
+        const results = $("#ph-suggest-results").empty();
+        const suggestions = resp.suggestions || [];
+        if (!suggestions.length) {
+          results.html('<p class="text-muted small">No suggestions returned. Try a different phrase.</p>');
+          return;
+        }
+        suggestions.forEach((s) => {
+          results.append(`
+            <div class="ph-suggest-item" data-text="${s.replace(/"/g, '&quot;')}">
+              <span class="ph-suggest-item-text">${s}</span>
+              <button class="ph-suggest-use-btn" title="Use this prompt">
+                <i class="bi bi-arrow-right-circle"></i>
+              </button>
+            </div>`);
+        });
+      },
+      error: function () {
+        $("#ph-suggest-results").html('<p class="text-danger small">Failed to fetch suggestions.</p>');
+      },
+      complete: function () { unsetBtnLoading($btn); },
+    });
+  });
+
+  // Allow Enter (without Shift) in the suggest textarea to trigger suggest
+  $(document).on("keydown", "#ph-suggest-input", function (e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      $("#ph-suggest-btn").trigger("click");
     }
   });
 
-  // CLEAR ALL
-  $(document).on("click", ".clear-prompt-btn", function () {
-    Swal.fire({
-      title: "Clear All?",
-      text: "This will remove all selected filters, metric, and prompts.",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Yes, clear all",
-      cancelButtonText: "Cancel",
-    }).then((res) => {
-      if (res.isConfirmed) {
-        $("#availableColumns").val(null).trigger("change");
-        $("#selectedFiltersContainer").empty();
-        $("#metricSelect").val("");
-        $("#generatedPromptsContainer").empty();
-        $("#generatedPromptsWrapper").hide();
-        manualPrefixCache = ""; // Clear the cache too
+  // Use a suggestion
+  $(document).on("click", ".ph-suggest-use-btn", function () {
+    const text = $(this).closest(".ph-suggest-item").data("text");
+    usePrompt(text);
+  });
 
-        Swal.fire({
-          icon: "info",
-          title: "Cleared",
-          text: "All filters and prompts have been cleared.",
-          timer: 1200,
-          showConfirmButton: false,
-        });
-      }
-    });
+  // Click anywhere on the suggest item (not just the button)
+  $(document).on("click", ".ph-suggest-item-text", function () {
+    const text = $(this).closest(".ph-suggest-item").data("text");
+    usePrompt(text);
   });
 });

@@ -298,3 +298,171 @@ None. Existing `api/sales/query/`, `api/sales/query/existing/<uuid>/`, and `api/
 
 ### Next Phase
 After Azure AI Search endpoint/index configuration is confirmed and `sap-sales-knowledge-v1` is seeded, enable `AZURE_SEARCH_RAG_ENABLED=true`, monitor retrieval quality, then tune document ranking, prompt context size, and RAG evaluation tests.
+
+## Phase 4.1 - Azure AI Search RAG Activated
+
+### Date
+2026-06-14
+
+### Objective
+Seed the `sap-sales-knowledge-v1` Azure AI Search index with SAP sales business knowledge documents and enable live RAG retrieval for all chat requests.
+
+### Actions Taken
+- Created the `sap-sales-knowledge-v1` index in Azure AI Search using the schema defined in `docs/sap-sales-knowledge-v1.json`.
+- Ran `cd src; ..\venv\Scripts\python.exe manage.py seed_sales_knowledge_index --upload` successfully.
+- Embedding generation via `text-embedding-ada-002` succeeded for all documents.
+- Azure AI Search accepted all 87 documents via `merge_or_upload_documents`.
+- Set `AZURE_SEARCH_RAG_ENABLED=true` in `src/core/.env`.
+
+### Result
+- 87 knowledge documents are now live in the `sap-sales-knowledge-v1` index covering: field mappings, ADX schema, depot/gsber codes, distribution channel codes, KPI definitions, date rules, data type rules, and approved KQL patterns.
+- RAG retrieval runs on every chat request before query planning, injecting relevant business context into both the planner and KQL generator prompts.
+- The `retrieve_business_context_node` in the LangGraph workflow now actively retrieves context; SSE clients see `Business context retrieved (N documents)` status events.
+
+### Known Issues or Limitations
+- `SYSTEM_PROMPT_KQL` remains the authoritative fallback; RAG context is advisory only.
+- Dealer/customer aliases are intentionally excluded from the index due to high cardinality (350,000+ records); ADX remains the source for those.
+
+## Phase 5.1 - SSE Streaming Connected to Frontend Chat
+
+### Date
+2026-06-14
+
+### Objective
+Connect the existing backend SSE endpoint (`api/sales/query/stream/`) to the frontend chat UI so users see live graph progress events during request processing instead of a silent wait.
+
+### Architecture Changes
+- Replaced the `sendMessage()` function in `chat.js` with an async `fetch`-based SSE reader that POSTs to `api/sales/query/stream/` for all messages (new and existing conversations).
+- The previous approach used jQuery `$.ajax` to `/sales/query/` and `/sales/query/existing/<uuid>/` and waited for the full blocking response.
+- The typing indicator now shows a live status line updated by `event: status` SSE events.
+- `event: final` renders the answer and updates the conversation ID.
+- `event: error` renders the error message as a bot bubble.
+
+### Files Modified
+- `src/sales_analyzer/static/js/chat.js`
+
+### Breaking Changes
+None. The non-streaming endpoints (`/sales/query/` and `/sales/query/existing/<uuid>/`) are preserved and still used by any non-SSE clients.
+
+### SSE Event → UI Mapping
+| Server event | Frontend action |
+|---|---|
+| `status` | Updates grey status text under the typing dots |
+| `final` | Removes typing indicator, renders answer bubble, saves conversation UUID |
+| `error` | Removes typing indicator, renders error as bot bubble |
+
+## Phase 5.2 - LLM Token Streaming with ChatGPT-Style Animation
+
+### Date
+2026-06-14
+
+### Objective
+Enable true token-by-token LLM streaming so the final narrative response appears word by word as it is generated, matching the ChatGPT/Claude user experience.
+
+### Architecture Changes
+- Added `on_token: Callable[[str], None] | None` parameter to `handle_user_query()` in `agent.py`.
+- When `on_token` is provided, both the non-sales general response path and the sales narrative summarization path use `llm.stream()` instead of `llm.invoke()`, calling `on_token(chunk)` for each generated token.
+- Added `on_token: Any` field to `SalesAgentState` in `graph/state.py`.
+- `execute_existing_agent_node` in `graph/nodes.py` passes `state.get("on_token")` to `handle_user_query`.
+- `stream_sales_analysis_graph` in `graph/workflow.py` accepts and passes `on_token` in the initial state.
+- `ChatStreamAPIView` in `views.py` was refactored to use `threading.Thread` + `queue.Queue`: the graph runs in a background thread and puts both SSE graph events and LLM token chunks into the queue; the SSE generator reads from the queue and yields the appropriate events.
+- Frontend `chat.js` handles `event: token` by accumulating `streamingText` and scheduling a `requestAnimationFrame`-throttled render (max 60 fps) with a blinking block cursor appended.
+- On `event: final`, a final clean `marked.parse()` render is performed and the cursor is removed.
+- Added `.stream-cursor` CSS animation and `.chunk-fade-in` CSS animation to `chat_index.html`.
+
+### Full Streaming Flow
+```
+User prompt
+  → status: "Analyzing request"
+  → status: "Business context retrieved"
+  → status: "Structured query plan created"
+  → status: "Preparing response"
+  → token: "**Top" → token: " 10" → token: " Dealers" → ...  (word by word)
+  → final: {answer: "...full text...", uuid: "..."}
+```
+
+### Files Added
+None.
+
+### Files Modified
+- `src/agent/agent.py`
+- `src/agent/graph/state.py`
+- `src/agent/graph/nodes.py`
+- `src/agent/graph/workflow.py`
+- `src/sales_analyzer/views.py`
+- `src/sales_analyzer/static/js/chat.js`
+- `src/sales_analyzer/templates/sales/chat_index.html`
+
+### Breaking Changes
+None. The non-streaming `ChatAPIView` and `ExistingConversationAPIView` still use `llm.invoke()` (no `on_token` passed) and are unaffected.
+
+### Known Issues or Limitations
+- `requestAnimationFrame` throttling renders at most ~60 times per second; if the LLM sends tokens faster, some are batched into one frame, which is the correct and desired behavior.
+- Partial markdown during streaming (e.g. unclosed `**bold`) is handled gracefully by `marked.js`; the `final` event always does a clean re-render from the complete text.
+- The background graph thread uses a 180-second queue timeout; long-running ADX queries that exceed this will surface as a timeout error event to the client.
+
+### Next Phase
+Phase 5.3 should add persistent user memory (cross-session preferences, frequently used filters, analytical context) using the existing MS SQL Server conversation infrastructure.
+
+## Phase 6 - Production Hardening
+
+### Date
+2026-06-14
+
+### Objective
+Add query audit logging, prompt/model versioning, structured latency and token monitoring, and cost tracking to make the agent observable and production-ready without changing any query generation, ADX execution, access-scope, or API response behavior.
+
+### Architecture Changes
+- Added a new `agent.observability` package with a `Timer` context manager and a fail-safe `write_audit_record()` helper.
+- Added `AgentQueryAudit` Django model (`agent_query_audit` table in MS SQL Server) that records one row per `handle_user_query()` call.
+- Added a `PROMPT_VERSION` constant to `agent.py` so every audit record can be correlated with the prompt version that generated it.
+- Instrumented `handle_user_query()` with per-phase latency timers (KQL generation, ADX execution, LLM summary) and token capture from the summary LLM response.
+- Replaced all `print()` debug statements in `generate_kql()` and `handle_user_query()` with structured `logger.*()` calls.
+- Added `agent` and `agent.observability` named loggers to the Django `LOGGING` config; level is configurable via `AGENT_LOG_LEVEL` env var (defaults to `INFO`).
+- Registered `AgentQueryAudit` in Django admin as a read-only audit table with list filters, search, and date hierarchy.
+
+### Features Implemented
+- **Audit table** (`AgentQueryAudit`): captures user, conversation ID, user prompt, generated KQL, prompt version, model name, query plan, RAG docs retrieved, is_sales_query flag, KQL validation status, per-phase latency (ms), summary token counts, estimated cost (USD), ADX row count, success flag, error code, and error message.
+- **Latency breakdown**: `kql_generation_latency_ms`, `adx_execution_latency_ms`, `llm_summary_latency_ms`, and `total_latency_ms` are recorded on every request including failed ones.
+- **Token tracking**: `summary_prompt_tokens`, `summary_completion_tokens`, and `total_tokens` are captured from the final summary LLM call via `response_metadata["token_usage"]` (non-streaming only; streaming requests record 0).
+- **Cost estimate**: `estimated_cost_usd` is computed from summary tokens using configurable rates (`OPENAI_COST_PER_1K_INPUT`, `OPENAI_COST_PER_1K_OUTPUT`; defaults to GPT-4o pricing).
+- **Prompt versioning**: `PROMPT_VERSION = "kql-v3"` written to every audit row; increment this string whenever `SYSTEM_PROMPT_KQL` changes significantly.
+- **Structured logging**: `INFO`-level success log on every completed query with all key metrics; `WARNING` on KQL/ADX failures; `DEBUG` for internal step events.
+- **Fail-safe audit**: `write_audit_record()` is called in a `finally` block and swallows all exceptions — a database write failure never interrupts the user response.
+- **Error classification**: `error_code` field uses named choices (`KQL_VAL_FAIL`, `ADX_EXEC_FAIL`, `NO_DATA`, `GENERAL_QUERY`, etc.) for dashboard filtering.
+- **KQL validation status**: `kql_validation_status` tracks whether KQL was `valid`, `adx_repaired`, or `failed` on each request.
+- **Django admin**: read-only `AgentQueryAuditAdmin` with `list_display`, `list_filter`, `search_fields`, and `date_hierarchy`; add/change permissions disabled.
+
+### Files Added
+- `src/agent/observability/__init__.py`
+- `src/agent/observability/timing.py`
+- `src/agent/observability/audit.py`
+- `src/agent/migrations/0001_initial.py`
+
+### Files Modified
+- `src/agent/models.py` — `AgentQueryAudit` model with `ValidationStatus` and `ErrorCode` choices
+- `src/agent/admin.py` — `AgentQueryAuditAdmin` registration
+- `src/agent/agent.py` — `PROMPT_VERSION` constant, `import time`, print→logger replacements, `handle_user_query()` instrumented with `Timer` + `write_audit_record`
+- `src/core/settings.py` — structured LOGGING config with `agent` logger and `AGENT_LOG_LEVEL` env var
+- `docs/phase_history.md`
+
+### Breaking Changes
+None. All existing API response shapes, KQL generation behavior, ADX execution logic, access-scope enforcement, and SSE streaming contracts are unchanged.
+
+### Migration Steps
+Run `python manage.py migrate agent` to create the `agent_query_audit` table in MS SQL Server.
+No other migration steps are required. Existing clients do not need to change.
+
+### Testing Performed
+- Ran `python -m compileall src/agent/models.py src/agent/admin.py src/agent/observability/ src/agent/migrations/0001_initial.py` — all files compile without errors.
+- Ran `python -c "import ast; ast.parse(open('src/agent/agent.py', encoding='utf-8').read())"` — agent.py parses cleanly.
+- Ran `python manage.py check` — no system check errors.
+
+### Known Issues or Limitations
+- Token counts cover the final summary LLM call only; KQL-generation and classifier token usage is not individually tracked (the dominant cost is the summary call).
+- `estimated_cost_usd` uses GPT-4o pricing as the default; adjust `OPENAI_COST_PER_1K_INPUT` / `OPENAI_COST_PER_1K_OUTPUT` env vars if using a different deployment.
+- Streaming requests (`on_token` provided) record `total_tokens = 0` because LangChain streaming does not surface `token_usage` in the same response metadata path.
+- The audit table grows without bound; add a SQL Server retention job to purge rows older than 90 days in production.
+
+### Next Phase
+Phase 5.3 — Persistent user memory (cross-session preferences, frequently used filters) using the existing MS SQL Server conversation infrastructure.

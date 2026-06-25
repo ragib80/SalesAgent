@@ -158,9 +158,11 @@ class ApplyFiltersAPIView(APIView):
             llm = AzureChatOpenAI(
                 azure_endpoint   = settings.AZURE_OPENAI_ENDPOINT,
                 api_key          = settings.AZURE_OPENAI_KEY,
-                api_version      = "2025-01-01-preview",
+                # api_version      = "2025-01-01-preview",
+                api_version      = settings.AZURE_OPENAI_ANALYSIS_VERSION,
                 azure_deployment = settings.AZURE_OPENAI_ANALYSIS,  # e.g., deployment of gpt-5-mini
-                temperature      = 0,  # set 0 if you want fully deterministic phrasing
+                # temperature      = 0,  # set 0 if you want fully deterministic phrasing
+                temperature      = settings.AZURE_OPENAI_ANALYSIS_TEMPERATURE,  # set 0 if you want fully deterministic phrasing
             )
 
             system_prompt = (
@@ -461,9 +463,11 @@ def get_llm():
     return AzureChatOpenAI(
         azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
         api_key=settings.AZURE_OPENAI_KEY,
-        api_version="2025-01-01-preview",
+        # api_version="2025-01-01-preview",
+        api_version=settings.AZURE_OPENAI_ANALYSIS_VERSION,
         azure_deployment=settings.AZURE_OPENAI_ANALYSIS,
-        temperature=0.7,
+        # temperature=0.7,
+        temperature=settings.AZURE_OPENAI_ANALYSIS_TEMPERATURE,
         # Optional latency guards:
         # max_tokens=256,
         # request_timeout=10,
