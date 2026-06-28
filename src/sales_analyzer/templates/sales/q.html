@@ -402,7 +402,7 @@ $(function() {
   const designation = localStorage.getItem('designation') || '';
 
   $('.user-info .user-name').text(fullName);
-  $('.user-info .user-plan').text(designation || 'Free');
+  $('.user-info .user-plan').text(designation || '');
 
   const initials = (fullName.trim()
                     ? fullName.trim().split(/\s+/).map(s => s[0]).join('')

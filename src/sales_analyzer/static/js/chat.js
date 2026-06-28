@@ -153,7 +153,7 @@ $(function () {
   // User info
   let fullName    = localStorage.getItem('full_name')    || 'User';
   let userName    = localStorage.getItem('username')     || 'user';
-  let designation = localStorage.getItem('designation')  || 'Free';
+  let designation = localStorage.getItem('designation')  || '';
 
   $('.user-info .user-name').text(fullName);
   $('.user-info .user-plan').text(designation);
@@ -271,7 +271,7 @@ $(function () {
         <div class="welcome-eyebrow">Sales Intelligence</div>
         <h1 class="welcome-title">Voice of Sales</h1>
         <p class="welcome-subtitle">
-          Your AI assistant for SAP sales data.<br>Ask in plain language — get instant insights.
+          Your AI assistant for SAP sales data.<br>Ask in plain language - get instant insights.
         </p>
         <div class="welcome-cards" role="list" aria-label="Suggested prompts">
           ${cardsHtml}
