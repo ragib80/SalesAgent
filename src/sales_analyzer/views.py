@@ -1,3 +1,8 @@
+import json
+import queue
+import threading
+
+from django.http import StreamingHttpResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -5,7 +10,7 @@ from sales_analyzer.serializers import QueryRequestSerializer, QueryResponseSeri
 from agent.azure_clients import search_client, openai_client
 from django.conf import settings
 from django.views.generic import TemplateView
-from agent.agent import handle_user_query
+from agent.graph.workflow import run_sales_analysis_graph, stream_sales_analysis_graph
 from conversation.models.conversation import Conversation
 from conversation.models.message import Message
 from datetime import datetime
@@ -63,6 +68,17 @@ def _extract_answer(result):
     # really nothing
     return ""
 
+
+def _sse_event(event_name, payload):
+    data = json.dumps(payload, default=str)
+    return f"event: {event_name}\ndata: {data}\n\n"
+
+
+def _result_from_graph_state(graph_state):
+    if graph_state.get("error"):
+        raise RuntimeError(graph_state["error"])
+    return graph_state.get("result")
+
 class ChatAPIView(APIView):
     authentication_classes = (JWTAuthentication,)
     permission_classes = (IsAuthenticated,)
@@ -78,13 +94,19 @@ class ChatAPIView(APIView):
             # conversation
             conversation_id = request.data.get("conversation_id")
             conversation = (self._get_or_create_conversation(request.user, conversation_id)
-                            if conversation_id else self._create_new_conversation(request.user))
+                            if conversation_id
+                            else self._create_new_conversation(request.user, title=self._make_chat_title(prompt)))
 
             # bind user context ONCE
             token = set_current_chat_user(request.user)
 
-            # run agent
-            result = handle_user_query(prompt, conversation_id=str(conversation.uuid), user=request.user)
+            # run graph-wrapped agent
+            graph_state = run_sales_analysis_graph(
+                prompt,
+                conversation_id=str(conversation.uuid),
+                user=request.user,
+            )
+            result = _result_from_graph_state(graph_state)
 
             # ---- extract / synthesize answer ----
             answer = self._extract_answer(result)
@@ -175,9 +197,15 @@ class ChatAPIView(APIView):
 
         return md
 
-    def _create_new_conversation(self, user):
+    def _make_chat_title(self, prompt: str) -> str:
+        t = prompt.strip()
+        return (t[:55] + '…') if len(t) > 55 else t
+
+    def _create_new_conversation(self, user, title=None):
         return Conversation.objects.create(
-            user=user, title=f"Chat - {datetime.now():%Y-%m-%d %H:%M:%S}", is_deleted=False
+            user=user,
+            title=title or f"Chat - {datetime.now():%Y-%m-%d %H:%M:%S}",
+            is_deleted=False,
         )
 
     def _get_or_create_conversation(self, user, conversation_uuid):
@@ -187,9 +215,121 @@ class ChatAPIView(APIView):
     def _create_message(self, conversation, sender_role, text):
         Message.objects.create(conversation=conversation, sender=sender_role, text=text, is_deleted=False)
 
+
+class ChatStreamAPIView(ChatAPIView):
+    """Stream LLM tokens and graph progress events via SSE."""
+
+    def post(self, request):
+        ser = ChatRequestSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        prompt = ser.validated_data["prompt"]
+
+        conversation_id = request.data.get("conversation_id")
+        conversation = (
+            self._get_or_create_conversation(request.user, conversation_id)
+            if conversation_id
+            else self._create_new_conversation(request.user, title=self._make_chat_title(prompt))
+        )
+
+        conv_uuid = str(conversation.uuid)
+        q = queue.Queue()
+        _DONE = object()
+
+        def on_token(chunk):
+            q.put(("token", chunk))
+
+        def graph_runner():
+            ctx_token = None
+            try:
+                ctx_token = set_current_chat_user(request.user)
+                for event in stream_sales_analysis_graph(
+                    prompt,
+                    conversation_id=conv_uuid,
+                    user=request.user,
+                    on_token=on_token,
+                ):
+                    q.put(("event", event))
+                q.put(("done", _DONE))
+            except Exception as exc:
+                q.put(("error", str(exc)))
+            finally:
+                if ctx_token:
+                    clear_current_chat_user(ctx_token)
+
+        threading.Thread(target=graph_runner, daemon=True).start()
+
+        def event_stream():
+            streamed_text = ""
+            final_sent = False
+            graph_failed = False
+
+            while True:
+                try:
+                    kind, value = q.get(timeout=180)
+                except queue.Empty:
+                    if not final_sent:
+                        yield _sse_event("error", {"message": "Request timed out.", "uuid": conv_uuid})
+                    break
+
+                if kind == "token":
+                    streamed_text += value
+                    yield _sse_event("token", {"chunk": value})
+
+                elif kind == "event":
+                    event_name = value.get("event", "status")
+                    payload = {k: v for k, v in value.items() if k != "event"}
+
+                    if event_name == "error":
+                        graph_failed = True
+
+                    if event_name == "final":
+                        if graph_failed:
+                            yield _sse_event("error", {
+                                "message": "sorry i am a baby now, day by day im learning from your prompt. for a better user experience.",
+                                "uuid": conv_uuid,
+                            })
+                            final_sent = True
+                            continue
+
+                        answer = streamed_text.strip() or payload.get("answer") or ""
+                        if not answer.strip():
+                            answer = "I prepared the results for you — see details below."
+                        if "Sorry, I couldn't process" in answer:
+                            answer = "sorry i am a baby now, day by day im learning from your prompt. for a better user experience."
+
+                        self._create_message(conversation, "user", prompt)
+                        self._create_message(conversation, "bot", answer)
+
+                        payload["answer"] = answer
+                        payload["uuid"] = conv_uuid
+                        final_sent = True
+                        yield _sse_event("final", payload)
+
+                    else:
+                        yield _sse_event(event_name, payload)
+
+                elif kind == "done":
+                    if not final_sent:
+                        answer = streamed_text.strip() or "I prepared the results for you — see details below."
+                        self._create_message(conversation, "user", prompt)
+                        self._create_message(conversation, "bot", answer)
+                        yield _sse_event("final", {"answer": answer, "uuid": conv_uuid})
+                    break
+
+                elif kind == "error":
+                    if not final_sent:
+                        yield _sse_event("error", {"message": value or "Something went wrong.", "uuid": conv_uuid})
+                    break
+
+        response = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
+        response["Cache-Control"] = "no-cache"
+        response["X-Accel-Buffering"] = "no"
+        return response
+
+
 class ExistingConversationAPIView(APIView):
-    token = None
     def post(self, request, conversation_uuid):
+        token = None
         try:
             ser = ChatRequestSerializer(data=request.data)
             ser.is_valid(raise_exception=True)
@@ -198,9 +338,13 @@ class ExistingConversationAPIView(APIView):
             conversation = self.get_or_create_conversation(request.user, conversation_uuid)
 
             token = set_current_chat_user(request.user)  
-            # > Run agent 
-            # result = handle_user_query(prompt)
-            result = handle_user_query(prompt, conversation_id=str(conversation.uuid),user=request.user)
+            # > Run graph-wrapped agent
+            graph_state = run_sales_analysis_graph(
+                prompt,
+                conversation_id=str(conversation.uuid),
+                user=request.user,
+            )
+            result = _result_from_graph_state(graph_state)
 
             answer = result if isinstance(result, str) else result.get("answer", "")
             if "Sorry, I couldn't process" in answer:
@@ -227,6 +371,7 @@ class ExistingConversationAPIView(APIView):
             return Response(response_ser.data, status=status.HTTP_200_OK)
         
         finally:
+            if token:
                 clear_current_chat_user(token)
 
     def get_or_create_conversation(self, user, conversation_uuid):

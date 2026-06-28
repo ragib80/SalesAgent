@@ -1,31 +1,36 @@
 <!-- Input Area -->
-<div class="input-area">
-    <div class="input-container">
-        <div class="input-wrapper" style="position: relative;">
-            <textarea class="message-input"
-                      id="message-input"
-                      placeholder="Type a message..."
-                      rows="1"></textarea>
+<div class="input-area" role="region" aria-label="Message input">
+  <div class="input-container">
+    <div class="input-wrapper">
+      <textarea class="message-input"
+                id="message-input"
+                placeholder="Ask about your sales data…"
+                rows="1"
+                aria-label="Type a message"
+                aria-multiline="true"></textarea>
 
-            <!-- Ghost suggestion placeholder -->
-           <div id="ghost-suggestion"></div>
+      <!-- Ghost suggestion placeholder (used by auto_complete.js) -->
+      <div id="ghost-suggestion"></div>
 
-            <!-- Select2 element -->
-            <select id="smart-suggestions" style="display: none;"></select>
+      <!-- Select2 element (used by auto_complete.js) -->
+      <select id="smart-suggestions" style="display:none;"></select>
 
-            <div class="input-actions">
-                <button class="input-btn send-btn"
-                        id="send-btn"
-                        disabled>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                    </svg>
-                </button>
-            </div>
-        </div>
-          <span class="input-note text-center" style="text-align: center;">
-            Data will be available up to yesterday
-        </span>
+      <div class="input-actions">
+        <span class="char-counter" id="char-counter" aria-live="polite"></span>
+
+        <button class="input-btn send-btn"
+                id="send-btn"
+                type="button"
+                disabled
+                aria-label="Send message"
+                title="Send (Enter)">
+          <i class="bi bi-send-fill" aria-hidden="true"></i>
+        </button>
+      </div>
     </div>
-  
+
+    <p class="disclaimer">
+      Voice of Sales may produce inaccurate results. Verify critical figures independently.
+    </p>
+  </div>
 </div>

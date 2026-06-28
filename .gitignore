@@ -10,3 +10,5 @@ src/staticfiles/
 **/__pycache__/
 src/logs/
 src/web.config
+
+docs/

@@ -1,0 +1,3977 @@
+[
+  {
+    "id": "field-mappings-v1",
+    "parent_id": "",
+    "chunk_id": "field-mappings-v1",
+    "chunk_ordinal": 0,
+    "doc_type": "field_mapping",
+    "category": "schema_mapping",
+    "title": "SAP sales natural language field mappings",
+    "summary": "Maps user-friendly SAP sales terms to SAPSalesInfos ADX columns.",
+    "content": "account group maps to ADX column ktokd. brand maps to ADX column wgbez. business area maps to ADX column gsber. business group maps to ADX column GK. category maps to ADX column matkl. channel maps to ADX column vtweg. company maps to ADX column bukrs. company code maps to ADX column bukrs. credit control area maps to ADX column kkber. date maps to ADX column fkdat. Dealer maps to ADX column cname. Dealer Code maps to ADX column kunrg. dealer code maps to ADX column kunrg. Dealer group maps to ADX column kukla. depo maps to ADX column gsber. dist channel maps to ADX column vtweg. distribution channel maps to ADX column vtweg. division maps to ADX column spart_text. division code maps to ADX column spart. fkdat maps to ADX column fkdat. invoice number maps to ADX column vbeln. material code maps to ADX column meins. Material Group maps to ADX column matkl. payer id maps to ADX column Payer_DL. product maps to ADX column arktx. product code maps to ADX column matnr. product name maps to ADX column arktx. quantity maps to ADX column fkimg. revenue maps to ADX column Revenue. sale maps to ADX column Revenue. sales group maps to ADX column vkgrp_c. sales office maps to ADX column vkbur_c. sales org maps to ADX column vkorg. sales organization maps to ADX column vkorg. sales zone maps to ADX column Szone. territory maps to ADX column Territory. volume maps to ADX column volum. volume unit maps to ADX column voleh.",
+    "aliases": [
+      "revenue",
+      "sale",
+      "quantity",
+      "volume",
+      "Dealer",
+      "brand",
+      "product name",
+      "product",
+      "category",
+      "Material Group",
+      "division",
+      "division code",
+      "company code",
+      "company",
+      "sales org",
+      "dist channel",
+      "distribution channel",
+      "channel",
+      "business area",
+      "depo",
+      "credit control area",
+      "Dealer group",
+      "account group",
+      "sales group",
+      "sales office",
+      "payer id",
+      "product code",
+      "material code",
+      "volume unit",
+      "business group",
+      "territory",
+      "sales zone",
+      "date",
+      "Dealer Code",
+      "fkdat",
+      "invoice number",
+      "sales organization",
+      "business term translation",
+      "column mapping"
+    ],
+    "keywords": [
+      "Revenue",
+      "fkimg",
+      "volum",
+      "cname",
+      "wgbez",
+      "arktx",
+      "matkl",
+      "spart_text",
+      "spart",
+      "bukrs",
+      "vkorg",
+      "vtweg",
+      "gsber",
+      "kkber",
+      "kukla",
+      "ktokd",
+      "vkgrp_c",
+      "vkbur_c",
+      "Payer_DL",
+      "matnr",
+      "meins",
+      "voleh",
+      "GK",
+      "Territory",
+      "Szone",
+      "fkdat",
+      "kunrg",
+      "vbeln"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "Revenue",
+      "fkimg",
+      "volum",
+      "cname",
+      "wgbez",
+      "arktx",
+      "matkl",
+      "spart_text",
+      "spart",
+      "bukrs",
+      "vkorg",
+      "vtweg",
+      "gsber",
+      "kkber",
+      "kukla",
+      "ktokd",
+      "vkgrp_c",
+      "vkbur_c",
+      "Payer_DL",
+      "matnr",
+      "meins",
+      "voleh",
+      "GK",
+      "Territory",
+      "Szone",
+      "fkdat",
+      "kunrg",
+      "vbeln"
+    ],
+    "column_types": [
+      "Revenue: real",
+      "fkimg: long",
+      "volum: real",
+      "cname: string",
+      "wgbez: string",
+      "arktx: string",
+      "matkl: string",
+      "spart_text: string",
+      "spart: long",
+      "bukrs: long",
+      "vkorg: long",
+      "vtweg: long",
+      "gsber: long",
+      "kkber: long",
+      "kukla: long",
+      "ktokd: string",
+      "vkgrp_c: string",
+      "vkbur_c: long",
+      "Payer_DL: long",
+      "matnr: string",
+      "meins: string",
+      "voleh: string",
+      "GK: string",
+      "Territory: string",
+      "Szone: string",
+      "fkdat: datetime",
+      "kunrg: long",
+      "vbeln: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "planning",
+      "kql_generation",
+      "schema_grounding"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:FIELD_MAPPINGS",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "adx-schema-sapsalesinfos-v1",
+    "parent_id": "",
+    "chunk_id": "adx-schema-sapsalesinfos-v1",
+    "chunk_ordinal": 0,
+    "doc_type": "adx_schema",
+    "category": "table_schema",
+    "title": "SAPSalesInfos ADX schema",
+    "summary": "Complete ADX schema for the SAPSalesInfos table used by the sales analysis agent.",
+    "content": "SAPSalesInfos contains SAP sales transactions with customer, product, financial, geographic, organization, document, and time dimensions. Raw ADX schema: \n.create table SAPSalesInfos (\n    Id: string, CreatedTime: string, ModifiedTime: string, bukrs: long,\n    spart: long, matkl: string, wgbez: string, matnr: string, vkorg: long,\n    kunrg: long, kunnr_sh: long, Payer_DL: long, vbeln: long, vkbur_c: long,\n    vkgrp_c: string, kukla: long, fkdat: datetime, posnr: long, arktx: string,\n    meins: string, voleh: string, Territory: string, Szone: string, cname: string,\n    spart_text: string, Revenue: real, gsber: long, fkimg: long, volum: real,\n    ktokd: string, vtweg: long, erzet_T: timespan, kkber: long, FKDAT_TEMP: datetime,\n    GK: string, temp_col: string\n)\n",
+    "aliases": [
+      "SAPSalesInfos",
+      "sales table",
+      "ADX schema",
+      "Kusto schema"
+    ],
+    "keywords": [
+      "Id",
+      "CreatedTime",
+      "ModifiedTime",
+      "bukrs",
+      "spart",
+      "matkl",
+      "wgbez",
+      "matnr",
+      "vkorg",
+      "kunrg",
+      "kunnr_sh",
+      "Payer_DL",
+      "vbeln",
+      "vkbur_c",
+      "vkgrp_c",
+      "kukla",
+      "fkdat",
+      "posnr",
+      "arktx",
+      "meins",
+      "voleh",
+      "Territory",
+      "Szone",
+      "cname",
+      "spart_text",
+      "Revenue",
+      "gsber",
+      "fkimg",
+      "volum",
+      "ktokd",
+      "vtweg",
+      "erzet_T",
+      "kkber",
+      "FKDAT_TEMP",
+      "GK",
+      "temp_col"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "Id",
+      "CreatedTime",
+      "ModifiedTime",
+      "bukrs",
+      "spart",
+      "matkl",
+      "wgbez",
+      "matnr",
+      "vkorg",
+      "kunrg",
+      "kunnr_sh",
+      "Payer_DL",
+      "vbeln",
+      "vkbur_c",
+      "vkgrp_c",
+      "kukla",
+      "fkdat",
+      "posnr",
+      "arktx",
+      "meins",
+      "voleh",
+      "Territory",
+      "Szone",
+      "cname",
+      "spart_text",
+      "Revenue",
+      "gsber",
+      "fkimg",
+      "volum",
+      "ktokd",
+      "vtweg",
+      "erzet_T",
+      "kkber",
+      "FKDAT_TEMP",
+      "GK",
+      "temp_col"
+    ],
+    "column_types": [
+      "Id: string",
+      "CreatedTime: string",
+      "ModifiedTime: string",
+      "bukrs: long",
+      "spart: long",
+      "matkl: string",
+      "wgbez: string",
+      "matnr: string",
+      "vkorg: long",
+      "kunrg: long",
+      "kunnr_sh: long",
+      "Payer_DL: long",
+      "vbeln: long",
+      "vkbur_c: long",
+      "vkgrp_c: string",
+      "kukla: long",
+      "fkdat: datetime",
+      "posnr: long",
+      "arktx: string",
+      "meins: string",
+      "voleh: string",
+      "Territory: string",
+      "Szone: string",
+      "cname: string",
+      "spart_text: string",
+      "Revenue: real",
+      "gsber: long",
+      "fkimg: long",
+      "volum: real",
+      "ktokd: string",
+      "vtweg: long",
+      "erzet_T: timespan",
+      "kkber: long",
+      "FKDAT_TEMP: datetime",
+      "GK: string",
+      "temp_col: string"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "validation"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-arktx",
+    "parent_id": "",
+    "chunk_id": "column-arktx",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column arktx",
+    "summary": "arktx is an ADX string column on SAPSalesInfos.",
+    "content": "Column arktx belongs to SAPSalesInfos. Its ADX type is string. Use quoted string operators such as contains, =~, has_any, or in~.",
+    "aliases": [
+      "product name",
+      "product",
+      "arktx"
+    ],
+    "keywords": [
+      "arktx",
+      "string"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "arktx"
+    ],
+    "column_types": [
+      "arktx: string"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-bukrs",
+    "parent_id": "",
+    "chunk_id": "column-bukrs",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column bukrs",
+    "summary": "bukrs is an ADX long column on SAPSalesInfos.",
+    "content": "Column bukrs belongs to SAPSalesInfos. Its ADX type is long. Always filter this company code with bukrs == 1000 as the first table filter.",
+    "aliases": [
+      "company code",
+      "company",
+      "bukrs"
+    ],
+    "keywords": [
+      "bukrs",
+      "long"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "bukrs"
+    ],
+    "column_types": [
+      "bukrs: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-cname",
+    "parent_id": "",
+    "chunk_id": "column-cname",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column cname",
+    "summary": "cname is an ADX string column on SAPSalesInfos.",
+    "content": "Column cname belongs to SAPSalesInfos. Its ADX type is string. This stores dealer/customer names. Do not index dealer aliases in Azure Search; query ADX directly.",
+    "aliases": [
+      "Dealer",
+      "cname"
+    ],
+    "keywords": [
+      "cname",
+      "string"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "cname"
+    ],
+    "column_types": [
+      "cname: string"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-createdtime",
+    "parent_id": "",
+    "chunk_id": "column-createdtime",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column CreatedTime",
+    "summary": "CreatedTime is an ADX string column on SAPSalesInfos.",
+    "content": "Column CreatedTime belongs to SAPSalesInfos. Its ADX type is string. Use quoted string operators such as contains, =~, has_any, or in~.",
+    "aliases": [
+      "CreatedTime"
+    ],
+    "keywords": [
+      "CreatedTime",
+      "string"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "CreatedTime"
+    ],
+    "column_types": [
+      "CreatedTime: string"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-erzet-t",
+    "parent_id": "",
+    "chunk_id": "column-erzet-t",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column erzet_T",
+    "summary": "erzet_T is an ADX timespan column on SAPSalesInfos.",
+    "content": "Column erzet_T belongs to SAPSalesInfos. Its ADX type is timespan. Use the column according to its ADX type.",
+    "aliases": [
+      "erzet_T"
+    ],
+    "keywords": [
+      "erzet_T",
+      "timespan"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "erzet_T"
+    ],
+    "column_types": [
+      "erzet_T: timespan"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-fkdat",
+    "parent_id": "",
+    "chunk_id": "column-fkdat",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column fkdat",
+    "summary": "fkdat is an ADX datetime column on SAPSalesInfos.",
+    "content": "Column fkdat belongs to SAPSalesInfos. Its ADX type is datetime. This is the transaction date. Use datetime() values and fiscal date rules.",
+    "aliases": [
+      "date",
+      "fkdat"
+    ],
+    "keywords": [
+      "fkdat",
+      "datetime"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "fkdat"
+    ],
+    "column_types": [
+      "fkdat: datetime"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-fkdat-temp",
+    "parent_id": "",
+    "chunk_id": "column-fkdat-temp",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column FKDAT_TEMP",
+    "summary": "FKDAT_TEMP is an ADX datetime column on SAPSalesInfos.",
+    "content": "Column FKDAT_TEMP belongs to SAPSalesInfos. Its ADX type is datetime. Use datetime() wrappers and date context.",
+    "aliases": [
+      "FKDAT_TEMP"
+    ],
+    "keywords": [
+      "FKDAT_TEMP",
+      "datetime"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "FKDAT_TEMP"
+    ],
+    "column_types": [
+      "FKDAT_TEMP: datetime"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-fkimg",
+    "parent_id": "",
+    "chunk_id": "column-fkimg",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column fkimg",
+    "summary": "fkimg is an ADX long column on SAPSalesInfos.",
+    "content": "Column fkimg belongs to SAPSalesInfos. Its ADX type is long. This is a core metric column used in aggregation.",
+    "aliases": [
+      "quantity",
+      "fkimg"
+    ],
+    "keywords": [
+      "fkimg",
+      "long"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "fkimg"
+    ],
+    "column_types": [
+      "fkimg: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-gk",
+    "parent_id": "",
+    "chunk_id": "column-gk",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column GK",
+    "summary": "GK is an ADX string column on SAPSalesInfos.",
+    "content": "Column GK belongs to SAPSalesInfos. Its ADX type is string. Use quoted string operators such as contains, =~, has_any, or in~.",
+    "aliases": [
+      "business group",
+      "GK"
+    ],
+    "keywords": [
+      "GK",
+      "string"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "GK"
+    ],
+    "column_types": [
+      "GK: string"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-gsber",
+    "parent_id": "",
+    "chunk_id": "column-gsber",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column gsber",
+    "summary": "gsber is an ADX long column on SAPSalesInfos.",
+    "content": "Column gsber belongs to SAPSalesInfos. Its ADX type is long. This is the numeric business area or depot code. Use numeric comparisons without quotes.",
+    "aliases": [
+      "business area",
+      "depo",
+      "gsber"
+    ],
+    "keywords": [
+      "gsber",
+      "long"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-id",
+    "parent_id": "",
+    "chunk_id": "column-id",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column Id",
+    "summary": "Id is an ADX string column on SAPSalesInfos.",
+    "content": "Column Id belongs to SAPSalesInfos. Its ADX type is string. Use quoted string operators such as contains, =~, has_any, or in~.",
+    "aliases": [
+      "Id"
+    ],
+    "keywords": [
+      "Id",
+      "string"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "Id"
+    ],
+    "column_types": [
+      "Id: string"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-kkber",
+    "parent_id": "",
+    "chunk_id": "column-kkber",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column kkber",
+    "summary": "kkber is an ADX long column on SAPSalesInfos.",
+    "content": "Column kkber belongs to SAPSalesInfos. Its ADX type is long. Use numeric comparisons without quotes.",
+    "aliases": [
+      "credit control area",
+      "kkber"
+    ],
+    "keywords": [
+      "kkber",
+      "long"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "kkber"
+    ],
+    "column_types": [
+      "kkber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-ktokd",
+    "parent_id": "",
+    "chunk_id": "column-ktokd",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column ktokd",
+    "summary": "ktokd is an ADX string column on SAPSalesInfos.",
+    "content": "Column ktokd belongs to SAPSalesInfos. Its ADX type is string. Use quoted string operators such as contains, =~, has_any, or in~.",
+    "aliases": [
+      "account group",
+      "ktokd"
+    ],
+    "keywords": [
+      "ktokd",
+      "string"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "ktokd"
+    ],
+    "column_types": [
+      "ktokd: string"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-kukla",
+    "parent_id": "",
+    "chunk_id": "column-kukla",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column kukla",
+    "summary": "kukla is an ADX long column on SAPSalesInfos.",
+    "content": "Column kukla belongs to SAPSalesInfos. Its ADX type is long. Use numeric comparisons without quotes.",
+    "aliases": [
+      "Dealer group",
+      "kukla"
+    ],
+    "keywords": [
+      "kukla",
+      "long"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "kukla"
+    ],
+    "column_types": [
+      "kukla: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-kunnr-sh",
+    "parent_id": "",
+    "chunk_id": "column-kunnr-sh",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column kunnr_sh",
+    "summary": "kunnr_sh is an ADX long column on SAPSalesInfos.",
+    "content": "Column kunnr_sh belongs to SAPSalesInfos. Its ADX type is long. Use numeric comparisons without quotes.",
+    "aliases": [
+      "kunnr_sh"
+    ],
+    "keywords": [
+      "kunnr_sh",
+      "long"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "kunnr_sh"
+    ],
+    "column_types": [
+      "kunnr_sh: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-kunrg",
+    "parent_id": "",
+    "chunk_id": "column-kunrg",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column kunrg",
+    "summary": "kunrg is an ADX long column on SAPSalesInfos.",
+    "content": "Column kunrg belongs to SAPSalesInfos. Its ADX type is long. This stores dealer/customer codes. It is high-cardinality and must be queried in ADX.",
+    "aliases": [
+      "Dealer Code",
+      "kunrg"
+    ],
+    "keywords": [
+      "kunrg",
+      "long"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "kunrg"
+    ],
+    "column_types": [
+      "kunrg: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-matkl",
+    "parent_id": "",
+    "chunk_id": "column-matkl",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column matkl",
+    "summary": "matkl is an ADX string column on SAPSalesInfos.",
+    "content": "Column matkl belongs to SAPSalesInfos. Its ADX type is string. Use quoted string operators such as contains, =~, has_any, or in~.",
+    "aliases": [
+      "category",
+      "Material Group",
+      "matkl"
+    ],
+    "keywords": [
+      "matkl",
+      "string"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "matkl"
+    ],
+    "column_types": [
+      "matkl: string"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-matnr",
+    "parent_id": "",
+    "chunk_id": "column-matnr",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column matnr",
+    "summary": "matnr is an ADX string column on SAPSalesInfos.",
+    "content": "Column matnr belongs to SAPSalesInfos. Its ADX type is string. Use quoted string operators such as contains, =~, has_any, or in~.",
+    "aliases": [
+      "product code",
+      "matnr"
+    ],
+    "keywords": [
+      "matnr",
+      "string"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "matnr"
+    ],
+    "column_types": [
+      "matnr: string"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-meins",
+    "parent_id": "",
+    "chunk_id": "column-meins",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column meins",
+    "summary": "meins is an ADX string column on SAPSalesInfos.",
+    "content": "Column meins belongs to SAPSalesInfos. Its ADX type is string. Use quoted string operators such as contains, =~, has_any, or in~.",
+    "aliases": [
+      "material code",
+      "meins"
+    ],
+    "keywords": [
+      "meins",
+      "string"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "meins"
+    ],
+    "column_types": [
+      "meins: string"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-modifiedtime",
+    "parent_id": "",
+    "chunk_id": "column-modifiedtime",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column ModifiedTime",
+    "summary": "ModifiedTime is an ADX string column on SAPSalesInfos.",
+    "content": "Column ModifiedTime belongs to SAPSalesInfos. Its ADX type is string. Use quoted string operators such as contains, =~, has_any, or in~.",
+    "aliases": [
+      "ModifiedTime"
+    ],
+    "keywords": [
+      "ModifiedTime",
+      "string"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "ModifiedTime"
+    ],
+    "column_types": [
+      "ModifiedTime: string"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-payer-dl",
+    "parent_id": "",
+    "chunk_id": "column-payer-dl",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column Payer_DL",
+    "summary": "Payer_DL is an ADX long column on SAPSalesInfos.",
+    "content": "Column Payer_DL belongs to SAPSalesInfos. Its ADX type is long. Use numeric comparisons without quotes.",
+    "aliases": [
+      "payer id",
+      "Payer_DL"
+    ],
+    "keywords": [
+      "Payer_DL",
+      "long"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "Payer_DL"
+    ],
+    "column_types": [
+      "Payer_DL: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-posnr",
+    "parent_id": "",
+    "chunk_id": "column-posnr",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column posnr",
+    "summary": "posnr is an ADX long column on SAPSalesInfos.",
+    "content": "Column posnr belongs to SAPSalesInfos. Its ADX type is long. Use numeric comparisons without quotes.",
+    "aliases": [
+      "posnr"
+    ],
+    "keywords": [
+      "posnr",
+      "long"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "posnr"
+    ],
+    "column_types": [
+      "posnr: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-revenue",
+    "parent_id": "",
+    "chunk_id": "column-revenue",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column Revenue",
+    "summary": "Revenue is an ADX real column on SAPSalesInfos.",
+    "content": "Column Revenue belongs to SAPSalesInfos. Its ADX type is real. This is a core metric column used in aggregation.",
+    "aliases": [
+      "revenue",
+      "sale"
+    ],
+    "keywords": [
+      "Revenue",
+      "real"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "Revenue"
+    ],
+    "column_types": [
+      "Revenue: real"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-spart",
+    "parent_id": "",
+    "chunk_id": "column-spart",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column spart",
+    "summary": "spart is an ADX long column on SAPSalesInfos.",
+    "content": "Column spart belongs to SAPSalesInfos. Its ADX type is long. Use numeric comparisons without quotes.",
+    "aliases": [
+      "division code",
+      "spart"
+    ],
+    "keywords": [
+      "spart",
+      "long"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "spart"
+    ],
+    "column_types": [
+      "spart: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-spart-text",
+    "parent_id": "",
+    "chunk_id": "column-spart-text",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column spart_text",
+    "summary": "spart_text is an ADX string column on SAPSalesInfos.",
+    "content": "Column spart_text belongs to SAPSalesInfos. Its ADX type is string. Use quoted string operators such as contains, =~, has_any, or in~.",
+    "aliases": [
+      "division",
+      "spart_text"
+    ],
+    "keywords": [
+      "spart_text",
+      "string"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "spart_text"
+    ],
+    "column_types": [
+      "spart_text: string"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-szone",
+    "parent_id": "",
+    "chunk_id": "column-szone",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column Szone",
+    "summary": "Szone is an ADX string column on SAPSalesInfos.",
+    "content": "Column Szone belongs to SAPSalesInfos. Its ADX type is string. Use quoted string operators such as contains, =~, has_any, or in~.",
+    "aliases": [
+      "sales zone",
+      "Szone"
+    ],
+    "keywords": [
+      "Szone",
+      "string"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "Szone"
+    ],
+    "column_types": [
+      "Szone: string"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-temp-col",
+    "parent_id": "",
+    "chunk_id": "column-temp-col",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column temp_col",
+    "summary": "temp_col is an ADX string column on SAPSalesInfos.",
+    "content": "Column temp_col belongs to SAPSalesInfos. Its ADX type is string. Use quoted string operators such as contains, =~, has_any, or in~.",
+    "aliases": [
+      "temp_col"
+    ],
+    "keywords": [
+      "temp_col",
+      "string"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "temp_col"
+    ],
+    "column_types": [
+      "temp_col: string"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-territory",
+    "parent_id": "",
+    "chunk_id": "column-territory",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column Territory",
+    "summary": "Territory is an ADX string column on SAPSalesInfos.",
+    "content": "Column Territory belongs to SAPSalesInfos. Its ADX type is string. Use quoted string operators such as contains, =~, has_any, or in~.",
+    "aliases": [
+      "territory"
+    ],
+    "keywords": [
+      "Territory",
+      "string"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "Territory"
+    ],
+    "column_types": [
+      "Territory: string"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-vbeln",
+    "parent_id": "",
+    "chunk_id": "column-vbeln",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column vbeln",
+    "summary": "vbeln is an ADX long column on SAPSalesInfos.",
+    "content": "Column vbeln belongs to SAPSalesInfos. Its ADX type is long. Use numeric comparisons without quotes.",
+    "aliases": [
+      "invoice number",
+      "vbeln"
+    ],
+    "keywords": [
+      "vbeln",
+      "long"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "vbeln"
+    ],
+    "column_types": [
+      "vbeln: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-vkbur-c",
+    "parent_id": "",
+    "chunk_id": "column-vkbur-c",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column vkbur_c",
+    "summary": "vkbur_c is an ADX long column on SAPSalesInfos.",
+    "content": "Column vkbur_c belongs to SAPSalesInfos. Its ADX type is long. Use numeric comparisons without quotes.",
+    "aliases": [
+      "sales office",
+      "vkbur_c"
+    ],
+    "keywords": [
+      "vkbur_c",
+      "long"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "vkbur_c"
+    ],
+    "column_types": [
+      "vkbur_c: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-vkgrp-c",
+    "parent_id": "",
+    "chunk_id": "column-vkgrp-c",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column vkgrp_c",
+    "summary": "vkgrp_c is an ADX string column on SAPSalesInfos.",
+    "content": "Column vkgrp_c belongs to SAPSalesInfos. Its ADX type is string. Use quoted string operators such as contains, =~, has_any, or in~.",
+    "aliases": [
+      "sales group",
+      "vkgrp_c"
+    ],
+    "keywords": [
+      "vkgrp_c",
+      "string"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "vkgrp_c"
+    ],
+    "column_types": [
+      "vkgrp_c: string"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-vkorg",
+    "parent_id": "",
+    "chunk_id": "column-vkorg",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column vkorg",
+    "summary": "vkorg is an ADX long column on SAPSalesInfos.",
+    "content": "Column vkorg belongs to SAPSalesInfos. Its ADX type is long. Use numeric comparisons without quotes.",
+    "aliases": [
+      "sales org",
+      "sales organization",
+      "vkorg"
+    ],
+    "keywords": [
+      "vkorg",
+      "long"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "vkorg"
+    ],
+    "column_types": [
+      "vkorg: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-voleh",
+    "parent_id": "",
+    "chunk_id": "column-voleh",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column voleh",
+    "summary": "voleh is an ADX string column on SAPSalesInfos.",
+    "content": "Column voleh belongs to SAPSalesInfos. Its ADX type is string. Use quoted string operators such as contains, =~, has_any, or in~.",
+    "aliases": [
+      "volume unit",
+      "voleh"
+    ],
+    "keywords": [
+      "voleh",
+      "string"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "voleh"
+    ],
+    "column_types": [
+      "voleh: string"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-volum",
+    "parent_id": "",
+    "chunk_id": "column-volum",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column volum",
+    "summary": "volum is an ADX real column on SAPSalesInfos.",
+    "content": "Column volum belongs to SAPSalesInfos. Its ADX type is real. This is a core metric column used in aggregation.",
+    "aliases": [
+      "volume",
+      "volum"
+    ],
+    "keywords": [
+      "volum",
+      "real"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "volum"
+    ],
+    "column_types": [
+      "volum: real"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-vtweg",
+    "parent_id": "",
+    "chunk_id": "column-vtweg",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column vtweg",
+    "summary": "vtweg is an ADX long column on SAPSalesInfos.",
+    "content": "Column vtweg belongs to SAPSalesInfos. Its ADX type is long. This is the numeric distribution channel code. Dealer is 10, Customer is 20, Project Customer is 30.",
+    "aliases": [
+      "dist channel",
+      "distribution channel",
+      "channel",
+      "vtweg"
+    ],
+    "keywords": [
+      "vtweg",
+      "long"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "vtweg"
+    ],
+    "column_types": [
+      "vtweg: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "column-wgbez",
+    "parent_id": "",
+    "chunk_id": "column-wgbez",
+    "chunk_ordinal": 0,
+    "doc_type": "column_definition",
+    "category": "table_schema",
+    "title": "SAPSalesInfos column wgbez",
+    "summary": "wgbez is an ADX string column on SAPSalesInfos.",
+    "content": "Column wgbez belongs to SAPSalesInfos. Its ADX type is string. Use quoted string operators such as contains, =~, has_any, or in~.",
+    "aliases": [
+      "brand",
+      "wgbez"
+    ],
+    "keywords": [
+      "wgbez",
+      "string"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "wgbez"
+    ],
+    "column_types": [
+      "wgbez: string"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "schema_grounding",
+      "kql_generation",
+      "data_type_rule"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:KUSTO_SCHEMA",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-dhaka-factory-1000",
+    "parent_id": "",
+    "chunk_id": "gsber-dhaka-factory-1000",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "Dhaka Factory business area mapping",
+    "summary": "Dhaka Factory maps to gsber 1000.",
+    "content": "When the user says Dhaka Factory, use SAPSalesInfos.gsber with numeric comparison gsber == 1000. Do not quote gsber values.",
+    "aliases": [
+      "Dhaka Factory",
+      "depot 1000",
+      "business area 1000",
+      "gsber 1000"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "Dhaka Factory",
+      "1000"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "1000"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-chittagong-factory-1100",
+    "parent_id": "",
+    "chunk_id": "gsber-chittagong-factory-1100",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "Chittagong Factory business area mapping",
+    "summary": "Chittagong Factory maps to gsber 1100.",
+    "content": "When the user says Chittagong Factory, use SAPSalesInfos.gsber with numeric comparison gsber == 1100. Do not quote gsber values.",
+    "aliases": [
+      "Chittagong Factory",
+      "depot 1100",
+      "business area 1100",
+      "gsber 1100"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "Chittagong Factory",
+      "1100"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "1100"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-mirsarai-factory-1200",
+    "parent_id": "",
+    "chunk_id": "gsber-mirsarai-factory-1200",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "Mirsarai Factory business area mapping",
+    "summary": "Mirsarai Factory maps to gsber 1200.",
+    "content": "When the user says Mirsarai Factory, use SAPSalesInfos.gsber with numeric comparison gsber == 1200. Do not quote gsber values.",
+    "aliases": [
+      "Mirsarai Factory",
+      "depot 1200",
+      "business area 1200",
+      "gsber 1200"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "Mirsarai Factory",
+      "1200"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "1200"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-dhaka-sales-4000",
+    "parent_id": "",
+    "chunk_id": "gsber-dhaka-sales-4000",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "Dhaka Sales business area mapping",
+    "summary": "Dhaka Sales maps to gsber 4000.",
+    "content": "When the user says Dhaka Sales, use SAPSalesInfos.gsber with numeric comparison gsber == 4000. Do not quote gsber values.",
+    "aliases": [
+      "Dhaka Sales",
+      "depot 4000",
+      "business area 4000",
+      "gsber 4000"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "Dhaka Sales",
+      "4000"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "4000"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-chittagong-sales-4010",
+    "parent_id": "",
+    "chunk_id": "gsber-chittagong-sales-4010",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "Chittagong Sales business area mapping",
+    "summary": "Chittagong Sales maps to gsber 4010.",
+    "content": "When the user says Chittagong Sales, use SAPSalesInfos.gsber with numeric comparison gsber == 4010. Do not quote gsber values.",
+    "aliases": [
+      "Chittagong Sales",
+      "depot 4010",
+      "business area 4010",
+      "gsber 4010"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "Chittagong Sales",
+      "4010"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "4010"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-sylhet-sales-4020",
+    "parent_id": "",
+    "chunk_id": "gsber-sylhet-sales-4020",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "Sylhet Sales business area mapping",
+    "summary": "Sylhet Sales maps to gsber 4020.",
+    "content": "When the user says Sylhet Sales, use SAPSalesInfos.gsber with numeric comparison gsber == 4020. Do not quote gsber values.",
+    "aliases": [
+      "Sylhet Sales",
+      "depot 4020",
+      "business area 4020",
+      "gsber 4020"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "Sylhet Sales",
+      "4020"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "4020"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-comilla-sales-4030",
+    "parent_id": "",
+    "chunk_id": "gsber-comilla-sales-4030",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "Comilla Sales business area mapping",
+    "summary": "Comilla Sales maps to gsber 4030.",
+    "content": "When the user says Comilla Sales, use SAPSalesInfos.gsber with numeric comparison gsber == 4030. Do not quote gsber values.",
+    "aliases": [
+      "Comilla Sales",
+      "depot 4030",
+      "business area 4030",
+      "gsber 4030"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "Comilla Sales",
+      "4030"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "4030"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-rajshahi-sales-4040",
+    "parent_id": "",
+    "chunk_id": "gsber-rajshahi-sales-4040",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "Rajshahi Sales business area mapping",
+    "summary": "Rajshahi Sales maps to gsber 4040.",
+    "content": "When the user says Rajshahi Sales, use SAPSalesInfos.gsber with numeric comparison gsber == 4040. Do not quote gsber values.",
+    "aliases": [
+      "Rajshahi Sales",
+      "depot 4040",
+      "business area 4040",
+      "gsber 4040"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "Rajshahi Sales",
+      "4040"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "4040"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-bogra-sales-4050",
+    "parent_id": "",
+    "chunk_id": "gsber-bogra-sales-4050",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "Bogra Sales business area mapping",
+    "summary": "Bogra Sales maps to gsber 4050.",
+    "content": "When the user says Bogra Sales, use SAPSalesInfos.gsber with numeric comparison gsber == 4050. Do not quote gsber values.",
+    "aliases": [
+      "Bogra Sales",
+      "depot 4050",
+      "business area 4050",
+      "gsber 4050"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "Bogra Sales",
+      "4050"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "4050"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-khulna-sales-4060",
+    "parent_id": "",
+    "chunk_id": "gsber-khulna-sales-4060",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "Khulna Sales business area mapping",
+    "summary": "Khulna Sales maps to gsber 4060.",
+    "content": "When the user says Khulna Sales, use SAPSalesInfos.gsber with numeric comparison gsber == 4060. Do not quote gsber values.",
+    "aliases": [
+      "Khulna Sales",
+      "depot 4060",
+      "business area 4060",
+      "gsber 4060"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "Khulna Sales",
+      "4060"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "4060"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-mymensing-sales-4070",
+    "parent_id": "",
+    "chunk_id": "gsber-mymensing-sales-4070",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "Mymensing Sales business area mapping",
+    "summary": "Mymensing Sales maps to gsber 4070.",
+    "content": "When the user says Mymensing Sales, use SAPSalesInfos.gsber with numeric comparison gsber == 4070. Do not quote gsber values.",
+    "aliases": [
+      "Mymensing Sales",
+      "depot 4070",
+      "business area 4070",
+      "gsber 4070"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "Mymensing Sales",
+      "4070"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "4070"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-barishal-sales-4080",
+    "parent_id": "",
+    "chunk_id": "gsber-barishal-sales-4080",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "Barishal Sales business area mapping",
+    "summary": "Barishal Sales maps to gsber 4080.",
+    "content": "When the user says Barishal Sales, use SAPSalesInfos.gsber with numeric comparison gsber == 4080. Do not quote gsber values.",
+    "aliases": [
+      "Barishal Sales",
+      "depot 4080",
+      "business area 4080",
+      "gsber 4080"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "Barishal Sales",
+      "4080"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "4080"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-rangpur-sales-4090",
+    "parent_id": "",
+    "chunk_id": "gsber-rangpur-sales-4090",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "Rangpur Sales business area mapping",
+    "summary": "Rangpur Sales maps to gsber 4090.",
+    "content": "When the user says Rangpur Sales, use SAPSalesInfos.gsber with numeric comparison gsber == 4090. Do not quote gsber values.",
+    "aliases": [
+      "Rangpur Sales",
+      "depot 4090",
+      "business area 4090",
+      "gsber 4090"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "Rangpur Sales",
+      "4090"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "4090"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-feni-sales-4100",
+    "parent_id": "",
+    "chunk_id": "gsber-feni-sales-4100",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "Feni Sales business area mapping",
+    "summary": "Feni Sales maps to gsber 4100.",
+    "content": "When the user says Feni Sales, use SAPSalesInfos.gsber with numeric comparison gsber == 4100. Do not quote gsber values.",
+    "aliases": [
+      "Feni Sales",
+      "depot 4100",
+      "business area 4100",
+      "gsber 4100"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "Feni Sales",
+      "4100"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "4100"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-dhaka-south-4110",
+    "parent_id": "",
+    "chunk_id": "gsber-dhaka-south-4110",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "Dhaka South business area mapping",
+    "summary": "Dhaka South maps to gsber 4110.",
+    "content": "When the user says Dhaka South, use SAPSalesInfos.gsber with numeric comparison gsber == 4110. Do not quote gsber values.",
+    "aliases": [
+      "Dhaka South",
+      "depot 4110",
+      "business area 4110",
+      "gsber 4110"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "Dhaka South",
+      "4110"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "4110"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-brahmanbaria-sales-4120",
+    "parent_id": "",
+    "chunk_id": "gsber-brahmanbaria-sales-4120",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "Brahmanbaria Sales business area mapping",
+    "summary": "Brahmanbaria Sales maps to gsber 4120.",
+    "content": "When the user says Brahmanbaria Sales, use SAPSalesInfos.gsber with numeric comparison gsber == 4120. Do not quote gsber values.",
+    "aliases": [
+      "Brahmanbaria Sales",
+      "depot 4120",
+      "business area 4120",
+      "gsber 4120"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "Brahmanbaria Sales",
+      "4120"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "4120"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-dhaka-north-4130",
+    "parent_id": "",
+    "chunk_id": "gsber-dhaka-north-4130",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "Dhaka North business area mapping",
+    "summary": "Dhaka North maps to gsber 4130.",
+    "content": "When the user says Dhaka North, use SAPSalesInfos.gsber with numeric comparison gsber == 4130. Do not quote gsber values.",
+    "aliases": [
+      "Dhaka North",
+      "depot 4130",
+      "business area 4130",
+      "gsber 4130"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "Dhaka North",
+      "4130"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "4130"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-test-business-area-4500",
+    "parent_id": "",
+    "chunk_id": "gsber-test-business-area-4500",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "Test Business Area business area mapping",
+    "summary": "Test Business Area maps to gsber 4500.",
+    "content": "When the user says Test Business Area, use SAPSalesInfos.gsber with numeric comparison gsber == 4500. Do not quote gsber values.",
+    "aliases": [
+      "Test Business Area",
+      "depot 4500",
+      "business area 4500",
+      "gsber 4500"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "Test Business Area",
+      "4500"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "4500"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-pphd-5000",
+    "parent_id": "",
+    "chunk_id": "gsber-pphd-5000",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "PPHD business area mapping",
+    "summary": "PPHD maps to gsber 5000.",
+    "content": "When the user says PPHD, use SAPSalesInfos.gsber with numeric comparison gsber == 5000. Do not quote gsber values.",
+    "aliases": [
+      "PPHD",
+      "depot 5000",
+      "business area 5000",
+      "gsber 5000"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "PPHD",
+      "5000"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "5000"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-berger-design-studio-5010",
+    "parent_id": "",
+    "chunk_id": "gsber-berger-design-studio-5010",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "Berger Design Studio business area mapping",
+    "summary": "Berger Design Studio maps to gsber 5010.",
+    "content": "When the user says Berger Design Studio, use SAPSalesInfos.gsber with numeric comparison gsber == 5010. Do not quote gsber values.",
+    "aliases": [
+      "Berger Design Studio",
+      "depot 5010",
+      "business area 5010",
+      "gsber 5010"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "Berger Design Studio",
+      "5010"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "5010"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-berger-training-institute-5020",
+    "parent_id": "",
+    "chunk_id": "gsber-berger-training-institute-5020",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "Berger Training Institute business area mapping",
+    "summary": "Berger Training Institute maps to gsber 5020.",
+    "content": "When the user says Berger Training Institute, use SAPSalesInfos.gsber with numeric comparison gsber == 5020. Do not quote gsber values.",
+    "aliases": [
+      "Berger Training Institute",
+      "depot 5020",
+      "business area 5020",
+      "gsber 5020"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "Berger Training Institute",
+      "5020"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "5020"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-berger-tech-consulting-ltd-5100",
+    "parent_id": "",
+    "chunk_id": "gsber-berger-tech-consulting-ltd-5100",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "Berger Tech Consulting Ltd business area mapping",
+    "summary": "Berger Tech Consulting Ltd maps to gsber 5100.",
+    "content": "When the user says Berger Tech Consulting Ltd, use SAPSalesInfos.gsber with numeric comparison gsber == 5100. Do not quote gsber values.",
+    "aliases": [
+      "Berger Tech Consulting Ltd",
+      "depot 5100",
+      "business area 5100",
+      "gsber 5100"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "Berger Tech Consulting Ltd",
+      "5100"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "5100"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-jenson-nicholson-bd-ltd-6000",
+    "parent_id": "",
+    "chunk_id": "gsber-jenson-nicholson-bd-ltd-6000",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "Jenson & Nicholson BD Ltd business area mapping",
+    "summary": "Jenson & Nicholson BD Ltd maps to gsber 6000.",
+    "content": "When the user says Jenson & Nicholson BD Ltd, use SAPSalesInfos.gsber with numeric comparison gsber == 6000. Do not quote gsber values.",
+    "aliases": [
+      "Jenson & Nicholson BD Ltd",
+      "depot 6000",
+      "business area 6000",
+      "gsber 6000"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "Jenson & Nicholson BD Ltd",
+      "6000"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "6000"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-jnbl-2nd-unit-dhaka-6100",
+    "parent_id": "",
+    "chunk_id": "gsber-jnbl-2nd-unit-dhaka-6100",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "JNBL 2nd Unit Dhaka business area mapping",
+    "summary": "JNBL 2nd Unit Dhaka maps to gsber 6100.",
+    "content": "When the user says JNBL 2nd Unit Dhaka, use SAPSalesInfos.gsber with numeric comparison gsber == 6100. Do not quote gsber values.",
+    "aliases": [
+      "JNBL 2nd Unit Dhaka",
+      "depot 6100",
+      "business area 6100",
+      "gsber 6100"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "JNBL 2nd Unit Dhaka",
+      "6100"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "6100"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-berger-becker-bangladesh-7000",
+    "parent_id": "",
+    "chunk_id": "gsber-berger-becker-bangladesh-7000",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "Berger Becker Bangladesh business area mapping",
+    "summary": "Berger Becker Bangladesh maps to gsber 7000.",
+    "content": "When the user says Berger Becker Bangladesh, use SAPSalesInfos.gsber with numeric comparison gsber == 7000. Do not quote gsber values.",
+    "aliases": [
+      "Berger Becker Bangladesh",
+      "depot 7000",
+      "business area 7000",
+      "gsber 7000"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "Berger Becker Bangladesh",
+      "7000"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "7000"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-berger-fosroc-limited-8000",
+    "parent_id": "",
+    "chunk_id": "gsber-berger-fosroc-limited-8000",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "Berger Fosroc Limited business area mapping",
+    "summary": "Berger Fosroc Limited maps to gsber 8000.",
+    "content": "When the user says Berger Fosroc Limited, use SAPSalesInfos.gsber with numeric comparison gsber == 8000. Do not quote gsber values.",
+    "aliases": [
+      "Berger Fosroc Limited",
+      "depot 8000",
+      "business area 8000",
+      "gsber 8000"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "Berger Fosroc Limited",
+      "8000"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "8000"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "gsber-corporate-9000",
+    "parent_id": "",
+    "chunk_id": "gsber-corporate-9000",
+    "chunk_ordinal": 0,
+    "doc_type": "gsber_mapping",
+    "category": "business_area_mapping",
+    "title": "Corporate business area mapping",
+    "summary": "Corporate maps to gsber 9000.",
+    "content": "When the user says Corporate, use SAPSalesInfos.gsber with numeric comparison gsber == 9000. Do not quote gsber values.",
+    "aliases": [
+      "Corporate",
+      "depot 9000",
+      "business area 9000",
+      "gsber 9000"
+    ],
+    "keywords": [
+      "gsber",
+      "depot",
+      "business area",
+      "Corporate",
+      "9000"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "gsber"
+    ],
+    "column_types": [
+      "gsber: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "area_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [
+      "9000"
+    ],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:GSBER_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "vtweg-dealer-10",
+    "parent_id": "",
+    "chunk_id": "vtweg-dealer-10",
+    "chunk_ordinal": 0,
+    "doc_type": "vtweg_mapping",
+    "category": "distribution_channel_mapping",
+    "title": "Dealer distribution channel mapping",
+    "summary": "Dealer maps to vtweg 10.",
+    "content": "When the user asks for Dealer, use SAPSalesInfos.vtweg with numeric comparison vtweg == 10. Do not quote vtweg values.",
+    "aliases": [
+      "Dealer",
+      "channel 10",
+      "distribution channel 10",
+      "vtweg 10"
+    ],
+    "keywords": [
+      "vtweg",
+      "distribution channel",
+      "Dealer",
+      "10"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "vtweg"
+    ],
+    "column_types": [
+      "vtweg: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "channel_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [
+      "10"
+    ],
+    "kql_pattern": "",
+    "source_name": "agent.py:VTWEG_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "vtweg-customer-20",
+    "parent_id": "",
+    "chunk_id": "vtweg-customer-20",
+    "chunk_ordinal": 0,
+    "doc_type": "vtweg_mapping",
+    "category": "distribution_channel_mapping",
+    "title": "Customer distribution channel mapping",
+    "summary": "Customer maps to vtweg 20.",
+    "content": "When the user asks for Customer, use SAPSalesInfos.vtweg with numeric comparison vtweg == 20. Do not quote vtweg values.",
+    "aliases": [
+      "Customer",
+      "channel 20",
+      "distribution channel 20",
+      "vtweg 20"
+    ],
+    "keywords": [
+      "vtweg",
+      "distribution channel",
+      "Customer",
+      "20"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "vtweg"
+    ],
+    "column_types": [
+      "vtweg: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "channel_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [
+      "20"
+    ],
+    "kql_pattern": "",
+    "source_name": "agent.py:VTWEG_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "vtweg-project-customer-30",
+    "parent_id": "",
+    "chunk_id": "vtweg-project-customer-30",
+    "chunk_ordinal": 0,
+    "doc_type": "vtweg_mapping",
+    "category": "distribution_channel_mapping",
+    "title": "Project Customer distribution channel mapping",
+    "summary": "Project Customer maps to vtweg 30.",
+    "content": "When the user asks for Project Customer, use SAPSalesInfos.vtweg with numeric comparison vtweg == 30. Do not quote vtweg values.",
+    "aliases": [
+      "Project Customer",
+      "channel 30",
+      "distribution channel 30",
+      "vtweg 30"
+    ],
+    "keywords": [
+      "vtweg",
+      "distribution channel",
+      "Project Customer",
+      "30"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "vtweg"
+    ],
+    "column_types": [
+      "vtweg: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "channel_mapping",
+      "kql_generation"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [
+      "30"
+    ],
+    "kql_pattern": "",
+    "source_name": "agent.py:VTWEG_MAPPING",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "rule-global-bukrs-1000",
+    "parent_id": "",
+    "chunk_id": "rule-global-bukrs-1000",
+    "chunk_ordinal": 0,
+    "doc_type": "business_rule",
+    "category": "security_scope",
+    "title": "Mandatory company filter for Berger Paints Bangladesh",
+    "summary": "Every SAPSalesInfos table scan must filter bukrs == 1000 first.",
+    "content": "For every KQL query against SAPSalesInfos, add | where bukrs == 1000 as the first filter after the table name. bukrs is long, so use numeric comparison without quotes. Company code 1000 means Berger Paints Bangladesh Limited.",
+    "aliases": [
+      "company filter",
+      "bukrs 1000",
+      "Berger company code"
+    ],
+    "keywords": [
+      "bukrs",
+      "company",
+      "mandatory filter",
+      "security"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "bukrs"
+    ],
+    "column_types": [
+      "bukrs: long"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "security",
+      "kql_generation",
+      "validation"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:SYSTEM_PROMPT_KQL",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "rule-fiscal-year-april-march",
+    "parent_id": "",
+    "chunk_id": "rule-fiscal-year-april-march",
+    "chunk_ordinal": 0,
+    "doc_type": "date_rule",
+    "category": "date_handling",
+    "title": "Fiscal year rule for SAP sales analysis",
+    "summary": "The fiscal year runs from April 1 through March 31.",
+    "content": "For fiscal-year analysis, use April 1 as the fiscal year start and March 31 as the fiscal year end. Do not treat calendar year as fiscal year unless the user explicitly asks for calendar years.",
+    "aliases": [
+      "fiscal year",
+      "FY",
+      "financial year"
+    ],
+    "keywords": [
+      "April 1",
+      "March 31",
+      "fkdat",
+      "date range"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "fkdat"
+    ],
+    "column_types": [
+      "fkdat: datetime"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "date_resolution",
+      "planning",
+      "kql_generation"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:SYSTEM_PROMPT_KQL",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "rule-relative-date-resolution",
+    "parent_id": "",
+    "chunk_id": "rule-relative-date-resolution",
+    "chunk_ordinal": 0,
+    "doc_type": "date_rule",
+    "category": "date_handling",
+    "title": "Relative date resolution must use current date context",
+    "summary": "Relative periods must use the injected current date context instead of guessing.",
+    "content": "Resolve this year, last year, MTD, YTD, this quarter, last quarter, last month, yesterday, and similar phrases from the CURRENT DATE CONTEXT block. Do not use ago(365d), getyear(now()), startofyear(now()), or startofmonth(now()) for fiscal periods.",
+    "aliases": [
+      "this year",
+      "last year",
+      "MTD",
+      "YTD",
+      "last quarter",
+      "last month"
+    ],
+    "keywords": [
+      "CURRENT DATE CONTEXT",
+      "fkdat",
+      "relative period"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "fkdat"
+    ],
+    "column_types": [
+      "fkdat: datetime"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "date_resolution",
+      "kql_generation"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:SYSTEM_PROMPT_KQL",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "rule-data-type-enforcement",
+    "parent_id": "",
+    "chunk_id": "rule-data-type-enforcement",
+    "chunk_ordinal": 0,
+    "doc_type": "data_type_rule",
+    "category": "kql_safety",
+    "title": "Strict ADX data type enforcement",
+    "summary": "KQL filters must match each SAPSalesInfos column type.",
+    "content": "Before using a column in WHERE, determine its ADX type from the schema. Use numeric comparisons without quotes for long and real fields. Use quoted string operations for string fields. Use datetime() values for fkdat. Never compare numeric columns to quoted strings.",
+    "aliases": [
+      "type enforcement",
+      "numeric columns",
+      "string columns",
+      "datetime columns"
+    ],
+    "keywords": [
+      "long",
+      "real",
+      "string",
+      "datetime",
+      "where"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "bukrs",
+      "gsber",
+      "vtweg",
+      "kunrg",
+      "Revenue",
+      "fkimg",
+      "volum",
+      "fkdat"
+    ],
+    "column_types": [
+      "bukrs: long",
+      "gsber: long",
+      "vtweg: long",
+      "kunrg: long",
+      "Revenue: real",
+      "fkimg: long",
+      "volum: real",
+      "fkdat: datetime"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "validation",
+      "kql_generation"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:SYSTEM_PROMPT_KQL",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "rule-smart-string-matching",
+    "parent_id": "",
+    "chunk_id": "rule-smart-string-matching",
+    "chunk_ordinal": 0,
+    "doc_type": "business_rule",
+    "category": "filtering",
+    "title": "Smart string matching rules",
+    "summary": "Use contains for partial product/customer matching and correct handling of dealer code suffixes.",
+    "content": "Use arktx contains for product names, cname contains for dealer/customer names, wgbez contains for brand names, and spart_text contains for division names. When a dealer name appears as Name (123), treat 123 as kunrg and match the name part with cname contains if using text.",
+    "aliases": [
+      "string matching",
+      "dealer name matching",
+      "brand filtering",
+      "product filtering"
+    ],
+    "keywords": [
+      "contains",
+      "cname",
+      "arktx",
+      "wgbez",
+      "spart_text",
+      "kunrg"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "cname",
+      "kunrg",
+      "arktx",
+      "wgbez",
+      "spart_text",
+      "matnr"
+    ],
+    "column_types": [
+      "cname: string",
+      "kunrg: long",
+      "arktx: string",
+      "wgbez: string",
+      "spart_text: string",
+      "matnr: string"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "filtering",
+      "kql_generation"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:SYSTEM_PROMPT_KQL",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "rule-performance-limits",
+    "parent_id": "",
+    "chunk_id": "rule-performance-limits",
+    "chunk_ordinal": 0,
+    "doc_type": "business_rule",
+    "category": "performance",
+    "title": "Mandatory KQL result limits and efficient filters",
+    "summary": "Generated KQL should include limits and selective filters.",
+    "content": "Always include result limits. Summary and aggregation queries should use take 500. Detail queries should use take 1000. Ranking and top-N queries should use top N by metric desc. Place selective date and scope filters early in the pipeline.",
+    "aliases": [
+      "performance",
+      "limits",
+      "take",
+      "top"
+    ],
+    "keywords": [
+      "take 500",
+      "take 1000",
+      "top",
+      "where",
+      "performance"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "fkdat",
+      "bukrs"
+    ],
+    "column_types": [],
+    "kpi_names": [],
+    "intent_tags": [
+      "performance",
+      "kql_generation"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:SYSTEM_PROMPT_KQL",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "rule-time-grouping",
+    "parent_id": "",
+    "chunk_id": "rule-time-grouping",
+    "chunk_ordinal": 0,
+    "doc_type": "data_type_rule",
+    "category": "date_handling",
+    "title": "Time grouping rules for fkdat",
+    "summary": "Use ADX startof functions for time grouping and never bin(fkdat, 1mo).",
+    "content": "For monthly trends use startofmonth(fkdat). For quarterly analysis use startofquarter(fkdat). For yearly analysis use startofyear(fkdat). For daily analysis use startofday(fkdat). For weekly analysis use startofweek(fkdat). Do not use bin(fkdat, 1mo).",
+    "aliases": [
+      "monthly trend",
+      "time grouping",
+      "period grouping"
+    ],
+    "keywords": [
+      "startofmonth",
+      "startofquarter",
+      "startofyear",
+      "startofday",
+      "startofweek"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "fkdat"
+    ],
+    "column_types": [
+      "fkdat: datetime"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "trend",
+      "date_resolution",
+      "kql_generation"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:SYSTEM_PROMPT_KQL",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "rule-matkl-normalization",
+    "parent_id": "",
+    "chunk_id": "rule-matkl-normalization",
+    "chunk_ordinal": 0,
+    "doc_type": "business_rule",
+    "category": "filtering",
+    "title": "Material group normalization for matkl",
+    "summary": "Extract leading F plus digits from material group labels before filtering matkl.",
+    "content": "When the user provides matkl like f010 (RSE) or F010(ABC), extract only the leading F plus digits, such as F010, and ignore the remaining label text.",
+    "aliases": [
+      "matkl normalization",
+      "material group code"
+    ],
+    "keywords": [
+      "matkl",
+      "material group",
+      "F010"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "matkl"
+    ],
+    "column_types": [
+      "matkl: string"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "filtering",
+      "kql_generation"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:SYSTEM_PROMPT_KQL",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "kpi-sales-quantity-volume",
+    "parent_id": "",
+    "chunk_id": "kpi-sales-quantity-volume",
+    "chunk_ordinal": 0,
+    "doc_type": "kpi_definition",
+    "category": "metrics",
+    "title": "Core sales metrics",
+    "summary": "Sales maps to Revenue, quantity maps to fkimg, and volume maps to volum.",
+    "content": "In SAPSalesInfos, sales and revenue mean Revenue. Quantity means fkimg. Volume means volum. Amounts are BDT and volume is gallons in response formatting.",
+    "aliases": [
+      "sales",
+      "revenue",
+      "quantity",
+      "volume"
+    ],
+    "keywords": [
+      "Revenue",
+      "fkimg",
+      "volum",
+      "BDT",
+      "gallons"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "Revenue",
+      "fkimg",
+      "volum"
+    ],
+    "column_types": [
+      "Revenue: real",
+      "fkimg: long",
+      "volum: real"
+    ],
+    "kpi_names": [
+      "sales",
+      "revenue",
+      "quantity",
+      "volume"
+    ],
+    "intent_tags": [
+      "metrics",
+      "planning",
+      "kql_generation"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:SYSTEM_PROMPT_KQL",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "kpi-lifting",
+    "parent_id": "",
+    "chunk_id": "kpi-lifting",
+    "chunk_ordinal": 0,
+    "doc_type": "kpi_definition",
+    "category": "metrics",
+    "title": "Lifting definition",
+    "summary": "Lifting means total volume and total revenue of product sales.",
+    "content": "When the user asks about lifting, calculate total volume using sum(volum) and total revenue using sum(Revenue), usually grouped by the requested product, brand, dealer, depot, or time dimension.",
+    "aliases": [
+      "lifting",
+      "product lifting"
+    ],
+    "keywords": [
+      "Revenue",
+      "volum",
+      "sum"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "Revenue",
+      "volum",
+      "arktx",
+      "wgbez",
+      "matnr"
+    ],
+    "column_types": [
+      "Revenue: real",
+      "volum: real",
+      "arktx: string",
+      "wgbez: string",
+      "matnr: string"
+    ],
+    "kpi_names": [
+      "lifting"
+    ],
+    "intent_tags": [
+      "metrics",
+      "kql_generation"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "",
+    "source_name": "agent.py:SYSTEM_PROMPT_KQL",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "pattern-multi-period-individual",
+    "parent_id": "",
+    "chunk_id": "pattern-multi-period-individual",
+    "chunk_ordinal": 0,
+    "doc_type": "kql_pattern",
+    "category": "kql_generation_pattern",
+    "title": "Multi-period individual comparison pattern",
+    "summary": "Use one let block per period and union constant-labeled results.",
+    "content": "Create one let subquery per requested period. Filter each subquery by that period and all requested criteria. Summarize required metrics by requested dimensions. After summarize, add a constant label such as extend Year = \"2025\". Use union to combine period subqueries and project the period label with dimensions and metrics.",
+    "aliases": [
+      "individually",
+      "separately",
+      "compare years separately"
+    ],
+    "keywords": [
+      "union",
+      "let",
+      "extend Year",
+      "multi-period"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "fkdat",
+      "Revenue",
+      "fkimg",
+      "volum"
+    ],
+    "column_types": [
+      "fkdat: datetime",
+      "Revenue: real",
+      "fkimg: long",
+      "volum: real"
+    ],
+    "kpi_names": [],
+    "intent_tags": [
+      "comparison",
+      "multi_period",
+      "kql_generation"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "Create one let subquery per requested period. Filter each subquery by that period and all requested criteria. Summarize required metrics by requested dimensions. After summarize, add a constant label such as extend Year = \"2025\". Use union to combine period subqueries and project the period label with dimensions and metrics.",
+    "source_name": "agent.py:SYSTEM_PROMPT_KQL",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "pattern-dropoff-leftanti",
+    "parent_id": "",
+    "chunk_id": "pattern-dropoff-leftanti",
+    "chunk_ordinal": 0,
+    "doc_type": "kql_pattern",
+    "category": "kql_generation_pattern",
+    "title": "Drop-off dealer/customer leftanti pattern",
+    "summary": "Find entities that bought in an earlier period but not a later period.",
+    "content": "Build Period A buyers and Period B buyers using the same product, brand, division, and scope filters. Summarize Period A by kunrg, cname, gsber, vtweg with Revenue, volum, and fkimg. Summarize Period B by kunrg. Use join kind=leftanti on kunrg to return dealers/customers who bought in Period A but not Period B.",
+    "aliases": [
+      "drop-off dealers",
+      "risk dealers",
+      "bought before not after",
+      "leftanti"
+    ],
+    "keywords": [
+      "leftanti",
+      "kunrg",
+      "Period A",
+      "Period B"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "kunrg",
+      "cname",
+      "gsber",
+      "vtweg",
+      "Revenue",
+      "volum",
+      "fkimg",
+      "fkdat"
+    ],
+    "column_types": [
+      "kunrg: long",
+      "cname: string",
+      "gsber: long",
+      "vtweg: long",
+      "Revenue: real",
+      "volum: real",
+      "fkimg: long",
+      "fkdat: datetime"
+    ],
+    "kpi_names": [
+      "drop-off",
+      "inactive dealer"
+    ],
+    "intent_tags": [
+      "dropoff",
+      "risk",
+      "kql_generation"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "Build Period A buyers and Period B buyers using the same product, brand, division, and scope filters. Summarize Period A by kunrg, cname, gsber, vtweg with Revenue, volum, and fkimg. Summarize Period B by kunrg. Use join kind=leftanti on kunrg to return dealers/customers who bought in Period A but not Period B.",
+    "source_name": "agent.py:SYSTEM_PROMPT_KQL",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "pattern-declining-negative-growth",
+    "parent_id": "",
+    "chunk_id": "pattern-declining-negative-growth",
+    "chunk_ordinal": 0,
+    "doc_type": "kql_pattern",
+    "category": "kql_generation_pattern",
+    "title": "Declining and negative growth ranking pattern",
+    "summary": "Rank entities by genuine negative period-over-period growth.",
+    "content": "For declining or negative growth ranking, compare a newer CY period to an older PY period. Summarize CY by entity key only. Summarize PY by entity key, entity name, and extra project columns. Start from PY and use join kind=leftouter CY on entity key. Set missing CY_Revenue to 0. Filter PY_Revenue > 0, CY_Revenue >= 0, and CY_Revenue < PY_Revenue. Sort GrowthPct ascending.",
+    "aliases": [
+      "declining",
+      "negative growth",
+      "decreasing sales",
+      "downtrending"
+    ],
+    "keywords": [
+      "leftouter",
+      "GrowthPct",
+      "PY_Revenue",
+      "CY_Revenue"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "Revenue",
+      "fkdat",
+      "kunrg",
+      "cname",
+      "wgbez",
+      "matnr",
+      "matkl",
+      "spart",
+      "gsber"
+    ],
+    "column_types": [
+      "Revenue: real",
+      "fkdat: datetime",
+      "kunrg: long",
+      "cname: string",
+      "wgbez: string",
+      "matnr: string",
+      "matkl: string",
+      "spart: long",
+      "gsber: long"
+    ],
+    "kpi_names": [
+      "negative growth",
+      "decline"
+    ],
+    "intent_tags": [
+      "declining",
+      "growth",
+      "comparison",
+      "kql_generation"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "For declining or negative growth ranking, compare a newer CY period to an older PY period. Summarize CY by entity key only. Summarize PY by entity key, entity name, and extra project columns. Start from PY and use join kind=leftouter CY on entity key. Set missing CY_Revenue to 0. Filter PY_Revenue > 0, CY_Revenue >= 0, and CY_Revenue < PY_Revenue. Sort GrowthPct ascending.",
+    "source_name": "agent.py:SYSTEM_PROMPT_KQL",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "pattern-positive-growth",
+    "parent_id": "",
+    "chunk_id": "pattern-positive-growth",
+    "chunk_ordinal": 0,
+    "doc_type": "kql_pattern",
+    "category": "kql_generation_pattern",
+    "title": "Positive growth ranking pattern",
+    "summary": "Rank entities by meaningful positive period-over-period growth.",
+    "content": "For top performers and positive growth, compare CY to PY with join kind=innerunique. Require CY_Revenue >= 100 and PY_Revenue >= 100 to avoid credit memo artifacts and near-zero denominators. Calculate GrowthPct as (CY_Revenue - PY_Revenue) / PY_Revenue * 100 and sort descending.",
+    "aliases": [
+      "top growth",
+      "highest growth",
+      "top performers",
+      "best performing"
+    ],
+    "keywords": [
+      "innerunique",
+      "GrowthPct",
+      "top performers"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "Revenue",
+      "fkdat"
+    ],
+    "column_types": [
+      "Revenue: real",
+      "fkdat: datetime"
+    ],
+    "kpi_names": [
+      "growth"
+    ],
+    "intent_tags": [
+      "growth",
+      "ranking",
+      "comparison",
+      "kql_generation"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "For top performers and positive growth, compare CY to PY with join kind=innerunique. Require CY_Revenue >= 100 and PY_Revenue >= 100 to avoid credit memo artifacts and near-zero denominators. Calculate GrowthPct as (CY_Revenue - PY_Revenue) / PY_Revenue * 100 and sort descending.",
+    "source_name": "agent.py:SYSTEM_PROMPT_KQL",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "pattern-mtd-growth",
+    "parent_id": "",
+    "chunk_id": "pattern-mtd-growth",
+    "chunk_ordinal": 0,
+    "doc_type": "kql_pattern",
+    "category": "kql_generation_pattern",
+    "title": "MTD growth calculation pattern",
+    "summary": "Calculate month-to-date growth using complete-month CY versus same month LY.",
+    "content": "For MTD growth, use the last complete month as CY unless the user specifies a month. Compare CY full month to the same month last year using datetime_add('year', -1, CY_Start). For ranked-by-entity MTD growth, summarize CY by entity key/name and LY by entity key, join leftouter, and compute MTDGrowthPct.",
+    "aliases": [
+      "MTD",
+      "month-to-date",
+      "MTD growth"
+    ],
+    "keywords": [
+      "MTDGrowthPct",
+      "endofmonth",
+      "datetime_add"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "fkdat",
+      "Revenue",
+      "fkimg"
+    ],
+    "column_types": [
+      "fkdat: datetime",
+      "Revenue: real",
+      "fkimg: long"
+    ],
+    "kpi_names": [
+      "MTD growth"
+    ],
+    "intent_tags": [
+      "mtd",
+      "growth",
+      "date_resolution",
+      "kql_generation"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "For MTD growth, use the last complete month as CY unless the user specifies a month. Compare CY full month to the same month last year using datetime_add('year', -1, CY_Start). For ranked-by-entity MTD growth, summarize CY by entity key/name and LY by entity key, join leftouter, and compute MTDGrowthPct.",
+    "source_name": "agent.py:SYSTEM_PROMPT_KQL",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "pattern-ytd-growth",
+    "parent_id": "",
+    "chunk_id": "pattern-ytd-growth",
+    "chunk_ordinal": 0,
+    "doc_type": "kql_pattern",
+    "category": "kql_generation_pattern",
+    "title": "YTD growth calculation pattern",
+    "summary": "Calculate fiscal YTD growth using April-March fiscal windows.",
+    "content": "For YTD growth, use fiscal year April to March. YTD ends at the last complete month, not today. Compare current fiscal YTD to the same prior-year YTD window. For ranked entities, summarize CY and LY by entity, join leftouter, and compute YTDGrowthPct.",
+    "aliases": [
+      "YTD",
+      "year-to-date",
+      "YTD growth"
+    ],
+    "keywords": [
+      "YTDGrowthPct",
+      "fiscal year",
+      "April",
+      "March"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "fkdat",
+      "Revenue",
+      "fkimg"
+    ],
+    "column_types": [
+      "fkdat: datetime",
+      "Revenue: real",
+      "fkimg: long"
+    ],
+    "kpi_names": [
+      "YTD growth"
+    ],
+    "intent_tags": [
+      "ytd",
+      "growth",
+      "date_resolution",
+      "kql_generation"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "For YTD growth, use fiscal year April to March. YTD ends at the last complete month, not today. Compare current fiscal YTD to the same prior-year YTD window. For ranked entities, summarize CY and LY by entity, join leftouter, and compute YTDGrowthPct.",
+    "source_name": "agent.py:SYSTEM_PROMPT_KQL",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "pattern-contribution-analysis",
+    "parent_id": "",
+    "chunk_id": "pattern-contribution-analysis",
+    "chunk_ordinal": 0,
+    "doc_type": "kql_pattern",
+    "category": "kql_generation_pattern",
+    "title": "Sales contribution analysis pattern",
+    "summary": "Calculate contribution percentage for a segment against total revenue.",
+    "content": "For contribution analysis, compute TotalRevenue over the requested date and scope, then compute SegmentRevenue with the requested dimension filter. ContributionPct is SegmentRevenue * 100.0 / TotalRevenue, guarded for zero TotalRevenue.",
+    "aliases": [
+      "contribution",
+      "contribution of",
+      "contribution by"
+    ],
+    "keywords": [
+      "ContributionPct",
+      "TotalRevenue",
+      "SegmentRevenue"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "Revenue",
+      "fkdat",
+      "wgbez",
+      "spart_text",
+      "gsber",
+      "cname"
+    ],
+    "column_types": [
+      "Revenue: real",
+      "fkdat: datetime",
+      "wgbez: string",
+      "spart_text: string",
+      "gsber: long",
+      "cname: string"
+    ],
+    "kpi_names": [
+      "contribution"
+    ],
+    "intent_tags": [
+      "contribution",
+      "kql_generation"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "For contribution analysis, compute TotalRevenue over the requested date and scope, then compute SegmentRevenue with the requested dimension filter. ContributionPct is SegmentRevenue * 100.0 / TotalRevenue, guarded for zero TotalRevenue.",
+    "source_name": "agent.py:SYSTEM_PROMPT_KQL",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "pattern-average-sales",
+    "parent_id": "",
+    "chunk_id": "pattern-average-sales",
+    "chunk_ordinal": 0,
+    "doc_type": "kql_pattern",
+    "category": "kql_generation_pattern",
+    "title": "Average sales analysis pattern",
+    "summary": "Average sales should average period totals, not raw transaction rows.",
+    "content": "For average sales, first summarize revenue by period and optional entity, then average the period totals. For monthly average use summarize TotalRevenue = sum(Revenue) by entity and startofmonth(fkdat), then summarize AvgMonthlySales = avg(TotalRevenue).",
+    "aliases": [
+      "average sales",
+      "avg sales",
+      "average revenue",
+      "mean sales"
+    ],
+    "keywords": [
+      "AvgMonthlySales",
+      "avg",
+      "startofmonth"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "Revenue",
+      "fkdat"
+    ],
+    "column_types": [
+      "Revenue: real",
+      "fkdat: datetime"
+    ],
+    "kpi_names": [
+      "average sales"
+    ],
+    "intent_tags": [
+      "average",
+      "kql_generation"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "For average sales, first summarize revenue by period and optional entity, then average the period totals. For monthly average use summarize TotalRevenue = sum(Revenue) by entity and startofmonth(fkdat), then summarize AvgMonthlySales = avg(TotalRevenue).",
+    "source_name": "agent.py:SYSTEM_PROMPT_KQL",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  },
+  {
+    "id": "pattern-trend-analysis",
+    "parent_id": "",
+    "chunk_id": "pattern-trend-analysis",
+    "chunk_ordinal": 0,
+    "doc_type": "kql_pattern",
+    "category": "kql_generation_pattern",
+    "title": "Trend analysis pattern",
+    "summary": "Use time-series grouping for trend questions, not decline ranking patterns.",
+    "content": "Trend analysis means a time-series view over multiple periods. Use startofmonth(fkdat), startofweek(fkdat), or another startof function by granularity. For multi-period trends, group by entity plus the time period and sort by the time period ascending.",
+    "aliases": [
+      "trend",
+      "trending",
+      "monthly trend",
+      "trend over time"
+    ],
+    "keywords": [
+      "startofmonth",
+      "time series",
+      "trend"
+    ],
+    "sap_table": "SAPSalesInfos",
+    "sap_columns": [
+      "fkdat",
+      "Revenue",
+      "fkimg",
+      "volum"
+    ],
+    "column_types": [
+      "fkdat: datetime",
+      "Revenue: real",
+      "fkimg: long",
+      "volum: real"
+    ],
+    "kpi_names": [
+      "trend"
+    ],
+    "intent_tags": [
+      "trend",
+      "kql_generation"
+    ],
+    "gsber_codes": [],
+    "vtweg_codes": [],
+    "kql_pattern": "Trend analysis means a time-series view over multiple periods. Use startofmonth(fkdat), startofweek(fkdat), or another startof function by granularity. For multi-period trends, group by entity plus the time period and sort by the time period ascending.",
+    "source_name": "agent.py:SYSTEM_PROMPT_KQL",
+    "source_version": "1.0",
+    "last_synced_at": "2026-06-09T05:42:56+00:00",
+    "is_active": true
+  }
+]

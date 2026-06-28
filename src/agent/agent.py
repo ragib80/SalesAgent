@@ -1,12 +1,12 @@
 # agent.py
 from __future__ import annotations
-import os, re, json
+import os, re, json, time
 from functools import lru_cache
 import datetime
 from django.conf import settings
 from azure.kusto.data import KustoClient, KustoConnectionStringBuilder
 from azure.kusto.data.exceptions import KustoApiError
-from typing import Optional
+from typing import Optional, Any, Callable
 from django.db.models import Q
 from langchain_openai import AzureChatOpenAI
 from openai import BadRequestError 
@@ -25,10 +25,18 @@ from agent.utils.conversation_helpers import (
     build_context_memory_contract,
 
 )
+from agent.kql.repair import normalize_kql_for_execution, repair_kql
+from agent.kql.validator import validate_kql
+from agent.planner.schemas import QueryPlan
+from agent.rag.retriever import format_rag_context_for_prompt
 
 from core.middleware.current_user import get_current_chat_user ,set_current_chat_user
 
 logger = logging.getLogger(__name__)
+
+# Increment when SYSTEM_PROMPT_KQL changes significantly so audit records
+# can be correlated with the prompt version that generated them.
+PROMPT_VERSION = "kql-v3"
 
 
 # ───────────────────────── 1.  ADX helper ──────────────────────────
@@ -1007,7 +1015,8 @@ llm = AzureChatOpenAI(
     azure_endpoint   = settings.AZURE_OPENAI_ENDPOINT,
     api_key          = settings.AZURE_OPENAI_KEY,
     # api_version      = "2025-01-01-preview",
-    api_version      = "2024-12-01-preview",
+    # api_version      = "2024-12-01-preview",
+    api_version      = settings.AZURE_OPENAI_DEPLOYMENT_VERSION,
     azure_deployment = settings.AZURE_OPENAI_DEPLOYMENT,
     # temperature      = 0,
     temperature      = 1,
@@ -1016,7 +1025,8 @@ llm = AzureChatOpenAI(
 analysis_llm = AzureChatOpenAI(
     azure_endpoint   = settings.AZURE_OPENAI_ENDPOINT,
     api_key          = settings.AZURE_OPENAI_KEY,
-    api_version      = "2025-01-01-preview",
+    # api_version      = "2025-01-01-preview",
+    api_version      = settings.AZURE_OPENAI_ANALYSIS_VERSION,
     azure_deployment = settings.AZURE_OPENAI_ANALYSIS,  # e.g., deployment of gpt-5-mini
     temperature      = 1,  # set 0 if you want fully deterministic phrasing
 )
@@ -1610,7 +1620,48 @@ def _ci_set(values):
     return {str(v).strip().lower() for v in (values or [])}
 
 
-def generate_kql(user_req: str, conversation_uuid: Optional[str] = None, strict=False) -> str:
+def _format_query_plan_for_prompt(
+    query_plan: QueryPlan | dict[str, Any] | None,
+) -> str:
+    """Render the Phase 2 query plan as advisory KQL prompt context."""
+
+    if not query_plan:
+        return ""
+
+    if isinstance(query_plan, QueryPlan):
+        plan_payload = query_plan.to_dict()
+    elif isinstance(query_plan, dict):
+        plan_payload = QueryPlan.from_dict(query_plan).to_dict()
+    else:
+        return ""
+
+    return (
+        "\n\n### STRUCTURED QUERY PLAN (Phase 2 advisory context)\n"
+        "Use this plan to ground KQL generation, but the NEW USER MESSAGE, "
+        "schema rules, date context, and USER_AREA_SCOPE are authoritative if "
+        "there is any conflict.\n"
+        + json.dumps(plan_payload, ensure_ascii=False, indent=2, default=str)
+        + "\n"
+    )
+
+
+def _format_rag_context_for_kql_prompt(rag_context: dict[str, Any] | None) -> str:
+    """Render Phase 4 RAG context for KQL generation."""
+
+    return format_rag_context_for_prompt(
+        rag_context,
+        max_documents=5,
+        max_chars=6000,
+    )
+
+
+def generate_kql(
+    user_req: str,
+    conversation_uuid: Optional[str] = None,
+    strict=False,
+    query_plan: QueryPlan | dict[str, Any] | None = None,
+    rag_context: dict[str, Any] | None = None,
+) -> str:
     global LAST_KQL_META
 
     # ── 1. Static system knowledge + dynamic date context ──
@@ -1622,6 +1673,8 @@ def generate_kql(user_req: str, conversation_uuid: Optional[str] = None, strict=
     prompt += "\n\n" + build_context_memory_contract() + "\n\n"
     prompt += "### SNAPSHOT (use to infer current context)\n"
     prompt += build_conversation_snapshot_block(conversation_uuid)
+    prompt += _format_rag_context_for_kql_prompt(rag_context)
+    prompt += _format_query_plan_for_prompt(query_plan)
     prompt += "\n\n### NEW USER MESSAGE\n" + user_req + "\n"
 
     # Handle conversation history for multi-turn conversation
@@ -1749,10 +1802,9 @@ def generate_kql(user_req: str, conversation_uuid: Optional[str] = None, strict=
     try:
          
         _user = get_current_chat_user()
-        print(">>> agent current_user:", _user, "| id:", getattr(_user, "id", None))
-        print(_user)
+        logger.debug("generate_kql current_user=%s id=%s", _user, getattr(_user, "id", None))
         _scope = get_user_area_scope(_user) if _user else None
-        print(">>> generate_kql scope:", _scope)
+        logger.debug("generate_kql scope: %s", _scope)
     except Exception:
         _scope = None
 
@@ -1854,20 +1906,20 @@ def generate_kql(user_req: str, conversation_uuid: Optional[str] = None, strict=
     if strict:
         prompt += "\n\nSTRICT MODE: previous query failed. Return corrected KQL only."
 
-    print("_extract_kql-------------", prompt)
+    logger.debug("generate_kql: prompt assembled (%d chars)", len(prompt))
 
     # ── 4. Single LLM call ──
     response = llm.invoke([{"role": "user", "content": prompt}]).content
 
     meta, kql_body = _extract_meta_line_and_strip(response)
     LAST_KQL_META = meta
-    print("------ LAST_KQL_META ------", LAST_KQL_META)
+    logger.debug("KQL META: %s", LAST_KQL_META)
 
     try:
         message_id = get_latest_message_id(conversation_uuid)
         save_meta(conversation_uuid, message_id, meta)
     except Exception as e:
-        print("META save failed:", e)
+        logger.warning("META save failed: %s", e)
 
     # ── 5. Light post-processing (safety nets only) ──
     kql_clean = kql_body.replace("bin(fkdat, 1mo)", "startofmonth(fkdat)")
@@ -1879,7 +1931,7 @@ def generate_kql(user_req: str, conversation_uuid: Optional[str] = None, strict=
         kql_clean = kql_clean.replace(", )", ", TimePeriod)")
 
     kql_clean = _enforce_bukrs_filter(kql_clean)
-    print("response from generate kql", kql_clean)
+    logger.debug("generate_kql output (first 300 chars): %.300s", kql_clean)
     return _extract_kql(kql_clean)
 
 
@@ -2074,32 +2126,345 @@ def _build_scope_title_and_insight(user) -> tuple[str, str]:
 
 #end 
 
+def _query_plan_to_dict(
+    query_plan: QueryPlan | dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Normalize a query plan for repair prompt context."""
+
+    if isinstance(query_plan, QueryPlan):
+        return query_plan.to_dict()
+    if isinstance(query_plan, dict):
+        return QueryPlan.from_dict(query_plan).to_dict()
+    return None
+
+
+def _post_process_generated_kql(kql: str, user_prompt: str) -> str:
+    """Apply existing post-generation KQL fixes in one place."""
+
+    processed = format_dates(kql)
+    processed = re.sub(r'ago\(3mo\)', 'ago(90d)', processed, flags=re.I)
+    processed = re.sub(r'startofquarter\((.*?)\)', r'startofmonth(\1)', processed, flags=re.I)
+
+    for territory, gsber_value in GSBER_MAPPING.items():
+        if territory.lower() in user_prompt.lower():
+            processed = re.sub(
+                r"where\s+Territory\s*==\s*['\"]?.+?['\"]?",
+                f"where gsber == {gsber_value}",
+                processed,
+            )
+            break
+
+    return processed
+
+
+def _validate_or_repair_kql(
+    kql: str,
+    *,
+    user_prompt: str,
+    query_plan: QueryPlan | dict[str, Any] | None = None,
+    rag_context: dict[str, Any] | None = None,
+    execution_error: str | None = None,
+) -> str | None:
+    """Validate generated KQL and repair it when validation or ADX feedback fails."""
+
+    schema_types = get_schema_types_from_static()
+
+    try:
+        normalized_kql = normalize_kql_for_execution(kql, table_name=TABLE_NAME)
+        validation = validate_kql(
+            normalized_kql,
+            table_name=TABLE_NAME,
+            schema_types=schema_types,
+        )
+
+        if validation.is_valid and not execution_error:
+            if validation.warnings:
+                logger.info("KQL validation warnings: %s", validation.as_repair_context())
+            return normalized_kql
+
+        if validation.errors:
+            logger.warning("KQL validation failed: %s", validation.as_repair_context())
+        if execution_error:
+            logger.warning("Repairing KQL after ADX execution error.")
+
+        repaired_kql = repair_kql(
+            normalized_kql,
+            user_prompt=user_prompt,
+            table_name=TABLE_NAME,
+            schema_types=schema_types,
+            validation_result=validation,
+            llm_client=llm,
+            query_plan=_query_plan_to_dict(query_plan),
+            rag_context=rag_context,
+            execution_error=execution_error,
+        )
+        repaired_kql = _post_process_generated_kql(repaired_kql, user_prompt)
+        repaired_kql = normalize_kql_for_execution(repaired_kql, table_name=TABLE_NAME)
+
+        repaired_validation = validate_kql(
+            repaired_kql,
+            table_name=TABLE_NAME,
+            schema_types=schema_types,
+        )
+        if repaired_validation.is_valid:
+            if repaired_validation.warnings:
+                logger.info(
+                    "Repaired KQL validation warnings: %s",
+                    repaired_validation.as_repair_context(),
+                )
+            return repaired_kql
+
+        logger.warning(
+            "KQL repair failed validation: %s",
+            repaired_validation.as_repair_context(),
+        )
+        return None
+    except Exception:
+        logger.exception("KQL validation and repair failed.")
+        return None
+
 # Handle user queries dynamically and generate the corresponding KQL query
 
-def handle_user_query(user_prompt: str, *, conversation_id: str | None = None, user: Optional["User"] = None,) -> str:
+def handle_user_query(
+    user_prompt: str,
+    *,
+    conversation_id: str | None = None,
+    user: Optional["User"] = None,
+    query_plan: QueryPlan | dict[str, Any] | None = None,
+    rag_context: dict[str, Any] | None = None,
+    on_token: Callable[[str], None] | None = None,
+) -> str:
     """
     Dynamically handle SAP Sales prompts with multi-turn conversation support,
     ensuring correct KQL generation, and mapping business area/territory to the correct 'gsber' code.
     Continuity is driven by conversation history only (no META reuse).
+
+    Every call writes one AgentQueryAudit row (see agent/models.py) capturing
+    latency, token usage, KQL, and outcome. Audit writes are fail-safe and never
+    interrupt the response path.
     """
+    from agent.observability.audit import write_audit_record, estimate_cost_usd
+    from agent.observability.timing import Timer
 
-    # -----------------------------
-    # 1) Non-sales queries → general assistant
-    # -----------------------------
-    print("calll llmmm")
-    if not is_sales_analysis_query(user_prompt, conversation_id=conversation_id):
-        general_prompt = """
-        You are a SAP Sales Analysis Assistant. The user has asked a general question not related to sales data analysis or KQL.
+    _t0 = time.perf_counter()
 
-        Please respond as a friendly and helpful SAP Sales Analysis Assistant. Let the user know:
-        - You are specialized in SAP sales data analysis
-        - You can help with sales reports, revenue analysis, growth calculations, trends, etc.
-        - Invite them to ask sales-related queries
+    def _rag_doc_count(ctx: Any) -> int:
+        if not ctx:
+            return 0
+        if hasattr(ctx, "documents"):
+            return len(ctx.documents)
+        if isinstance(ctx, dict):
+            return len(ctx.get("documents", []))
+        return 0
 
-        Do not generate KQL for general questions.
-        """.strip()
+    def _serialize_plan(plan: Any) -> Any:
+        if plan is None:
+            return None
+        if isinstance(plan, dict):
+            return plan
+        return getattr(plan, "__dict__", None)
 
-        # Show previous data in USER/ASSISTANT mode, then the current ask
+    _audit: dict[str, Any] = {
+        "user": user,
+        "conversation_id": conversation_id,
+        "user_prompt": user_prompt,
+        "generated_kql": "",
+        "prompt_version": PROMPT_VERSION,
+        "model_name": getattr(settings, "AZURE_OPENAI_DEPLOYMENT", ""),
+        "query_plan": _serialize_plan(query_plan),
+        "rag_docs_retrieved": _rag_doc_count(rag_context),
+        "is_sales_query": None,
+        "kql_validation_status": "",
+        "total_latency_ms": None,
+        "kql_generation_latency_ms": None,
+        "adx_execution_latency_ms": None,
+        "llm_summary_latency_ms": None,
+        "summary_prompt_tokens": 0,
+        "summary_completion_tokens": 0,
+        "total_tokens": 0,
+        "estimated_cost_usd": None,
+        "adx_row_count": None,
+        "success": False,
+        "error_code": "",
+        "error_message": "",
+    }
+
+    try:
+        # -----------------------------
+        # 1) Non-sales queries → general assistant
+        # -----------------------------
+        logger.debug("handle_user_query: classifying prompt (conv=%s)", conversation_id)
+        if not is_sales_analysis_query(user_prompt, conversation_id=conversation_id):
+            _audit["is_sales_query"] = False
+            _audit["error_code"] = "GENERAL_QUERY"
+            general_prompt = """
+            You are a SAP Sales Analysis Assistant. The user has asked a general question not related to sales data analysis or KQL.
+
+            Please respond as a friendly and helpful SAP Sales Analysis Assistant. Let the user know:
+            - You are specialized in SAP sales data analysis
+            - You can help with sales reports, revenue analysis, growth calculations, trends, etc.
+            - Invite them to ask sales-related queries
+
+            Do not generate KQL for general questions.
+            """.strip()
+
+            # Show previous data in USER/ASSISTANT mode, then the current ask
+            if conversation_id:
+                try:
+                    conv_id = get_conversation_id_from_uuid(conversation_id)
+                    last_msgs = get_last_20_messages(conv_id)
+                    if last_msgs:
+                        history_block = "Previous Conversation (for context only):\n"
+                        for m in last_msgs[-20:]:
+                            role = "USER" if m.sender == "user" else "ASSISTANT"
+                            history_block += f"{role}: {m.text or ''}\n"
+                        general_prompt += "\n\n" + history_block
+                except Exception:
+                    pass
+
+            general_prompt += f"\n\nNow, CURRENT USER MESSAGE:\nUSER: {user_prompt}"
+
+            general_messages = [
+                {
+                    "role": "system",
+                    "content": "Do not reuse numbers or conclusions from Previous Conversation; answer the current question directly. Do not generate KQL for general questions."
+                },
+                {"role": "user", "content": general_prompt},
+            ]
+            if on_token:
+                full = ""
+                for chunk in llm.stream(general_messages):
+                    piece = getattr(chunk, "content", "") or ""
+                    if piece:
+                        on_token(piece)
+                        full += piece
+                _audit["success"] = True
+                return full
+            _gen_resp = llm.invoke(general_messages)
+            _token_usage = (_gen_resp.response_metadata or {}).get("token_usage", {})
+            _audit["summary_prompt_tokens"] = _token_usage.get("prompt_tokens", 0)
+            _audit["summary_completion_tokens"] = _token_usage.get("completion_tokens", 0)
+            _audit["total_tokens"] = _token_usage.get("total_tokens", 0)
+            _audit["estimated_cost_usd"] = estimate_cost_usd(
+                _audit["summary_prompt_tokens"], _audit["summary_completion_tokens"]
+            )
+            _audit["success"] = True
+            return _gen_resp.content
+
+        _audit["is_sales_query"] = True
+
+        # -----------------------------
+        # 2) Sales queries → generate KQL
+        # (date/period resolution handled by _build_date_context() inside generate_kql)
+        # -----------------------------
+        with Timer() as _kql_timer:
+            kql = generate_kql(
+                user_prompt,
+                conversation_id,
+                query_plan=query_plan,
+                rag_context=rag_context,
+            )
+            kql = _post_process_generated_kql(kql, user_prompt)
+            kql = _validate_or_repair_kql(
+                kql,
+                user_prompt=user_prompt,
+                query_plan=query_plan,
+                rag_context=rag_context,
+            )
+        _audit["kql_generation_latency_ms"] = _kql_timer.elapsed_ms
+
+        if not kql:
+            _audit["error_code"] = "KQL_VAL_FAIL"
+            _audit["error_message"] = "KQL generation and validation/repair failed"
+            _audit["kql_validation_status"] = "failed"
+            logger.warning("handle_user_query: KQL generation failed | prompt=%.100s", user_prompt)
+            return "Please refine your query. I couldn't generate a valid KQL this time."
+
+        _audit["generated_kql"] = kql
+        _audit["kql_validation_status"] = "valid"
+
+        # -----------------------------
+        # 3) Validate, repair, and execute query
+        # -----------------------------
+        with Timer() as _adx_timer:
+            for attempt in (1, 2):
+                try:
+                    cols, rows = adx().run(kql)
+                    break
+                except KustoApiError as exc:
+                    logger.warning(
+                        "handle_user_query: ADX error attempt=%d: %s", attempt, exc
+                    )
+                    if attempt == 1:
+                        repaired_kql = _validate_or_repair_kql(
+                            kql,
+                            user_prompt=user_prompt,
+                            query_plan=query_plan,
+                            rag_context=rag_context,
+                            execution_error=str(exc),
+                        )
+                        if repaired_kql and repaired_kql != kql:
+                            kql = repaired_kql
+                            _audit["generated_kql"] = kql
+                            _audit["kql_validation_status"] = "adx_repaired"
+                            continue
+
+                        strict_kql = generate_kql(
+                            user_prompt,
+                            conversation_id,
+                            strict=True,
+                            query_plan=query_plan,
+                            rag_context=rag_context,
+                        )
+                        strict_kql = _post_process_generated_kql(strict_kql, user_prompt)
+                        kql = _validate_or_repair_kql(
+                            strict_kql,
+                            user_prompt=user_prompt,
+                            query_plan=query_plan,
+                            rag_context=rag_context,
+                            execution_error=str(exc),
+                        )
+                        if kql:
+                            _audit["generated_kql"] = kql
+                            _audit["kql_validation_status"] = "adx_repaired"
+                            continue
+                    _audit["error_code"] = "ADX_EXEC_FAIL"
+                    _audit["error_message"] = str(exc)
+                    _audit["kql_validation_status"] = "failed"
+                    return "Please refine your query. I couldn't generate a valid KQL this time."
+        _audit["adx_execution_latency_ms"] = _adx_timer.elapsed_ms
+
+        if not rows:
+            _audit["adx_row_count"] = 0
+            _audit["error_code"] = "NO_DATA"
+            return "No data found matching your criteria."
+
+        _audit["adx_row_count"] = len(rows)
+
+        # -----------------------------
+        # 6) Process results
+        # -----------------------------
+        rows_to_show = rows[:30]
+        result_data = []
+        for row in rows_to_show:
+            row_dict = dict(zip(cols, row))
+            for col_name, val in row_dict.items():
+                if isinstance(val, datetime.datetime):
+                    row_dict[col_name] = val.strftime("%Y-%m-%d")
+            result_data.append(row_dict)
+
+        # Sort if time-like column exists
+        date_cols = [c for c in cols if c.lower() in ("timeperiod", "week", "month", "date")]
+        if date_cols:
+            result_data.sort(key=lambda x: x[date_cols[0]])
+
+        result_json = json.dumps(result_data, default=str, indent=2)
+
+        # -----------------------------
+        # 7) Build narrative prompt
+        # -----------------------------
+        # Build a history block in USER/ASSISTANT mode (previous data)
+        history_block = ""
         if conversation_id:
             try:
                 conv_id = get_conversation_id_from_uuid(conversation_id)
@@ -2109,156 +2474,111 @@ def handle_user_query(user_prompt: str, *, conversation_id: str | None = None, u
                     for m in last_msgs[-20:]:
                         role = "USER" if m.sender == "user" else "ASSISTANT"
                         history_block += f"{role}: {m.text or ''}\n"
-                    general_prompt += "\n\n" + history_block
             except Exception:
                 pass
+        #scope
+        # --- scope-aware title & insight additions (only if user is RESTRICTED) ---
+        try:
+            _user_for_scope = get_current_chat_user()
+        except Exception:
+            _user_for_scope = None
 
-        general_prompt += f"\n\nNow, CURRENT USER MESSAGE:\nUSER: {user_prompt}"
+        # Check unrestricted first (is_superuser / is_staff / admin / BetaUser handled in get_user_area_scope)
+        try:
+            _scope_for_prompt = get_user_area_scope(_user_for_scope) if _user_for_scope else None
+            _is_unrestricted = bool(_scope_for_prompt and getattr(_scope_for_prompt, "restricted", False) is False)
+        except Exception:
+            _scope_for_prompt = None
+            _is_unrestricted = False
 
-        general_messages = [
+        if _is_unrestricted:
+            # Admins & BetaUser: do NOT inject scope into title/insights
+            title_suffix = ""
+            insight_note = ""
+        else:
+            # Restricted users: build human-readable scope text
+            title_suffix, insight_note = _build_scope_title_and_insight(_user_for_scope)
+        #end scope
+
+        period_context = _extract_kql_period_context(kql)
+
+        result_prompt = (
+            (history_block + "\n" if history_block else "")
+            + "Now, CURRENT USER MESSAGE:\n"
+            + f"USER: {user_prompt}\n\n"
+            + "Context Data (use ONLY this JSON for any numbers):\n"
+            + f"{result_json}\n\n"
+            + (f"Analysis Period (MUST mention this clearly in the response):\n{period_context}\n\n" if period_context else "")
+            + "Format the output in bulleted format.\n"
+            + "After decimal take upto two places. Example: 1253.89"
+            + "- Begin with a concise Title for the result.\n"
+            + (f"- If helpful (scope is small), append this to the Title: \"{title_suffix}\".\n" if title_suffix else "")
+            + "- Amount is in BDT and Volume is in gallons.\n"
+            + "- Replace 'gsber' with 'Depo/Sales Office'.\n"
+            + "- If 'vtweg' is found, show:\n"
+            + "    - '10' → Dealer (10)\n"
+            + "    - '20' → Customer (20)\n"
+            + "    - '30' → Project Customer (30)\n"
+            + "- Use bullet points for both numerical and categorical results.Highlight the names where it needed.\n\n"
+            + (f"- Add a final bullet in Insights: \"{insight_note}\"\n" if insight_note else "")
+            + "Then generate short Insights on [context]. \n"
+        )
+
+        # -----------------------------
+        # 8) Generate narrative output
+        # -----------------------------
+        messages = [
             {
                 "role": "system",
-                "content": "Do not reuse numbers or conclusions from Previous Conversation; answer the current question directly. Do not generate KQL for general questions."
+                "content": (
+                    "You are a SAP Sales Data Analyst. For ALL numeric facts, use ONLY the JSON under 'Context Data'. "
+                    "If any part of Previous Conversation conflicts with 'Context Data', ignore it. "
+                    "Do not reuse headings or numbers from earlier assistant messages."
+                ),
             },
-            {"role": "user", "content": general_prompt},
+            {"role": "user", "content": result_prompt},
         ]
-        return llm.invoke(general_messages).content
 
-    # -----------------------------
-    # 2) Sales queries → generate KQL
-    # (date/period resolution handled by _build_date_context() inside generate_kql)
-    # -----------------------------
-    kql = generate_kql(user_prompt, conversation_id)
-    kql = format_dates(kql)
-    kql = re.sub(r'ago\(3mo\)', 'ago(90d)', kql, flags=re.I)
-    kql = re.sub(r'startofquarter\((.*?)\)', r'startofmonth(\1)', kql, flags=re.I)
+        with Timer() as _sum_timer:
+            if on_token:
+                full = ""
+                for chunk in llm.stream(messages):
+                    piece = getattr(chunk, "content", "") or ""
+                    if piece:
+                        on_token(piece)
+                        full += piece
+                _summary_answer = full
+            else:
+                _sum_resp = llm.invoke(messages)
+                _token_usage = (_sum_resp.response_metadata or {}).get("token_usage", {})
+                _audit["summary_prompt_tokens"] = _token_usage.get("prompt_tokens", 0)
+                _audit["summary_completion_tokens"] = _token_usage.get("completion_tokens", 0)
+                _audit["total_tokens"] = _token_usage.get("total_tokens", 0)
+                _audit["estimated_cost_usd"] = estimate_cost_usd(
+                    _audit["summary_prompt_tokens"], _audit["summary_completion_tokens"]
+                )
+                _summary_answer = _sum_resp.content
+        _audit["llm_summary_latency_ms"] = _sum_timer.elapsed_ms
+        _audit["success"] = True
+        logger.info(
+            "handle_user_query: OK | total=%.0fms kql=%.0fms adx=%.0fms sum=%.0fms rows=%d tokens=%d",
+            (time.perf_counter() - _t0) * 1000,
+            _audit.get("kql_generation_latency_ms") or 0,
+            _audit.get("adx_execution_latency_ms") or 0,
+            _sum_timer.elapsed_ms or 0,
+            _audit.get("adx_row_count") or 0,
+            _audit.get("total_tokens") or 0,
+        )
+        return _summary_answer
 
-    # -----------------------------
-    # 3) Territory → gsber mapping
-    # -----------------------------
-    for territory, gsber_value in GSBER_MAPPING.items():
-        if territory.lower() in user_prompt.lower():
-            kql = re.sub(
-                r"where\s+Territory\s*==\s*['\"]?.+?['\"]?",
-                f"where gsber == {gsber_value}",
-                kql
-            )
-            break
+    except Exception as exc:
+        _audit["error_message"] = str(exc)
+        logger.exception("handle_user_query: unhandled exception")
+        raise
 
-    # -----------------------------
-    # 4) Execute query (with retry)
-    # -----------------------------
-    for attempt in (1, 2):
-        try:
-            cols, rows = adx().run(kql)
-            break
-        except KustoApiError:
-            if attempt == 1:
-                kql = generate_kql(user_prompt, conversation_id, strict=True)
-                continue
-            return "Please refine your query. I couldn't generate a valid KQL this time."
-
-    if not rows:
-        return "No data found matching your criteria."
-
-    # -----------------------------
-    # 6) Process results
-    # -----------------------------
-    rows_to_show = rows[:30]
-    result_data = []
-    for row in rows_to_show:
-        row_dict = dict(zip(cols, row))
-        for col_name, val in row_dict.items():
-            if isinstance(val, datetime.datetime):
-                row_dict[col_name] = val.strftime("%Y-%m-%d")
-        result_data.append(row_dict)
-
-    # Sort if time-like column exists
-    date_cols = [c for c in cols if c.lower() in ("timeperiod", "week", "month", "date")]
-    if date_cols:
-        result_data.sort(key=lambda x: x[date_cols[0]])
-
-    result_json = json.dumps(result_data, default=str, indent=2)
-
-    # -----------------------------
-    # 7) Build narrative prompt
-    # -----------------------------
-    # Build a history block in USER/ASSISTANT mode (previous data)
-    history_block = ""
-    if conversation_id:
-        try:
-            conv_id = get_conversation_id_from_uuid(conversation_id)
-            last_msgs = get_last_20_messages(conv_id)
-            if last_msgs:
-                history_block = "Previous Conversation (for context only):\n"
-                for m in last_msgs[-20:]:
-                    role = "USER" if m.sender == "user" else "ASSISTANT"
-                    history_block += f"{role}: {m.text or ''}\n"
-        except Exception:
-            pass
-    #scope
-    # --- scope-aware title & insight additions (only if user is RESTRICTED) ---
-    try:
-        _user_for_scope = get_current_chat_user()
-    except Exception:
-        _user_for_scope = None
-
-    # Check unrestricted first (is_superuser / is_staff / admin / BetaUser handled in get_user_area_scope)
-    try:
-        _scope_for_prompt = get_user_area_scope(_user_for_scope) if _user_for_scope else None
-        _is_unrestricted = bool(_scope_for_prompt and getattr(_scope_for_prompt, "restricted", False) is False)
-    except Exception:
-        _scope_for_prompt = None
-        _is_unrestricted = False
-
-    if _is_unrestricted:
-        # Admins & BetaUser: do NOT inject scope into title/insights
-        title_suffix = ""
-        insight_note = ""
-    else:
-        # Restricted users: build human-readable scope text
-        title_suffix, insight_note = _build_scope_title_and_insight(_user_for_scope)
-    #end scope
-
-    period_context = _extract_kql_period_context(kql)
-
-    result_prompt = (
-        (history_block + "\n" if history_block else "")
-        + "Now, CURRENT USER MESSAGE:\n"
-        + f"USER: {user_prompt}\n\n"
-        + "Context Data (use ONLY this JSON for any numbers):\n"
-        + f"{result_json}\n\n"
-        + (f"Analysis Period (MUST mention this clearly in the response):\n{period_context}\n\n" if period_context else "")
-        + "Format the output in bulleted format.\n"
-        + "After decimal take upto two places. Example: 1253.89"
-        + "- Begin with a concise Title for the result.\n"
-        + (f"- If helpful (scope is small), append this to the Title: \"{title_suffix}\".\n" if title_suffix else "")
-        + "- Amount is in BDT and Volume is in gallons.\n"
-        + "- Replace 'gsber' with 'Depo/Sales Office'.\n"
-        + "- If 'vtweg' is found, show:\n"
-        + "    - '10' → Dealer (10)\n"
-        + "    - '20' → Customer (20)\n"
-        + "    - '30' → Project Customer (30)\n"
-        + "- Use bullet points for both numerical and categorical results.Highlight the names where it needed.\n\n"
-        + (f"- Add a final bullet in Insights: \"{insight_note}\"\n" if insight_note else "")
-        + "Then generate short Insights on [context]. \n"
-    )
-
-    # -----------------------------
-    # 8) Generate narrative output
-    # -----------------------------
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "You are a SAP Sales Data Analyst. For ALL numeric facts, use ONLY the JSON under 'Context Data'. "
-                "If any part of Previous Conversation conflicts with 'Context Data', ignore it. "
-                "Do not reuse headings or numbers from earlier assistant messages."
-            ),
-        },
-        {"role": "user", "content": result_prompt},
-    ]
-    return llm.invoke(messages).content
+    finally:
+        _audit["total_latency_ms"] = (time.perf_counter() - _t0) * 1000
+        write_audit_record(**_audit)
 
     # try:
     #     return analysis_llm.invoke([{"role": "user", "content": result_prompt}]).content
