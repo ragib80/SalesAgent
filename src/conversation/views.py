@@ -124,7 +124,7 @@ class ConversationMessagesAPIView(APIView):
     def get(self, request, pk):
         """
         GET /api/conversations/<uuid>/messages/?page=1&page_size=10
-        Returns newest→oldest in each page (created_at desc). Frontend will reverse for chat view.
+        Returns newest→oldest in each page (created_at desc). Frontend sorts ascending for chat view.
         """
         convo = get_object_or_404(Conversation, uuid=pk, user=request.user)
 

@@ -591,7 +591,12 @@ $(function () {
         return;
       }
 
-      const ascending = list.slice().reverse();
+      const ascending = list.slice().sort((a, b) => {
+        const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+        if (ta !== tb) return ta - tb;
+        return (a.id || 0) - (b.id || 0);
+      });
 
       if (mode === 'reset') {
         $list.empty();
@@ -669,17 +674,14 @@ $(function () {
           <div class="message-content" id="stream-content"></div>
         </div>
       </div>`);
-    // replaceWith is one atomic DOM op — keeps stream bubble in the exact slot
-    // where the typing indicator was, guaranteeing it stays below the user message.
-    if (typingIndicator && typingIndicator.parent().length) {
-      typingIndicator.replaceWith($streamBubble);
-      typingIndicator = null;
-    } else {
-      if (typingIndicator) { typingIndicator.remove(); typingIndicator = null; }
-      ensureMessageShell();
-      const $list = $('#messages-list').length ? $('#messages-list') : $('#chat-content');
-      $list.append($streamBubble);
-    }
+    // Always remove typing indicator first, then append stream bubble at the END
+    // of the list. The user bubble was already appended synchronously before any
+    // SSE token can arrive, so appending here guarantees stream bubble is below
+    // the user message regardless of typing indicator DOM state.
+    if (typingIndicator) { typingIndicator.remove(); typingIndicator = null; }
+    ensureMessageShell();
+    const $list = $('#messages-list').length ? $('#messages-list') : $('#chat-content');
+    $list.append($streamBubble);
   }
 
   function _scheduleStreamRender() {
