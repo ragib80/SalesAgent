@@ -1,8 +1,30 @@
 from django.contrib import admin
+from django.contrib.admin import SimpleListFilter
 from django.urls import reverse
 from django.utils.html import format_html
 
 from agent.models import AgentQueryAudit
+
+
+class UserFilter(SimpleListFilter):
+    title = "user"
+    parameter_name = "user"
+
+    def lookups(self, request, model_admin):
+        users = (
+            AgentQueryAudit.objects
+            .exclude(user=None)
+            .select_related("user")
+            .values_list("user__id", "user__username")
+            .distinct()
+            .order_by("user__username")
+        )
+        return [(uid, username) for uid, username in users]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(user__id=self.value())
+        return queryset
 
 
 @admin.register(AgentQueryAudit)
@@ -21,6 +43,7 @@ class AgentQueryAuditAdmin(admin.ModelAdmin):
         "error_code",
     )
     list_filter = (
+        UserFilter,
         "success",
         "is_sales_query",
         "kql_validation_status",
@@ -34,6 +57,7 @@ class AgentQueryAuditAdmin(admin.ModelAdmin):
         "generated_kql",
         "error_message",
     )
+    list_per_page = 20  # <-- Pagination for inline
     date_hierarchy = "created_at"
     ordering = ["-created_at"]
 

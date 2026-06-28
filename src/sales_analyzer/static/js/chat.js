@@ -671,7 +671,7 @@ $(function () {
           <div class="message-avatar assistant" aria-hidden="true">
             <i class="bi bi-stars"></i>
           </div>
-          <div class="message-content" id="stream-content"></div>
+          <div class="message-content stream-content"></div>
         </div>
       </div>`);
     // Always remove typing indicator first, then append stream bubble at the END
@@ -689,7 +689,8 @@ $(function () {
     _rafPending = true;
     requestAnimationFrame(function () {
       _rafPending = false;
-      const $c = $('#stream-content');
+      if (!$streamBubble || !$streamBubble.length) return;
+      const $c = $streamBubble.find('.stream-content');
       if (!$c.length) return;
       $c.html(marked.parse(streamingText) + '<span class="stream-cursor"></span>');
       scrollToBottom();
@@ -701,7 +702,7 @@ $(function () {
 
     if ($streamBubble && $streamBubble.length) {
       const finalText = answer || streamingText;
-      $('#stream-content').html(marked.parse(finalText));
+      $streamBubble.find('.stream-content').html(marked.parse(finalText));
       $streamBubble.append(_actionsHtml(finalText));
       $streamBubble = null;
     } else {
@@ -816,7 +817,7 @@ $(function () {
             try { payload = JSON.parse(dataStr); } catch { eventName = 'message'; dataStr = ''; continue; }
 
             if (eventName === 'status') {
-              $('#sse-status').text(payload.message || '');
+              if (typingIndicator) typingIndicator.find('#sse-status').text(payload.message || '');
               scrollToBottom();
             } else if (eventName === 'token') {
               const chunk = payload.chunk || '';
