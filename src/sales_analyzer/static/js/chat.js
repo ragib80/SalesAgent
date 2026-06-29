@@ -659,10 +659,31 @@ $(function () {
   }
 
   /* ── Streaming ── */
-  let streamingText  = '';
-  let $streamBubble  = null;
-  let _rafPending    = false;
-  let $msgList       = null;   // set once per exchange in sendMessage; shared by all stream helpers
+  let streamingText    = '';
+  let $streamBubble    = null;
+  let _rafPending      = false;
+  let $msgList         = null;  // the list element that holds THIS exchange's bubbles
+  let $lastUserBubble  = null;  // direct ref to the user bubble for THIS exchange
+
+  /* Return the live (in-document) message list, falling back gracefully. */
+  function _liveList() {
+    if ($msgList && $.contains(document.body, $msgList[0])) return $msgList;
+    return $('#messages-list').length ? $('#messages-list') : $('#chat-content');
+  }
+
+  /* After finalize, guarantee user bubble is directly before the AI bubble. */
+  function _fixOrder() {
+    const $c = $('#messages-list');
+    if (!$c.length) return;
+    const $rows  = $c.children('.msg-row');
+    if ($rows.length < 2) return;
+    const $aiRow   = $rows.filter((_, el) => !!$(el).find('.message.assistant').length).last();
+    const $userRow = $rows.filter((_, el) => !!$(el).find('.message.user').length).last();
+    if (!$aiRow.length || !$userRow.length) return;
+    if ($rows.index($aiRow[0]) < $rows.index($userRow[0])) {
+      $aiRow.insertAfter($userRow);
+    }
+  }
 
   function _ensureStreamBubble() {
     if ($streamBubble && $streamBubble.length) return;
@@ -675,17 +696,12 @@ $(function () {
           <div class="message-content stream-content"></div>
         </div>
       </div>`);
-    // Remove typing indicator, then append stream bubble to the EXACT same
-    // container that holds the user bubble ($msgList, captured in sendMessage).
-    // Never re-query the DOM here — a stale/replaced #messages-list would put
-    // the stream bubble in the wrong container or wrong position.
     if (typingIndicator) { typingIndicator.remove(); typingIndicator = null; }
-    if ($msgList && $msgList.length) {
-      $msgList.append($streamBubble);
+    // Insert stream bubble directly AFTER the user bubble so order is always correct.
+    if ($lastUserBubble && $.contains(document.body, $lastUserBubble[0])) {
+      $lastUserBubble.after($streamBubble);
     } else {
-      ensureMessageShell();
-      const $fb = $('#messages-list').length ? $('#messages-list') : $('#chat-content');
-      $fb.append($streamBubble);
+      _liveList().append($streamBubble);
     }
   }
 
@@ -704,22 +720,32 @@ $(function () {
 
   function _sseFinalize(answer, uuid) {
     _rafPending = false;
+    const $live = _liveList();
+
+    // Recover user bubble if it ended up detached (e.g. DOM was rebuilt mid-stream)
+    if ($lastUserBubble && !$.contains(document.body, $lastUserBubble[0])) {
+      $live.append($lastUserBubble);
+    }
 
     if ($streamBubble && $streamBubble.length) {
+      // Recover detached stream bubble
+      if (!$.contains(document.body, $streamBubble[0])) {
+        $live.append($streamBubble);
+      }
       const finalText = answer || streamingText;
       $streamBubble.find('.stream-content').html(marked.parse(finalText));
       $streamBubble.append(_actionsHtml(finalText));
       $streamBubble = null;
     } else {
       if (typingIndicator) { typingIndicator.remove(); typingIndicator = null; }
-      const $target = ($msgList && $msgList.length)
-        ? $msgList
-        : ($('#messages-list').length ? $('#messages-list') : $('#chat-content'));
-      $target.append(renderMessageEl({ sender: 'assistant', text: answer }));
+      $live.append(renderMessageEl({ sender: 'assistant', text: answer }));
     }
 
-    streamingText = '';
-    isSubmitting  = false;
+    // Final safety net: ensure user bubble is always before AI bubble
+    _fixOrder();
+
+    streamingText   = '';
+    isSubmitting    = false;
     updateSendButton();
     $('#message-input').prop('disabled', false).focus();
     requestAnimationFrame(() => scrollToBottom());
@@ -745,18 +771,20 @@ $(function () {
     const token = getAuthToken();
     if (!token) { window.location.href = '/welcome'; return; }
 
-    isSubmitting  = true;
-    streamingText = '';
-    $streamBubble = null;
-    $msgList      = null;
+    isSubmitting    = true;
+    streamingText   = '';
+    $streamBubble   = null;
+    $lastUserBubble = null;
+    $msgList        = null;
     $input.val('').css('height', 'auto').prop('disabled', true);
     updateSendButton();
     $('#char-counter').removeClass('visible warning overflow').text('');
 
-    // User bubble — capture $msgList once so every stream helper uses the same container
+    // User bubble — capture $msgList and $lastUserBubble so every stream helper uses them
     ensureMessageShell();
     $msgList = $('#messages-list').length ? $('#messages-list') : $('#chat-content');
     $msgList.append(renderMessageEl({ sender: userName, text }));
+    $lastUserBubble = $msgList.children('.msg-row').last();
     scrollToBottom();
 
     // Typing indicator
