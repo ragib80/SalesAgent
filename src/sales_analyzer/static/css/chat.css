@@ -1499,7 +1499,7 @@ body {
 [data-theme="dark"] .hl { background: rgba(251,191,36,.18); }
 
 /* ── 27. Stream content chunk fade-in ── */
-#stream-content > * { animation: chunk-fade-in .15s ease-out both; }
+.stream-content > * { animation: chunk-fade-in .15s ease-out both; }
 @keyframes chunk-fade-in { from { opacity: .4; } to { opacity: 1; } }
 
 /* ══════════════════════════════════════════════════════════════════════════
