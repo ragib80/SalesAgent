@@ -213,7 +213,7 @@ class ChatAPIView(APIView):
         return existing or self._create_new_conversation(user)
 
     def _create_message(self, conversation, sender_role, text):
-        Message.objects.create(conversation=conversation, sender=sender_role, text=text, is_deleted=False)
+        return Message.objects.create(conversation=conversation, sender=sender_role, text=text, is_deleted=False)
 
 
 class ChatStreamAPIView(ChatAPIView):
@@ -298,12 +298,32 @@ class ChatStreamAPIView(ChatAPIView):
                             answer = "sorry i am a baby now, day by day im learning from your prompt. for a better user experience."
 
                         self._create_message(conversation, "user", prompt)
-                        self._create_message(conversation, "bot", answer)
+                        bot_msg = self._create_message(conversation, "bot", answer)
 
-                        payload["answer"] = answer
-                        payload["uuid"] = conv_uuid
+                        # Save KQL server-side — never sent to the client
+                        kql_to_store = payload.get("result_kql") or ""
+                        if kql_to_store and hasattr(bot_msg, "kql"):
+                            bot_msg.kql = kql_to_store
+                            bot_msg.save(update_fields=["kql"])
+
+                        # Emit data event (no KQL) before final so the frontend
+                        # can store preview rows before the bubble is finalized
+                        result_cols = payload.get("result_cols")
+                        result_rows = payload.get("result_rows")
+                        if result_cols and result_rows is not None:
+                            yield _sse_event("data", {
+                                "cols": result_cols,
+                                "rows": result_rows[:100],
+                                "total_rows": payload.get("result_total_rows", len(result_rows)),
+                                "message_id": bot_msg.pk,
+                            })
+
                         final_sent = True
-                        yield _sse_event("final", payload)
+                        yield _sse_event("final", {
+                            "answer": answer,
+                            "uuid": conv_uuid,
+                            "message_id": bot_msg.pk,
+                        })
 
                     else:
                         yield _sse_event(event_name, payload)
@@ -394,3 +414,173 @@ class ExistingConversationAPIView(APIView):
             text=message_content,
             is_deleted=False
         )
+
+
+def _serialize_rows(cols, rows):
+    """Convert ADX result rows to JSON-serializable lists."""
+    import datetime as _dt
+    result = []
+    for row in rows:
+        row_dict = dict(zip(cols, row))
+        for k, v in row_dict.items():
+            if isinstance(v, (_dt.datetime, _dt.date)):
+                row_dict[k] = v.strftime("%Y-%m-%d")
+        result.append(list(row_dict.values()))
+    return result
+
+
+class DataQueryAPIView(APIView):
+    """
+    Return paginated ADX rows for a bot message that has a stored KQL.
+    The KQL is retrieved from Message.kql — it never crosses the network.
+
+    GET /api/sales/data/?message_id=<pk>&page=1&page_size=50&mode=table&search=<text>
+    GET /api/sales/data/?message_id=<pk>&mode=chart
+    """
+
+    authentication_classes = (JWTAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        import re as _re
+        import datetime as _dt
+        import logging as _logging
+        from agent.agent import (
+            _enforce_bukrs_filter,
+            _rewrite_kql_for_export,
+            _verify_kql_with_llm,
+            adx,
+            get_user_area_scope,
+        )
+
+        _log = _logging.getLogger(__name__)
+
+        message_id = request.query_params.get("message_id", "").strip()
+        mode       = request.query_params.get("mode", "table")  # "chart" | "table"
+        try:
+            page      = max(1, int(request.query_params.get("page", 1)))
+            page_size = min(200, max(10, int(request.query_params.get("page_size", 50))))
+        except (ValueError, TypeError):
+            return Response({"error": "Invalid page or page_size."}, status=status.HTTP_400_BAD_REQUEST)
+        search = (request.query_params.get("search") or "").strip()
+
+        if not message_id:
+            return Response({"error": "message_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 1. Ownership check
+        try:
+            msg = Message.objects.get(pk=message_id, conversation__user=request.user, is_deleted=False)
+        except (Message.DoesNotExist, ValueError):
+            return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        kql = (msg.kql or "").strip()
+        if not kql:
+            return Response({"error": "No data available for this message."}, status=status.HTTP_404_NOT_FOUND)
+
+        # 2. Verify bukrs == 1000 is present
+        if "bukrs" not in kql.lower() or "1000" not in kql:
+            return Response({"error": "KQL missing required company filter."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # 3. Re-enforce bukrs as defense-in-depth (idempotent when already present)
+        kql = _enforce_bukrs_filter(kql)
+
+        # 4. Re-enforce user area scope
+        try:
+            scope = get_user_area_scope(request.user)
+            if getattr(scope, "restricted", False):
+                if not scope.depots:
+                    return Response({"error": "No depot assigned to your account."}, status=status.HTTP_403_FORBIDDEN)
+                if "gsber" not in kql.lower():
+                    return Response({"error": "Scope enforcement failed."}, status=status.HTTP_403_FORBIDDEN)
+        except Exception:
+            pass  # fail-open for scope check errors
+
+        # ── Chart mode ────────────────────────────────────────────────────────
+        # Regex rewrites the trailing | top N (preserving 'by' clause) to | top 100.
+        if mode == "chart":
+            kql_chart = _rewrite_kql_for_export(kql, mode="chart")
+            _log.debug("[DataQueryAPIView/chart] kql: %.400s", kql_chart)
+            try:
+                cols, rows = adx().run(kql_chart)
+            except Exception as exc:
+                _log.warning("[DataQueryAPIView/chart] ADX error — attempting LLM fix: %s", exc)
+                kql_chart_fixed = _verify_kql_with_llm(kql_chart)
+                if kql_chart_fixed != kql_chart:
+                    try:
+                        cols, rows = adx().run(kql_chart_fixed)
+                    except Exception as exc2:
+                        _log.error("[DataQueryAPIView/chart] ADX error after LLM fix: %s", exc2)
+                        return Response({"error": str(exc2)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                else:
+                    _log.error("[DataQueryAPIView/chart] ADX error, LLM produced no change: %s", exc)
+                    return Response({"error": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            serialized = _serialize_rows(cols, rows)
+            return Response({"cols": list(cols), "rows": serialized}, status=status.HTTP_200_OK)
+
+        # ── Table mode ────────────────────────────────────────────────────────
+        # Regex strips the trailing | top N / | take N; caller appends pagination without | skip
+        # (ADX does not support bare | skip N — page 1 uses | take, page 2+ uses row_number()).
+        kql_base = _rewrite_kql_for_export(kql, mode="table_base")
+        _log.debug("[DataQueryAPIView/table] kql_base: %.400s", kql_base)
+
+        # Apply search filter
+        if search:
+            safe_search = _re.sub(r'["\']', '', search)[:100]
+            kql_base += f'\n| where * has "{safe_search}"'
+
+        # Count total rows on page 1 only
+        total_rows = None
+        total_pages = None
+        if page == 1:
+            try:
+                _, count_rows = adx().run(kql_base + "\n| count")
+                total_rows = int(count_rows[0][0]) if count_rows else 0
+                total_pages = -(-total_rows // page_size)
+            except Exception as exc:
+                _log.warning("[DataQueryAPIView/table] count query failed: %s", exc)
+
+        # Paginate — ADX does not support bare | skip N; use take-only for page 1
+        # and row_number() windowing for subsequent pages.
+        offset = (page - 1) * page_size
+        if offset == 0:
+            kql_paged = kql_base + f"\n| take {page_size}"
+        else:
+            kql_paged = (
+                kql_base
+                + f"\n| serialize rn = row_number()"
+                + f"\n| where rn between ({offset + 1} .. {offset + page_size})"
+                + f"\n| project-away rn"
+            )
+        _log.debug("[DataQueryAPIView/table] kql_paged: %.400s", kql_paged)
+
+        try:
+            cols, rows = adx().run(kql_paged)
+        except Exception as exc:
+            _log.warning("[DataQueryAPIView/table] ADX error — attempting LLM fix on kql_base: %s", exc)
+            kql_base_fixed = _verify_kql_with_llm(kql_base)
+            if kql_base_fixed != kql_base:
+                if offset == 0:
+                    kql_paged_fixed = kql_base_fixed + f"\n| take {page_size}"
+                else:
+                    kql_paged_fixed = (
+                        kql_base_fixed
+                        + f"\n| serialize rn = row_number()"
+                        + f"\n| where rn between ({offset + 1} .. {offset + page_size})"
+                        + f"\n| project-away rn"
+                    )
+                try:
+                    cols, rows = adx().run(kql_paged_fixed)
+                except Exception as exc2:
+                    _log.error("[DataQueryAPIView/table] ADX error after LLM fix: %s", exc2)
+                    return Response({"error": str(exc2)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            else:
+                _log.error("[DataQueryAPIView/table] ADX error, LLM produced no change: %s", exc)
+                return Response({"error": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        serialized = _serialize_rows(cols, rows)
+        result = {"cols": list(cols), "rows": serialized, "page": page, "page_size": page_size}
+        if total_rows is not None:
+            result["total_rows"] = total_rows
+            result["total_pages"] = total_pages
+        return Response(result, status=status.HTTP_200_OK)

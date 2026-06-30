@@ -505,6 +505,27 @@ $(function () {
     const html    = marked.parse(rawText);
 
     if (role === 'assistant') {
+      const historyToggle = (m.has_data && m.id)
+        ? `<div class="vis-accordions vis-history-mode" data-message-id="${m.id}">
+             <div class="vis-accordion" data-type="chart">
+               <button class="vis-accordion-header">
+                 <i class="bi bi-bar-chart" aria-hidden="true"></i>
+                 <span>Chart</span>
+                 <i class="bi bi-chevron-down vis-chevron" aria-hidden="true"></i>
+               </button>
+               <div class="vis-accordion-body" style="display:none;"></div>
+             </div>
+             <div class="vis-accordion" data-type="table">
+               <button class="vis-accordion-header">
+                 <i class="bi bi-table" aria-hidden="true"></i>
+                 <span>Table</span>
+                 <i class="bi bi-chevron-down vis-chevron" aria-hidden="true"></i>
+               </button>
+               <div class="vis-accordion-body" style="display:none;"></div>
+             </div>
+           </div>`
+        : '';
+
       return `
         <div class="msg-row">
           <div class="message ${cls}">
@@ -512,6 +533,7 @@ $(function () {
             <div class="message-content">${html}</div>
           </div>
           ${_actionsHtml(rawText)}
+          ${historyToggle}
         </div>
       `;
     }
@@ -665,6 +687,10 @@ $(function () {
   let $msgList         = null;  // the list element that holds THIS exchange's bubbles
   let $lastUserBubble  = null;  // direct ref to the user bubble for THIS exchange
 
+  /* ── Visualization state (per SSE exchange) ── */
+  let _pendingChartData = null;   // {cols, rows, total_rows, message_id} from data event
+  const _visStore = new WeakMap(); // DOM element → {cols, rows, total_rows, messageId}
+
   /* Return the live (in-document) message list, falling back gracefully. */
   function _liveList() {
     if ($msgList && $.contains(document.body, $msgList[0])) return $msgList;
@@ -743,6 +769,16 @@ $(function () {
 
     // Final safety net: ensure user bubble is always before AI bubble
     _fixOrder();
+
+    // Attach visualization toggles if we received a data event for this exchange
+    if (_pendingChartData) {
+      const chartData = _pendingChartData;
+      _pendingChartData = null;
+      const $aiRow = _liveList().children('.msg-row').filter((_, el) =>
+        !!$(el).find('.message.assistant').length
+      ).last();
+      if ($aiRow.length) _attachVisToggles($aiRow, chartData);
+    }
 
     streamingText   = '';
     isSubmitting    = false;
@@ -861,11 +897,24 @@ $(function () {
                 _ensureStreamBubble();
                 _scheduleStreamRender();
               }
+            } else if (eventName === 'data') {
+              if (payload.cols && Array.isArray(payload.rows)) {
+                _pendingChartData = {
+                  cols: payload.cols,
+                  rows: payload.rows,
+                  total_rows: payload.total_rows || payload.rows.length,
+                  message_id: payload.message_id || null,
+                };
+              }
             } else if (eventName === 'final') {
               const answer = (payload.answer || streamingText || '').trim()
                 || 'I prepared the results for you — see details below.';
+              if (_pendingChartData && payload.message_id && !_pendingChartData.message_id) {
+                _pendingChartData.message_id = payload.message_id;
+              }
               _sseFinalize(answer, payload.uuid);
             } else if (eventName === 'error') {
+              _pendingChartData = null;
               const msg = (payload.message || 'Something went wrong.').trim();
               _sseFinalize(msg, payload.uuid);
             }
@@ -962,7 +1011,275 @@ $(function () {
   fetchChats(false);
   startNewChat();
   updateSendButton();
+
+  /* ── Visualization: unified accordion handler (chart + table, live + history) ── */
+  $(document).on('click', '.vis-accordion-header', function () {
+    const $header = $(this);
+    const $accordion = $header.closest('.vis-accordion');
+    const $body = $accordion.find('.vis-accordion-body');
+    const $wrap = $accordion.closest('.vis-accordions');
+    const type = $accordion.data('type');
+    const isOpen = $body.is(':visible');
+
+    $body.toggle(!isOpen);
+    $header.toggleClass('open', !isOpen);
+
+    if (!isOpen && !$body.data('loaded')) {
+      $body.data('loaded', true);
+
+      // Live session: vis-uid; historical message: message-id
+      const messageId = $wrap.data('vis-uid') || $wrap.data('message-id');
+
+      window._visStore = window._visStore || new WeakMap();
+      const preview = window._visStore.get($wrap[0]);
+
+      if (type === 'chart') {
+        if (preview) {
+          _renderChart($body[0], preview.cols, preview.rows);
+        } else if (messageId) {
+          _loadChartFromApi($body[0], messageId);
+        } else {
+          $body.html('<p class="vis-error">No chart data available.</p>');
+        }
+      } else if (type === 'table') {
+        if (preview && !$wrap.hasClass('vis-history-mode')) {
+          _renderPreviewTable($body[0], preview.cols, preview.rows, preview.total_rows, preview.message_id);
+        } else if (messageId) {
+          _loadFullTable($body[0], messageId, 1, '');
+        } else {
+          $body.html('<p class="vis-error">No table data available.</p>');
+        }
+      }
+    }
+  });
 });
+
+/* ═══════════════════════════════════════════════════════
+   Visualization helpers (outside $(function) — global scope)
+   ═══════════════════════════════════════════════════════ */
+
+/* Attach two accordions (Chart + Table) after a live assistant message row */
+function _attachVisToggles($msgRow, chartData) {
+  const { cols, rows, total_rows, message_id } = chartData;
+  const uid = message_id || ('vis-' + Date.now());
+
+  const $accordions = $(`
+    <div class="vis-accordions" data-vis-uid="${uid}">
+      <div class="vis-accordion" data-type="chart">
+        <button class="vis-accordion-header">
+          <i class="bi bi-bar-chart" aria-hidden="true"></i>
+          <span>Chart</span>
+          <i class="bi bi-chevron-down vis-chevron" aria-hidden="true"></i>
+        </button>
+        <div class="vis-accordion-body" style="display:none;"></div>
+      </div>
+      <div class="vis-accordion" data-type="table">
+        <button class="vis-accordion-header">
+          <i class="bi bi-table" aria-hidden="true"></i>
+          <span>Table</span>
+          <span class="vis-accordion-count">${total_rows} records</span>
+          <i class="bi bi-chevron-down vis-chevron" aria-hidden="true"></i>
+        </button>
+        <div class="vis-accordion-body" style="display:none;"></div>
+      </div>
+    </div>
+  `);
+
+  $msgRow.after($accordions);
+
+  // Store preview rows keyed on wrapper — live chart/table render uses these (no API call)
+  window._visStore = window._visStore || new WeakMap();
+  window._visStore.set($accordions[0], { cols, rows, total_rows, message_id });
+}
+
+/* ── Chart renderer (ECharts) ── */
+function _renderChart(container, cols, rows) {
+  if (typeof echarts === 'undefined') {
+    container.innerHTML = '<p class="vis-error">Chart library not loaded.</p>';
+    return;
+  }
+  if (!rows || !rows.length) {
+    container.innerHTML = '<p class="vis-error">No data to chart.</p>';
+    return;
+  }
+
+  container.style.height = '360px';
+  const chart = echarts.init(container);
+
+  const firstRow = rows[0];
+
+  // Detect label column (string) and value column (number)
+  let labelIdx = cols.findIndex((c, i) =>
+    /name|brand|product|dealer|zone|territory|gsber|period|month|depo/i.test(c) ||
+    typeof firstRow[i] === 'string'
+  );
+  let valIdx = cols.findIndex((c, i) =>
+    /revenue|quantity|volume|growth|pct|amount|count|sales/i.test(c) ||
+    typeof firstRow[i] === 'number'
+  );
+
+  if (labelIdx < 0) labelIdx = 0;
+  if (valIdx < 0 || valIdx === labelIdx) valIdx = labelIdx === 0 ? 1 : 0;
+
+  const labels = rows.map(r => String(r[labelIdx] ?? ''));
+  const values = rows.map(r => Number(r[valIdx] ?? 0));
+
+  // Use line chart if labels look like dates/periods
+  const isTime = labels.every(l => /^\d{4}[-/]/.test(l));
+
+  chart.setOption({
+    tooltip: { trigger: 'axis', axisPointer: { type: isTime ? 'line' : 'shadow' } },
+    grid: { left: isTime ? '8%' : '25%', right: '5%', top: '10%', bottom: '12%', containLabel: true },
+    xAxis: isTime
+      ? { type: 'category', data: labels, axisLabel: { rotate: 30 } }
+      : { type: 'value', name: cols[valIdx] || '' },
+    yAxis: isTime
+      ? { type: 'value', name: cols[valIdx] || '' }
+      : { type: 'category', data: labels, axisLabel: { width: 160, overflow: 'truncate' } },
+    series: [{
+      type: isTime ? 'line' : 'bar',
+      data: values,
+      barMaxWidth: 32,
+      smooth: isTime,
+      itemStyle: { color: '#10a37f' },
+    }],
+  });
+
+  window.addEventListener('resize', () => chart.resize());
+}
+
+/* ── Chart from API (historical messages — re-runs stored KQL with limit 100) ── */
+async function _loadChartFromApi(container, messageId) {
+  const token = localStorage.getItem('auth_token');
+  if (!token) return;
+
+  const $c = $(container);
+  $c.css('height', '360px').html(
+    '<div class="vis-loading"><span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading chart…</div>'
+  );
+
+  try {
+    const params = new URLSearchParams({ message_id: messageId, mode: 'chart', page: 1, page_size: 100 });
+    const resp = await fetch(`${apiBase}/sales/data/?${params}`, {
+      headers: { Authorization: 'Bearer ' + token },
+    });
+    if (!resp.ok) {
+      $c.css('height', '').html('<p class="vis-error">Failed to load chart data.</p>');
+      return;
+    }
+    const data = await resp.json();
+    $c.html('');
+    _renderChart(container, data.cols, data.rows);
+  } catch {
+    $c.css('height', '').html('<p class="vis-error">Error loading chart data.</p>');
+  }
+}
+
+/* ── Preview table (from SSE rows) ── */
+function _renderPreviewTable(container, cols, rows, totalRows, messageId) {
+  const isTruncated = totalRows > rows.length;
+
+  const thead = `<thead><tr>${cols.map(c => `<th>${escapeAttr(String(c))}</th>`).join('')}</tr></thead>`;
+  const buildTbody = (data) =>
+    `<tbody>${data.map(row =>
+      `<tr>${row.map(v => `<td>${escapeAttr(String(v ?? ''))}</td>`).join('')}</tr>`
+    ).join('')}</tbody>`;
+
+  const $wrap = $(`
+    <div class="vis-table-wrap">
+      <div class="vis-table-toolbar">
+        <input class="vis-search-input" placeholder="Search preview…" aria-label="Search table" />
+        <span class="vis-row-count">Showing ${rows.length} of ${totalRows} records</span>
+        ${isTruncated && messageId
+          ? `<button class="vis-load-all-btn" data-message-id="${messageId}">Load all records</button>`
+          : ''}
+      </div>
+      <div class="vis-table-scroll">
+        <table class="vis-data-table">${thead}${buildTbody(rows)}</table>
+      </div>
+    </div>
+  `);
+
+  // Client-side search on preview rows
+  $wrap.find('.vis-search-input').on('input', function () {
+    const q = $(this).val().toLowerCase();
+    $wrap.find('.vis-data-table tbody tr').each(function () {
+      $(this).toggle(!q || $(this).text().toLowerCase().includes(q));
+    });
+  });
+
+  // Load all records
+  $wrap.find('.vis-load-all-btn').on('click', function () {
+    const mid = $(this).data('message-id');
+    $(container).empty();
+    _loadFullTable(container, mid, 1, '');
+  });
+
+  $(container).empty().append($wrap);
+}
+
+/* ── Full paginated table (fetches from /api/sales/data/) ── */
+async function _loadFullTable(container, messageId, page, search) {
+  const token = localStorage.getItem('auth_token');
+  if (!token) return;
+
+  const $c = $(container);
+  $c.html('<div class="vis-loading"><span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading…</div>');
+
+  try {
+    const params = new URLSearchParams({ message_id: messageId, page, page_size: 50 });
+    if (search) params.set('search', search);
+
+    const resp = await fetch(`${apiBase}/sales/data/?${params}`, {
+      headers: { Authorization: 'Bearer ' + token },
+    });
+    if (!resp.ok) { $c.html('<p class="vis-error">Failed to load data.</p>'); return; }
+
+    const data = await resp.json();
+    const { cols, rows, page: pg, page_size, total_rows, total_pages } = data;
+
+    // Cache total_rows on container for pagination without re-fetching count
+    if (total_rows !== undefined) $c.data('total_rows', total_rows);
+    if (total_pages !== undefined) $c.data('total_pages', total_pages);
+    const cachedTotal = $c.data('total_rows') || rows.length;
+    const cachedPages = $c.data('total_pages') || 1;
+
+    const thead = `<thead><tr>${cols.map(c => `<th>${escapeAttr(String(c))}</th>`).join('')}</tr></thead>`;
+    const tbody = `<tbody>${rows.map(row =>
+      `<tr>${row.map(v => `<td>${escapeAttr(String(v ?? ''))}</td>`).join('')}</tr>`
+    ).join('')}</tbody>`;
+
+    let searchTimer;
+    const $wrap = $(`
+      <div class="vis-table-wrap">
+        <div class="vis-table-toolbar">
+          <input class="vis-search-input vis-server-search" placeholder="Search all records…" value="${escapeAttr(search)}" aria-label="Search all records" />
+          <span class="vis-row-count">${cachedTotal} total records</span>
+        </div>
+        <div class="vis-table-scroll">
+          <table class="vis-data-table">${thead}${tbody}</table>
+        </div>
+        <div class="vis-pagination">
+          <button class="vis-page-btn vis-page-prev" ${pg <= 1 ? 'disabled' : ''}>&#8249; Prev</button>
+          <span class="vis-page-label">Page ${pg} of ${cachedPages}</span>
+          <button class="vis-page-btn vis-page-next" ${pg >= cachedPages ? 'disabled' : ''}>Next &#8250;</button>
+        </div>
+      </div>
+    `);
+
+    $wrap.find('.vis-server-search').on('input', function () {
+      clearTimeout(searchTimer);
+      const q = $(this).val().trim();
+      searchTimer = setTimeout(() => _loadFullTable(container, messageId, 1, q), 300);
+    });
+    $wrap.find('.vis-page-prev').on('click', () => _loadFullTable(container, messageId, pg - 1, search));
+    $wrap.find('.vis-page-next').on('click', () => _loadFullTable(container, messageId, pg + 1, search));
+
+    $c.empty().append($wrap);
+  } catch {
+    $c.html('<p class="vis-error">Error loading data.</p>');
+  }
+}
 
 /* ── Global: dropdown & misc handlers ── */
 

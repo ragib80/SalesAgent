@@ -1064,6 +1064,82 @@ def _enforce_bukrs_filter(kql: str) -> str:
     return fixed
 
 
+def _rewrite_kql_for_export(kql: str, *, mode: str = "table_base") -> str:
+    """
+    Rewrite the outermost KQL limit clause using regex (no LLM).
+
+    mode='chart'      : change N in the trailing | top N by col [dir] to 100,
+                        preserving the required 'by' clause; or | take N → | take 100.
+    mode='table_base' : remove the trailing | top N by col [dir] or | take N entirely
+                        so the caller can append | skip N | take M for pagination.
+
+    Uses regex instead of LLM to guarantee the 'by' clause is never dropped
+    (LLM was erroneously emitting bare '| top 100' which is invalid KQL).
+    """
+    # Strip trailing semicolons/whitespace first so $ anchors cleanly
+    kql = kql.rstrip(";").strip()
+
+    # Matches: | top N by <expr> at the very end of the query (single-line by clause).
+    # KQL 'top' ALWAYS requires 'by' — capturing group preserves it.
+    _re_top = re.compile(
+        r"\|\s*top\s+\d+(\s+by\s+[^\n]+?)\s*$",
+        re.IGNORECASE,
+    )
+    # Matches: | take N at the very end of the query (no 'by' needed for 'take').
+    _re_take = re.compile(
+        r"\|\s*take\s+\d+\s*$",
+        re.IGNORECASE,
+    )
+
+    if mode == "chart":
+        # Replace N with 50 but keep the 'by col [dir]' clause intact
+        result = _re_top.sub(r"| top 50\1", kql)
+        if result == kql:
+            result = _re_take.sub("| take 50", kql)
+        if result == kql:
+            # No trailing limit found — add a safe cap
+            result = kql + "\n| take 50"
+        return result.strip()
+
+    # table_base: strip the outermost limit so caller can paginate
+    result = _re_top.sub("", kql).rstrip(";").strip()
+    if result == kql:
+        result = _re_take.sub("", kql).rstrip(";").strip()
+    return result
+
+
+def _verify_kql_with_llm(kql: str) -> str:
+    """
+    Ask the LLM to verify and, if needed, fix a KQL query's syntax.
+
+    Returns the corrected KQL on success, or the original on any failure.
+    Called as a fallback after an ADX execution error — not on every request.
+    """
+    try:
+        response = llm.invoke([
+            {
+                "role": "system",
+                "content": (
+                    "You are a KQL (Kusto Query Language) syntax expert. "
+                    "You will be given a KQL query that may have a syntax error. "
+                    "Fix only the syntax error — never change filters, logic, or operators. "
+                    "Return ONLY the corrected KQL. No explanation, no markdown fences."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"Fix any syntax errors in this KQL:\n\n{kql}",
+            },
+        ])
+        result = (getattr(response, "content", str(response)) or "").strip()
+        result = re.sub(r"^```(?:kql|kusto|sql)?\s*\n?", "", result, flags=re.IGNORECASE).strip()
+        result = re.sub(r"\n?```\s*$", "", result).strip()
+        return result if result else kql
+    except Exception:
+        logger.warning("_verify_kql_with_llm: LLM call failed; returning original KQL")
+        return kql
+
+
 # def build_trend_kql(start: str, end: str, dim_col: str, top_n: int = 5) -> str:
 #     return f"""
 # // 1) input dates
@@ -2569,7 +2645,23 @@ def handle_user_query(
             _audit.get("adx_row_count") or 0,
             _audit.get("total_tokens") or 0,
         )
-        return _summary_answer
+
+        # Serialize all raw rows for chart/table preview (separate from the LLM slice above)
+        raw_rows_serialized = []
+        for row in rows:
+            row_dict = dict(zip(cols, row))
+            for k, v in row_dict.items():
+                if isinstance(v, datetime.datetime):
+                    row_dict[k] = v.strftime("%Y-%m-%d")
+            raw_rows_serialized.append(list(row_dict.values()))
+
+        return {
+            "answer": _summary_answer,
+            "cols": list(cols),
+            "rows": raw_rows_serialized,
+            "total_rows": len(rows),
+            "kql": kql,
+        }
 
     except Exception as exc:
         _audit["error_message"] = str(exc)

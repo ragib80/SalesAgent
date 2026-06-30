@@ -141,14 +141,18 @@ def execute_existing_agent_node(state: SalesAgentState) -> SalesAgentState:
             ),
         }
 
-    return {
+    new_state: dict[str, Any] = {
         "result": result,
-        "events": _append_event(
-            state,
-            "status",
-            "Preparing response",
-        ),
+        "events": _append_event(state, "status", "Preparing response"),
     }
+
+    if isinstance(result, dict):
+        new_state["result_cols"] = result.get("cols")
+        new_state["result_rows"] = result.get("rows")
+        new_state["result_total_rows"] = result.get("total_rows")
+        new_state["result_kql"] = result.get("kql")
+
+    return new_state
 
 
 def finalize_response_node(state: SalesAgentState) -> SalesAgentState:
@@ -180,6 +184,14 @@ def finalize_response_node(state: SalesAgentState) -> SalesAgentState:
         final_payload["operation_plan"] = result.get("operation_plan")
 
     final_payload["answer"] = answer
+
+    # Pass raw result data through so the workflow can include it in the SSE final event
+    if state.get("result_cols") is not None:
+        final_payload["result_cols"] = state.get("result_cols")
+        final_payload["result_rows"] = state.get("result_rows")
+        final_payload["result_total_rows"] = state.get("result_total_rows")
+        final_payload["result_kql"] = state.get("result_kql")
+
     return {
         "answer": answer,
         "events": _append_event(

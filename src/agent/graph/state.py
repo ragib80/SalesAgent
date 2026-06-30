@@ -20,3 +20,7 @@ class SalesAgentState(TypedDict, total=False):
     error: str
     events: list[dict[str, Any]]
     on_token: Any
+    result_cols: list[str] | None
+    result_rows: list[list] | None
+    result_total_rows: int | None
+    result_kql: str | None

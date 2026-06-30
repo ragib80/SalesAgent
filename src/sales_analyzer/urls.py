@@ -1,5 +1,5 @@
 from django.urls import path
-from sales_analyzer.views import ChatView, ChatAPIView, ChatStreamAPIView, ExistingConversationAPIView
+from sales_analyzer.views import ChatView, ChatAPIView, ChatStreamAPIView, ExistingConversationAPIView, DataQueryAPIView
 from sales_analyzer.prompt_helper_view import GetFilterValuesAPIView, ApplyFiltersAPIView,DynamicFieldAutocompleteAPIView,PromptSuggestionAPIView
 
 urlpatterns = [
@@ -14,5 +14,6 @@ urlpatterns = [
 
       path('autocomplete/', DynamicFieldAutocompleteAPIView.as_view(), name='dynamic_autocomplete'),
       path('prompt-suggestions/', PromptSuggestionAPIView.as_view(), name='dynamic_prompt_suggestions'),
-    
+
+    path('data/', DataQueryAPIView.as_view(), name='sales-data'),
 ]

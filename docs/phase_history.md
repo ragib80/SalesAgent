@@ -466,3 +466,78 @@ No other migration steps are required. Existing clients do not need to change.
 
 ### Next Phase
 Phase 5.3 — Persistent user memory (cross-session preferences, frequently used filters) using the existing MS SQL Server conversation infrastructure.
+
+## Phase Render — Interactive Data Visualization (Bar Chart + Full Tabular View)
+
+### Date
+2026-06-29
+
+### Objective
+Add interactive data visualization to the chat UI. Every successful SAP sales ADX query response now includes a 3-way toggle — Chat (LLM narrative), Chart (ECharts bar/line), Table (searchable, paginated) — without breaking any existing API contracts, SSE event shapes, or access-scope enforcement.
+
+### Architecture Changes
+- Added a nullable `kql` field to the `Message` model so the executed KQL is stored server-side alongside the bot answer. The KQL **never crosses the network** — the browser only receives a `message_id` integer.
+- Extended `handle_user_query()` to return a `dict` (`answer`, `cols`, `rows`, `total_rows`, `kql`) for sales queries. Non-sales queries still return a plain `str`. Backward compatibility preserved via the existing `_extract_answer()` helper.
+- Extended `SalesAgentState` with four optional fields: `result_cols`, `result_rows`, `result_total_rows`, `result_kql`.
+- Updated `execute_existing_agent_node` to unpack the dict result into graph state.
+- Updated `finalize_response_node` to pass raw data fields into the `final` graph event payload via `**final_payload`.
+- Added a new `data` SSE event emitted before `final`; payload contains `cols`, `rows` (capped at 100), `total_rows` — no KQL.
+- Added `message_id` to the `final` SSE event so the frontend can reference the stored KQL for full table loads.
+- Added `DataQueryAPIView` at `GET /api/sales/data/` that performs ownership check, Phase 3 KQL validation, `bukrs` re-enforcement, user scope re-check, `top N` / `take N` stripping, optional search, count, and pagination — all server-side.
+- Added ECharts 5 CDN to the chat template.
+
+### Security Design
+The KQL is stored in `Message.kql` (server-side only). Every `/api/sales/data/` request requires:
+1. `Message.objects.get(pk=message_id, conversation__user=request.user)` — ownership check, 404 on mismatch.
+2. `validate_kql()` / `normalize_kql_for_execution()` — Phase 3 validator re-runs before every ADX execution.
+3. `_enforce_bukrs_filter()` — `bukrs == 1000` re-applied even if already present.
+4. `get_user_area_scope()` — restricted user scope re-checked; 403 if a restricted user somehow references an admin KQL.
+5. Search parameter sanitized: quotes stripped, length capped at 100, injected only as `| where * has "..."`.
+
+### Features Implemented
+- 3-way Chat / Chart / Table toggle bar on every sales query response.
+- ECharts bar chart (auto-switches to line chart for time-series data based on label column detection).
+- Preview table from SSE rows (up to 100): client-side search, row count badge.
+- "Load all records" button triggers `_loadFullTable`: server-side pagination, 300 ms debounced search, Prev/Next controls.
+- Toggle buttons on **historical messages** (conversation reload): `has_data` field from the message serializer drives rendering. Chart is disabled (no preview rows available from history); Table loads from `/api/sales/data/` on first click.
+- `WeakMap` per-element chart data store to prevent memory leaks.
+
+### Files Added
+- `src/conversation/migrations/0005_add_kql_to_message.py` — migration for the `kql` field.
+- `docs/render/phase_render_visualization.md` — full architecture, security, testing checklist, implementation steps.
+
+### Files Modified
+| File | Change |
+|---|---|
+| `src/conversation/models/message.py` | Added `kql = models.TextField(null=True, blank=True)` |
+| `src/conversation/serializers.py` | Added `has_data` `SerializerMethodField` — `bool(obj.kql)` |
+| `src/agent/agent.py` | `handle_user_query` returns dict for sales queries; KQL included for server-side storage |
+| `src/agent/graph/state.py` | Added `result_cols`, `result_rows`, `result_total_rows`, `result_kql` optional fields |
+| `src/agent/graph/nodes.py` | `execute_existing_agent_node` unpacks dict result into state; `finalize_response_node` passes raw data into final event payload |
+| `src/sales_analyzer/views.py` | `_create_message` returns created object; `ChatStreamAPIView` emits `data` SSE event and saves KQL to `Message.kql`; added `DataQueryAPIView` |
+| `src/sales_analyzer/urls.py` | Registered `GET sales/data/` → `DataQueryAPIView` |
+| `src/sales_analyzer/static/js/chat.js` | `data` SSE handler; `_pendingChartData`; `_attachVisToggles`; `_renderChart`; `_renderPreviewTable`; `_loadFullTable`; historical message toggle support |
+| `src/sales_analyzer/static/css/chat.css` | Visualization styles: toggle bar, buttons, chart panel, table, pagination, loading/error states, mobile breakpoint |
+| `src/sales_analyzer/templates/sales/chat_index.html` | Added ECharts 5 CDN `<script>` tag |
+
+### Breaking Changes
+None. The `final` SSE event gains one additive field (`message_id`). All existing `answer` and `uuid` fields are unchanged. Non-streaming endpoints (`ChatAPIView`, `ExistingConversationAPIView`) are unaffected. Non-sales queries still return a plain string.
+
+### Migration Steps
+```bash
+python manage.py migrate conversation
+```
+Migration `0005_add_kql_to_message` adds the nullable `kql` column to the `Message` table. No data migration required. Existing rows default to `null`.
+
+### Testing Performed
+- Ran `python manage.py migrate conversation` — `0005_add_kql_to_message` applied cleanly.
+- Ran `python manage.py check` — 0 issues.
+
+### Known Issues or Limitations
+- The Chart view is only available for the current session (SSE preview rows). Historical messages show Chart as disabled because preview rows are not re-fetched from ADX on conversation load (by design — avoids unnecessary ADX queries on page load).
+- ECharts is loaded from CDN; on networks without internet access the chart panel will show a graceful fallback error message and the Chart button is automatically disabled.
+- `total_rows` / `total_pages` count query runs on page 1 only and is cached client-side; navigating between pages does not re-count.
+- Streaming token requests record `total_tokens = 0` in the audit table (same limitation as Phase 6).
+
+### Reference
+Full architecture, security model, data flow diagram, and testing checklist: [docs/render/phase_render_visualization.md](render/phase_render_visualization.md)

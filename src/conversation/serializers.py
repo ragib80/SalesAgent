@@ -6,6 +6,11 @@ from conversation.models.message import Message
 
 
 class MessageSerializer(serializers.ModelSerializer):
+    has_data = serializers.SerializerMethodField()
+
+    def get_has_data(self, obj):
+        return bool(obj.kql)
+
     class Meta:
         model = Message
         fields = '__all__'

@@ -17,6 +17,7 @@ class Message(AuditModel):
     response_time_ms = models.IntegerField(null=True, blank=True)
     is_deleted = models.BooleanField(default=False)  # <-- add this
     ai_model_response = models.TextField(null=True, blank=True)
+    kql = models.TextField(null=True, blank=True)
 
     objects = models.Manager()         # Default manager
     active = ActiveManager()           # Custom manager
