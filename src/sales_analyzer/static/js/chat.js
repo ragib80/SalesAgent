@@ -1036,10 +1036,14 @@ $(function () {
       window._visStore = window._visStore || new WeakMap();
       const preview = window._visStore.get($wrap[0]);
 
-      if (preview && !$wrap.hasClass('vis-history-mode')) {
-        _renderPreviewTable($body[0], preview.cols, preview.rows, preview.total_rows, preview.message_id);
-      } else if (messageId) {
-        _loadFullTable($body[0], messageId, 1, '');
+      // Prefer full paginated table when a numeric message_id is available (consistent with reload)
+      const rawMid = messageId || (preview && preview.message_id);
+      const tableMessageId = rawMid && /^\d+$/.test(String(rawMid)) ? rawMid : null;
+
+      if (tableMessageId) {
+        _loadFullTable($body[0], tableMessageId);
+      } else if (preview) {
+        _renderPreviewTable($body[0], preview.cols, preview.rows, preview.total_rows, null);
       } else {
         $body.html('<p class="vis-error">No table data available.</p>');
       }
@@ -1053,10 +1057,30 @@ function _openChartOffcanvas($wrap) {
   window._visStore = window._visStore || new WeakMap();
   const preview = window._visStore.get($wrap[0]);
 
-  window._chartOffcanvasPending = { preview, messageId };
-
   const offcanvasEl = document.getElementById('chartOffcanvas');
   if (!offcanvasEl) return;
+
+  // If the offcanvas is already visible, shown.bs.offcanvas won't fire again — render immediately
+  if (offcanvasEl.classList.contains('show')) {
+    const container = document.getElementById('chartOffcanvasContainer');
+    if (container) {
+      if (window._chartOffcanvasInstance) {
+        try { window._chartOffcanvasInstance.dispose(); } catch (_) {}
+        window._chartOffcanvasInstance = null;
+      }
+      container.innerHTML = '';
+      if (preview) {
+        _renderChart(container, preview.cols, preview.rows);
+      } else if (messageId) {
+        _loadChartFromApi(container, messageId);
+      } else {
+        container.innerHTML = '<p class="vis-error">No chart data available.</p>';
+      }
+    }
+    return;
+  }
+
+  window._chartOffcanvasPending = { preview, messageId };
   bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl).show();
 }
 
@@ -1159,7 +1183,7 @@ function _fmtCell(v) {
 }
 
 /* ── Chart renderer (ECharts) ── */
-function _renderChart(container, cols, rows) {
+function _renderChart(container, cols, rows, selectedValIdx) {
   if (typeof echarts === 'undefined') {
     container.innerHTML = '<p class="vis-error">Chart library not loaded.</p>';
     return;
@@ -1170,6 +1194,55 @@ function _renderChart(container, cols, rows) {
   }
 
   const isOffcanvas = container.id === 'chartOffcanvasContainer';
+  const firstRow = rows[0];
+  const _coerceNum = v => (v === null || v === undefined || v === '') ? NaN : Number(v);
+  // Columns that carry aggregate metrics — must not be picked as the category/label axis
+  const metricRegex = /revenue|quantity|volume|growth|pct|amount|count|sales|total|invoice/i;
+
+  // ── Label col (dimension) ──────────────────────────────────────────────────────
+  // Three-pass: named dimension keyword (excluding metric cols) → first non-metric string → first non-metric col
+  let labelIdx = cols.findIndex(c =>
+    !metricRegex.test(c) &&
+    /name|brand|product|zone|territory|period|month|depo|cname|wgbez|arktx|szone/i.test(c)
+  );
+  if (labelIdx < 0) labelIdx = cols.findIndex((c, i) => !metricRegex.test(c) && typeof firstRow[i] === 'string');
+  if (labelIdx < 0) labelIdx = cols.findIndex(c => !metricRegex.test(c));
+  if (labelIdx < 0) labelIdx = 0;
+
+  // ── Metric cols (all value candidates, excluding label col) ───────────────────
+  const metricIdxs = cols
+    .map((c, i) => i)
+    .filter(i => i !== labelIdx && (metricRegex.test(cols[i]) || !isNaN(_coerceNum(firstRow[i]))));
+
+  // Pick active value col: honour selectedValIdx if valid, else first metric col
+  let valIdx = (selectedValIdx != null && selectedValIdx >= 0 && metricIdxs.includes(selectedValIdx))
+    ? selectedValIdx
+    : (metricIdxs[0] ?? (labelIdx === 0 ? 1 : 0));
+
+  // ── Column picker (shown when multiple metrics exist) ─────────────────────────
+  const parent = container.parentElement;
+  if (parent) { const p = parent.querySelector('.chart-col-picker'); if (p) p.remove(); }
+  if (metricIdxs.length > 1 && parent && isOffcanvas) {
+    const picker = document.createElement('div');
+    picker.className = 'chart-col-picker';
+    metricIdxs.forEach(idx => {
+      const btn = document.createElement('button');
+      btn.className = 'chart-col-btn' + (idx === valIdx ? ' active' : '');
+      btn.textContent = cols[idx];
+      btn.onclick = () => {
+        container.innerHTML = '';
+        if (window._chartOffcanvasInstance) {
+          try { window._chartOffcanvasInstance.dispose(); } catch (_) {}
+          window._chartOffcanvasInstance = null;
+        }
+        _renderChart(container, cols, rows, idx);
+      };
+      picker.appendChild(btn);
+    });
+    parent.insertBefore(picker, container);
+  }
+
+  // ── Chart init ────────────────────────────────────────────────────────────────
   if (isOffcanvas) {
     container.style.height = Math.max(400, rows.length * 36 + 80) + 'px';
   } else {
@@ -1185,27 +1258,18 @@ function _renderChart(container, cols, rows) {
     window._chartOffcanvasInstance = chart;
   }
 
-  const firstRow = rows[0];
-  let labelIdx = cols.findIndex((c, i) =>
-    /name|brand|product|dealer|zone|territory|gsber|period|month|depo/i.test(c) ||
-    typeof firstRow[i] === 'string'
-  );
-  let valIdx = cols.findIndex((c, i) =>
-    /revenue|quantity|volume|growth|pct|amount|count|sales/i.test(c) ||
-    typeof firstRow[i] === 'number'
-  );
-  if (labelIdx < 0) labelIdx = 0;
-  if (valIdx < 0 || valIdx === labelIdx) valIdx = labelIdx === 0 ? 1 : 0;
-
+  // ── Data preparation ──────────────────────────────────────────────────────────
   const rawLabels = rows.map(r => String(r[labelIdx] ?? ''));
-  const rawValues = rows.map(r => Number(r[valIdx] ?? 0));
+  const rawValues = rows.map(r => _coerceNum(r[valIdx]));
   const isTime = rawLabels.every(l => /^\d{4}[-/]/.test(l));
 
-  // Bar charts: sort descending so highest value is shown at top (yAxis inverse:true)
+  // Bar charts: sort descending, drop null/empty labels and NaN values
   let labels = rawLabels;
   let values = rawValues;
   if (!isTime) {
-    const pairs = rawLabels.map((l, i) => ({ label: l, value: rawValues[i] }));
+    const pairs = rawLabels
+      .map((l, i) => ({ label: l, value: rawValues[i] }))
+      .filter(d => d.label !== '' && d.label !== 'null' && !isNaN(d.value));
     pairs.sort((a, b) => b.value - a.value);
     labels = pairs.map(p => p.label);
     values = pairs.map(p => p.value);
