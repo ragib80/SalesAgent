@@ -507,13 +507,12 @@ $(function () {
     if (role === 'assistant') {
       const historyToggle = (m.has_data && m.id)
         ? `<div class="vis-accordions vis-history-mode" data-message-id="${m.id}">
-             <div class="vis-accordion" data-type="chart">
+             <div class="vis-accordion vis-accordion-offcanvas" data-type="chart">
                <button class="vis-accordion-header">
                  <i class="bi bi-bar-chart" aria-hidden="true"></i>
                  <span>Chart</span>
-                 <i class="bi bi-chevron-down vis-chevron" aria-hidden="true"></i>
+                 <i class="bi bi-box-arrow-right vis-panel-hint" aria-hidden="true"></i>
                </button>
-               <div class="vis-accordion-body" style="display:none;"></div>
              </div>
              <div class="vis-accordion" data-type="table">
                <button class="vis-accordion-header">
@@ -1012,47 +1011,93 @@ $(function () {
   startNewChat();
   updateSendButton();
 
-  /* ── Visualization: unified accordion handler (chart + table, live + history) ── */
+  /* ── Visualization: chart → offcanvas, table → inline accordion ── */
   $(document).on('click', '.vis-accordion-header', function () {
     const $header = $(this);
     const $accordion = $header.closest('.vis-accordion');
-    const $body = $accordion.find('.vis-accordion-body');
     const $wrap = $accordion.closest('.vis-accordions');
     const type = $accordion.data('type');
-    const isOpen = $body.is(':visible');
 
+    if (type === 'chart') {
+      _openChartOffcanvas($wrap);
+      return;
+    }
+
+    // Table: expand / collapse in-place
+    const $body = $accordion.find('.vis-accordion-body');
+    const isOpen = $body.is(':visible');
     $body.toggle(!isOpen);
     $header.toggleClass('open', !isOpen);
 
     if (!isOpen && !$body.data('loaded')) {
       $body.data('loaded', true);
 
-      // Live session: vis-uid; historical message: message-id
       const messageId = $wrap.data('vis-uid') || $wrap.data('message-id');
-
       window._visStore = window._visStore || new WeakMap();
       const preview = window._visStore.get($wrap[0]);
 
-      if (type === 'chart') {
-        if (preview) {
-          _renderChart($body[0], preview.cols, preview.rows);
-        } else if (messageId) {
-          _loadChartFromApi($body[0], messageId);
-        } else {
-          $body.html('<p class="vis-error">No chart data available.</p>');
-        }
-      } else if (type === 'table') {
-        if (preview && !$wrap.hasClass('vis-history-mode')) {
-          _renderPreviewTable($body[0], preview.cols, preview.rows, preview.total_rows, preview.message_id);
-        } else if (messageId) {
-          _loadFullTable($body[0], messageId, 1, '');
-        } else {
-          $body.html('<p class="vis-error">No table data available.</p>');
-        }
+      if (preview && !$wrap.hasClass('vis-history-mode')) {
+        _renderPreviewTable($body[0], preview.cols, preview.rows, preview.total_rows, preview.message_id);
+      } else if (messageId) {
+        _loadFullTable($body[0], messageId, 1, '');
+      } else {
+        $body.html('<p class="vis-error">No table data available.</p>');
       }
     }
   });
 });
+
+/* ── Chart offcanvas: open right-side panel for chart ── */
+function _openChartOffcanvas($wrap) {
+  const messageId = $wrap.data('vis-uid') || $wrap.data('message-id');
+  window._visStore = window._visStore || new WeakMap();
+  const preview = window._visStore.get($wrap[0]);
+
+  window._chartOffcanvasPending = { preview, messageId };
+
+  const offcanvasEl = document.getElementById('chartOffcanvas');
+  if (!offcanvasEl) return;
+  bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl).show();
+}
+
+/* Render chart after offcanvas animation finishes (container has real dimensions) */
+(function () {
+  document.addEventListener('DOMContentLoaded', function () {
+    const offcanvasEl = document.getElementById('chartOffcanvas');
+    if (!offcanvasEl) return;
+
+    offcanvasEl.addEventListener('shown.bs.offcanvas', function () {
+      const pending = window._chartOffcanvasPending;
+      window._chartOffcanvasPending = null;
+      if (!pending) return;
+
+      const container = document.getElementById('chartOffcanvasContainer');
+      if (!container) return;
+
+      // Dispose previous chart instance before creating a new one
+      if (window._chartOffcanvasInstance) {
+        try { window._chartOffcanvasInstance.dispose(); } catch (_) {}
+        window._chartOffcanvasInstance = null;
+      }
+      container.innerHTML = '';
+
+      if (pending.preview) {
+        _renderChart(container, pending.preview.cols, pending.preview.rows);
+      } else if (pending.messageId) {
+        _loadChartFromApi(container, pending.messageId);
+      } else {
+        container.innerHTML = '<p class="vis-error">No chart data available.</p>';
+      }
+    });
+  });
+
+  // Resize ECharts when window resizes while offcanvas is open
+  window.addEventListener('resize', function () {
+    if (window._chartOffcanvasInstance) {
+      try { window._chartOffcanvasInstance.resize(); } catch (_) {}
+    }
+  });
+})();
 
 /* ═══════════════════════════════════════════════════════
    Visualization helpers (outside $(function) — global scope)
@@ -1065,13 +1110,12 @@ function _attachVisToggles($msgRow, chartData) {
 
   const $accordions = $(`
     <div class="vis-accordions" data-vis-uid="${uid}">
-      <div class="vis-accordion" data-type="chart">
+      <div class="vis-accordion vis-accordion-offcanvas" data-type="chart">
         <button class="vis-accordion-header">
           <i class="bi bi-bar-chart" aria-hidden="true"></i>
           <span>Chart</span>
-          <i class="bi bi-chevron-down vis-chevron" aria-hidden="true"></i>
+          <i class="bi bi-box-arrow-right vis-panel-hint" aria-hidden="true"></i>
         </button>
-        <div class="vis-accordion-body" style="display:none;"></div>
       </div>
       <div class="vis-accordion" data-type="table">
         <button class="vis-accordion-header">
@@ -1092,6 +1136,28 @@ function _attachVisToggles($msgRow, chartData) {
   window._visStore.set($accordions[0], { cols, rows, total_rows, message_id });
 }
 
+/* ── Number helpers ── */
+function _fmtNum(v) {
+  const abs = Math.abs(v);
+  if (abs >= 1e9) return (v / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
+  if (abs >= 1e6) return (v / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (abs >= 1e3) return (v / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+  return Number.isInteger(v) ? String(v) : v.toFixed(1);
+}
+function _fmtNumFull(v) {
+  return Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+/* Format a table cell value: floats → 2 decimal places with thousand separators; integers → locale string; strings unchanged */
+function _fmtCell(v) {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'number') {
+    return Number.isInteger(v)
+      ? v.toLocaleString()
+      : v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  return String(v);
+}
+
 /* ── Chart renderer (ECharts) ── */
 function _renderChart(container, cols, rows) {
   if (typeof echarts === 'undefined') {
@@ -1103,12 +1169,23 @@ function _renderChart(container, cols, rows) {
     return;
   }
 
-  container.style.height = '360px';
-  const chart = echarts.init(container);
+  const isOffcanvas = container.id === 'chartOffcanvasContainer';
+  if (isOffcanvas) {
+    container.style.height = Math.max(400, rows.length * 36 + 80) + 'px';
+  } else {
+    container.style.height = '360px';
+  }
+
+  const chart = echarts.init(container, null, { renderer: 'canvas' });
+
+  if (isOffcanvas) {
+    if (window._chartOffcanvasInstance && window._chartOffcanvasInstance !== chart) {
+      try { window._chartOffcanvasInstance.dispose(); } catch (_) {}
+    }
+    window._chartOffcanvasInstance = chart;
+  }
 
   const firstRow = rows[0];
-
-  // Detect label column (string) and value column (number)
   let labelIdx = cols.findIndex((c, i) =>
     /name|brand|product|dealer|zone|territory|gsber|period|month|depo/i.test(c) ||
     typeof firstRow[i] === 'string'
@@ -1117,34 +1194,137 @@ function _renderChart(container, cols, rows) {
     /revenue|quantity|volume|growth|pct|amount|count|sales/i.test(c) ||
     typeof firstRow[i] === 'number'
   );
-
   if (labelIdx < 0) labelIdx = 0;
   if (valIdx < 0 || valIdx === labelIdx) valIdx = labelIdx === 0 ? 1 : 0;
 
-  const labels = rows.map(r => String(r[labelIdx] ?? ''));
-  const values = rows.map(r => Number(r[valIdx] ?? 0));
+  const rawLabels = rows.map(r => String(r[labelIdx] ?? ''));
+  const rawValues = rows.map(r => Number(r[valIdx] ?? 0));
+  const isTime = rawLabels.every(l => /^\d{4}[-/]/.test(l));
 
-  // Use line chart if labels look like dates/periods
-  const isTime = labels.every(l => /^\d{4}[-/]/.test(l));
+  // Bar charts: sort descending so highest value is shown at top (yAxis inverse:true)
+  let labels = rawLabels;
+  let values = rawValues;
+  if (!isTime) {
+    const pairs = rawLabels.map((l, i) => ({ label: l, value: rawValues[i] }));
+    pairs.sort((a, b) => b.value - a.value);
+    labels = pairs.map(p => p.label);
+    values = pairs.map(p => p.value);
+  }
 
-  chart.setOption({
-    tooltip: { trigger: 'axis', axisPointer: { type: isTime ? 'line' : 'shadow' } },
-    grid: { left: isTime ? '8%' : '25%', right: '5%', top: '10%', bottom: '12%', containLabel: true },
-    xAxis: isTime
-      ? { type: 'category', data: labels, axisLabel: { rotate: 30 } }
-      : { type: 'value', name: cols[valIdx] || '' },
-    yAxis: isTime
-      ? { type: 'value', name: cols[valIdx] || '' }
-      : { type: 'category', data: labels, axisLabel: { width: 160, overflow: 'truncate' } },
-    series: [{
-      type: isTime ? 'line' : 'bar',
-      data: values,
-      barMaxWidth: 32,
-      smooth: isTime,
-      itemStyle: { color: '#10a37f' },
-    }],
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const textColor    = isDark ? '#94a3b8' : '#64748b';
+  const splitColor   = isDark ? 'rgba(255,255,255,.06)' : '#edf0f4';
+  const tooltipBg    = isDark ? '#1e293b' : '#ffffff';
+  const tooltipBdr   = isDark ? '#334155' : '#e2e8f0';
+  const tooltipText  = isDark ? '#e2e8f0' : '#0f172a';
+  const maxVal       = Math.max(...values) || 1;
+
+  const barColor = (v) => ({
+    color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+      { offset: 0, color: '#0b8a65' },
+      { offset: 1, color: '#34c997' },
+    ]),
+    borderRadius: [0, 5, 5, 0],
+    opacity: 0.5 + 0.5 * (v / maxVal),
   });
 
+  const option = {
+    backgroundColor: 'transparent',
+    animation: true,
+    animationDuration: 650,
+    animationEasing: 'cubicOut',
+
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: isTime ? 'line' : 'shadow',
+        shadowStyle: { color: 'rgba(16,163,127,.08)' },
+        lineStyle: { color: '#10a37f', type: 'dashed', width: 1.5 },
+      },
+      backgroundColor: tooltipBg,
+      borderColor: tooltipBdr,
+      borderWidth: 1,
+      padding: [10, 14],
+      textStyle: { color: tooltipText, fontSize: 13 },
+      extraCssText: 'box-shadow:0 4px 16px rgba(0,0,0,.12);border-radius:8px;',
+      formatter(params) {
+        const p = params[0];
+        const rankLine = isTime ? '' :
+          `<div style="margin-top:5px;font-size:11px;color:${textColor}">Rank #${p.dataIndex + 1} of ${rows.length}</div>`;
+        return `<div style="font-weight:700;margin-bottom:5px;font-size:13px">${p.name}</div>
+                <div style="font-size:13px">${cols[valIdx] || 'Value'}: <span style="color:#10a37f;font-weight:600">${_fmtNumFull(p.value)}</span></div>
+                ${rankLine}`;
+      },
+    },
+
+    grid: isTime
+      ? { left: '3%', right: '5%', top: '8%', bottom: '14%', containLabel: true }
+      : { left: '2%', right: '17%', top: '2%', bottom: '2%', containLabel: true },
+
+    xAxis: isTime ? {
+      type: 'category', data: labels,
+      axisLabel: { rotate: 30, color: textColor, fontSize: 11, margin: 10 },
+      axisLine: { lineStyle: { color: splitColor } },
+      axisTick: { show: false },
+      splitLine: { show: false },
+    } : {
+      type: 'value',
+      axisLabel: { formatter: v => _fmtNum(v), color: textColor, fontSize: 11 },
+      splitLine: { lineStyle: { color: splitColor, type: 'dashed' } },
+      axisLine: { show: false },
+      axisTick: { show: false },
+    },
+
+    yAxis: isTime ? {
+      type: 'value',
+      axisLabel: { formatter: v => _fmtNum(v), color: textColor, fontSize: 11 },
+      splitLine: { lineStyle: { color: splitColor, type: 'dashed' } },
+      axisLine: { show: false },
+      axisTick: { show: false },
+    } : {
+      type: 'category',
+      data: labels,
+      inverse: true,
+      axisLabel: { width: 170, overflow: 'truncate', color: textColor, fontSize: 11, tooltip: { show: true } },
+      axisLine: { show: false },
+      axisTick: { show: false },
+    },
+
+    series: isTime ? [{
+      type: 'line',
+      data: values,
+      smooth: 0.4,
+      symbol: 'circle',
+      symbolSize: 7,
+      lineStyle: { color: '#10a37f', width: 2.5 },
+      itemStyle: { color: '#10a37f', borderWidth: 2.5, borderColor: isDark ? '#1e293b' : '#fff' },
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(16,163,127,.28)' },
+          { offset: 1, color: 'rgba(16,163,127,.02)' },
+        ]),
+      },
+      emphasis: { scale: true, itemStyle: { shadowBlur: 10, shadowColor: 'rgba(16,163,127,.45)' } },
+    }] : [{
+      type: 'bar',
+      data: values.map(v => ({ value: v, itemStyle: barColor(v) })),
+      barMaxWidth: 28,
+      label: {
+        show: true,
+        position: 'right',
+        formatter: p => _fmtNum(p.value),
+        color: textColor,
+        fontSize: 11,
+        fontWeight: 500,
+      },
+      emphasis: {
+        itemStyle: { opacity: 1, shadowBlur: 12, shadowColor: 'rgba(16,163,127,.45)' },
+        label: { color: isDark ? '#e2e8f0' : '#0f172a', fontWeight: 700 },
+      },
+    }],
+  };
+
+  chart.setOption(option);
   window.addEventListener('resize', () => chart.resize());
 }
 
@@ -1154,9 +1334,10 @@ async function _loadChartFromApi(container, messageId) {
   if (!token) return;
 
   const $c = $(container);
-  $c.css('height', '360px').html(
-    '<div class="vis-loading"><span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading chart…</div>'
-  );
+  if (container.id !== 'chartOffcanvasContainer') {
+    $c.css('height', '360px');
+  }
+  $c.html('<div class="vis-loading"><span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading chart…</div>');
 
   try {
     const params = new URLSearchParams({ message_id: messageId, mode: 'chart', page: 1, page_size: 100 });
@@ -1179,23 +1360,34 @@ async function _loadChartFromApi(container, messageId) {
 function _renderPreviewTable(container, cols, rows, totalRows, messageId) {
   const isTruncated = totalRows > rows.length;
 
+  // Sort descending by the most relevant numeric column
+  // Priority: revenue/sales/amount → volume/quantity/count → first float column (avoids integer IDs)
+  let numColIdx = cols.findIndex(c => /revenue|sales|amount/i.test(c));
+  if (numColIdx < 0) numColIdx = cols.findIndex(c => /volume|quantity|count/i.test(c));
+  if (numColIdx < 0) numColIdx = cols.findIndex((c, i) =>
+    rows.length > 0 && typeof rows[0][i] === 'number' && !Number.isInteger(rows[0][i])
+  );
+  const sortedRows = numColIdx >= 0
+    ? [...rows].sort((a, b) => Number(b[numColIdx] ?? 0) - Number(a[numColIdx] ?? 0))
+    : rows;
+
   const thead = `<thead><tr>${cols.map(c => `<th>${escapeAttr(String(c))}</th>`).join('')}</tr></thead>`;
   const buildTbody = (data) =>
     `<tbody>${data.map(row =>
-      `<tr>${row.map(v => `<td>${escapeAttr(String(v ?? ''))}</td>`).join('')}</tr>`
+      `<tr>${row.map(v => `<td>${escapeAttr(_fmtCell(v))}</td>`).join('')}</tr>`
     ).join('')}</tbody>`;
 
   const $wrap = $(`
     <div class="vis-table-wrap">
       <div class="vis-table-toolbar">
         <input class="vis-search-input" placeholder="Search preview…" aria-label="Search table" />
-        <span class="vis-row-count">Showing ${rows.length} of ${totalRows} records</span>
+        <span class="vis-row-count">Showing ${sortedRows.length} of ${totalRows} records</span>
         ${isTruncated && messageId
           ? `<button class="vis-load-all-btn" data-message-id="${messageId}">Load all records</button>`
           : ''}
       </div>
       <div class="vis-table-scroll">
-        <table class="vis-data-table">${thead}${buildTbody(rows)}</table>
+        <table class="vis-data-table">${thead}${buildTbody(sortedRows)}</table>
       </div>
     </div>
   `);
@@ -1218,67 +1410,107 @@ function _renderPreviewTable(container, cols, rows, totalRows, messageId) {
   $(container).empty().append($wrap);
 }
 
-/* ── Full paginated table (fetches from /api/sales/data/) ── */
-async function _loadFullTable(container, messageId, page, search) {
+/* ── Full paginated table — jQuery DataTables server-side ── */
+async function _loadFullTable(container, messageId) {
   const token = localStorage.getItem('auth_token');
   if (!token) return;
 
   const $c = $(container);
+
+  // Destroy any existing DataTable instance before re-initialising
+  const $prev = $c.find('table');
+  if ($prev.length && $.fn.DataTable && $.fn.DataTable.isDataTable($prev[0])) {
+    $prev.DataTable().destroy(true);
+  }
+
   $c.html('<div class="vis-loading"><span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading…</div>');
 
+  // Initial fetch: discover column names + first page without a round-trip penalty
+  let prefetch;
   try {
-    const params = new URLSearchParams({ message_id: messageId, page, page_size: 50 });
-    if (search) params.set('search', search);
-
-    const resp = await fetch(`${apiBase}/sales/data/?${params}`, {
-      headers: { Authorization: 'Bearer ' + token },
-    });
-    if (!resp.ok) { $c.html('<p class="vis-error">Failed to load data.</p>'); return; }
-
-    const data = await resp.json();
-    const { cols, rows, page: pg, page_size, total_rows, total_pages } = data;
-
-    // Cache total_rows on container for pagination without re-fetching count
-    if (total_rows !== undefined) $c.data('total_rows', total_rows);
-    if (total_pages !== undefined) $c.data('total_pages', total_pages);
-    const cachedTotal = $c.data('total_rows') || rows.length;
-    const cachedPages = $c.data('total_pages') || 1;
-
-    const thead = `<thead><tr>${cols.map(c => `<th>${escapeAttr(String(c))}</th>`).join('')}</tr></thead>`;
-    const tbody = `<tbody>${rows.map(row =>
-      `<tr>${row.map(v => `<td>${escapeAttr(String(v ?? ''))}</td>`).join('')}</tr>`
-    ).join('')}</tbody>`;
-
-    let searchTimer;
-    const $wrap = $(`
-      <div class="vis-table-wrap">
-        <div class="vis-table-toolbar">
-          <input class="vis-search-input vis-server-search" placeholder="Search all records…" value="${escapeAttr(search)}" aria-label="Search all records" />
-          <span class="vis-row-count">${cachedTotal} total records</span>
-        </div>
-        <div class="vis-table-scroll">
-          <table class="vis-data-table">${thead}${tbody}</table>
-        </div>
-        <div class="vis-pagination">
-          <button class="vis-page-btn vis-page-prev" ${pg <= 1 ? 'disabled' : ''}>&#8249; Prev</button>
-          <span class="vis-page-label">Page ${pg} of ${cachedPages}</span>
-          <button class="vis-page-btn vis-page-next" ${pg >= cachedPages ? 'disabled' : ''}>Next &#8250;</button>
-        </div>
-      </div>
-    `);
-
-    $wrap.find('.vis-server-search').on('input', function () {
-      clearTimeout(searchTimer);
-      const q = $(this).val().trim();
-      searchTimer = setTimeout(() => _loadFullTable(container, messageId, 1, q), 300);
-    });
-    $wrap.find('.vis-page-prev').on('click', () => _loadFullTable(container, messageId, pg - 1, search));
-    $wrap.find('.vis-page-next').on('click', () => _loadFullTable(container, messageId, pg + 1, search));
-
-    $c.empty().append($wrap);
+    const r = await fetch(
+      `${apiBase}/sales/data/?${new URLSearchParams({ message_id: messageId, page: 1, page_size: 50 })}`,
+      { headers: { Authorization: 'Bearer ' + token } }
+    );
+    if (!r.ok) { $c.html('<p class="vis-error">Failed to load data.</p>'); return; }
+    prefetch = await r.json();
   } catch {
     $c.html('<p class="vis-error">Error loading data.</p>');
+    return;
   }
+
+  const { cols, rows: prefetchRows, total_rows } = prefetch;
+
+  $c.html(`
+    <div class="vis-dt-wrap">
+      <table class="vis-data-table display w-100">
+        <thead><tr>${cols.map(c => `<th>${escapeAttr(String(c))}</th>`).join('')}</tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  `);
+
+  let prefetchConsumed = false;
+
+  $c.find('table').DataTable({
+    serverSide: true,
+    processing: true,
+    pageLength: 50,
+    lengthMenu: [[25, 50, 100], [25, 50, 100]],
+    order: [],   // initial order comes from the KQL's preserved ORDER BY
+
+    columns: cols.map(c => ({ title: escapeAttr(String(c)) })),
+
+    ajax(dtParams, callback) {
+      // First call: serve the prefetched data to avoid a redundant API round-trip
+      if (!prefetchConsumed && dtParams.start === 0 && !dtParams.search.value) {
+        prefetchConsumed = true;
+        callback({
+          draw: dtParams.draw,
+          recordsTotal: total_rows || 0,
+          recordsFiltered: total_rows || 0,
+          data: prefetchRows.map(row => row.map(v => _fmtCell(v))),
+        });
+        return;
+      }
+
+      const orderIdx = dtParams.order[0]?.column;
+      const sortCol  = orderIdx != null ? (cols[orderIdx] || '') : '';
+      const sortDir  = dtParams.order[0]?.dir || 'desc';
+      const page     = Math.floor(dtParams.start / dtParams.length) + 1;
+
+      const params = new URLSearchParams({
+        message_id: messageId,
+        page,
+        page_size: dtParams.length,
+      });
+      if (dtParams.search.value) params.set('search', dtParams.search.value);
+      if (sortCol) { params.set('sort_col', sortCol); params.set('sort_dir', sortDir); }
+
+      fetch(`${apiBase}/sales/data/?${params}`, { headers: { Authorization: 'Bearer ' + token } })
+        .then(r => r.json())
+        .then(result => callback({
+          draw: dtParams.draw,
+          recordsTotal: result.total_rows || total_rows || 0,
+          recordsFiltered: result.total_rows || total_rows || 0,
+          data: (result.rows || []).map(row => row.map(v => _fmtCell(v))),
+        }))
+        .catch(() => callback({ draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [] }));
+    },
+
+    language: {
+      processing: '<div class="vis-loading"><span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading…</div>',
+      paginate: { first: '«', last: '»', previous: '‹', next: '›' },
+      search: '',
+      searchPlaceholder: 'Search records…',
+      info: 'Showing _START_–_END_ of _TOTAL_ records',
+      infoEmpty: 'No records found',
+      infoFiltered: '(filtered from _MAX_ total)',
+      lengthMenu: 'Show _MENU_ rows',
+    },
+
+    dom: '<"vis-dt-top"<"vis-dt-length"l><"vis-dt-search"f>>t<"vis-dt-bottom"<"vis-dt-info"i><"vis-dt-pages"p>>',
+  });
 }
 
 /* ── Global: dropdown & misc handlers ── */

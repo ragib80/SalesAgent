@@ -1101,9 +1101,11 @@ def _rewrite_kql_for_export(kql: str, *, mode: str = "table_base") -> str:
             result = kql + "\n| take 50"
         return result.strip()
 
-    # table_base: strip the outermost limit so caller can paginate
-    result = _re_top.sub("", kql).rstrip(";").strip()
+    # table_base: convert "| top N by col dir" → "| order by col dir"
+    # This drops the row limit while preserving the sort so the table renders in the right order.
+    result = _re_top.sub(r"| order\1", kql).rstrip(";").strip()
     if result == kql:
+        # No top clause — just remove bare | take N (no sort to preserve)
         result = _re_take.sub("", kql).rstrip(";").strip()
     return result
 

@@ -1967,7 +1967,19 @@ body {
   background: var(--vs-surface, var(--vs-bg));
 }
 
-/* ── Mobile adjustments ── */
+/* ── vis-accordion-offcanvas: chart button — no expand body, right-arrow hint ── */
+.vis-accordion-offcanvas .vis-panel-hint {
+  margin-left: auto;
+  font-size: .8rem;
+  opacity: .55;
+  transition: opacity .15s, transform .15s;
+}
+.vis-accordion-offcanvas .vis-accordion-header:hover .vis-panel-hint {
+  opacity: 1;
+  transform: translateX(3px);
+}
+
+/* Mobile adjustments */
 @media (max-width: 768px) {
   .vis-accordions {
     margin-left: 0;
@@ -1975,4 +1987,247 @@ body {
   .vis-table-scroll {
     max-height: 360px;
   }
+}
+
+/* ══════════════════════════════════════════════════
+   Chart Offcanvas (right side)
+   ══════════════════════════════════════════════════ */
+.chart-offcanvas {
+  --bs-offcanvas-width: min(640px, 92vw);
+  background: var(--vs-surface);
+  border-left: 1px solid var(--vs-border);
+  box-shadow: var(--vs-shadow-xl);
+}
+
+.chart-offcanvas-header {
+  padding: .875rem 1rem;
+  border-bottom: 1px solid var(--vs-border);
+  background: var(--vs-surface);
+}
+
+.chart-offcanvas-header .offcanvas-title {
+  font-size: .9375rem;
+  font-weight: 600;
+  color: var(--vs-text);
+}
+
+.chart-offcanvas-icon {
+  font-size: 1rem;
+  color: var(--vs-accent);
+}
+
+.chart-offcanvas-close {
+  opacity: .55;
+}
+.chart-offcanvas-close:hover {
+  opacity: 1;
+}
+[data-theme="dark"] .chart-offcanvas-close {
+  filter: invert(1) brightness(1.8);
+}
+
+.chart-offcanvas-body {
+  padding: .75rem;
+  background: var(--vs-bg);
+  overflow-y: auto;
+}
+
+/* Chart container — height set dynamically in JS based on row count so the body can scroll */
+.chart-offcanvas-container {
+  width: 100%;
+  min-height: 320px;
+  background: var(--vs-surface);
+  border-radius: .5rem;
+}
+
+/* Tablet */
+@media (max-width: 767.98px) {
+  .chart-offcanvas {
+    --bs-offcanvas-width: min(520px, 92vw);
+  }
+}
+
+/* Mobile: full-width */
+@media (max-width: 575.98px) {
+  .chart-offcanvas {
+    --bs-offcanvas-width: 100vw;
+  }
+}
+
+[data-theme="dark"] .chart-offcanvas {
+  background: var(--vs-surface);
+  border-left-color: var(--vs-border);
+}
+[data-theme="dark"] .chart-offcanvas-body {
+  background: var(--vs-bg);
+}
+[data-theme="dark"] .chart-offcanvas-container {
+  background: var(--vs-surface);
+}
+
+/* ══════════════════════════════════════════════════
+   DataTables theme
+   ══════════════════════════════════════════════════ */
+.vis-dt-wrap {
+  font-size: .8375rem;
+}
+
+/* Top bar: length + search */
+.vis-dt-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .5rem .25rem .625rem;
+  flex-wrap: wrap;
+}
+.vis-dt-length label,
+.vis-dt-search label {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  color: var(--vs-text-muted);
+  font-size: .8rem;
+  margin: 0;
+}
+.vis-dt-length select {
+  padding: .2rem .5rem;
+  border: 1px solid var(--vs-border);
+  border-radius: .375rem;
+  background: var(--vs-surface);
+  color: var(--vs-text);
+  font-size: .8rem;
+  cursor: pointer;
+}
+.vis-dt-search input {
+  padding: .3rem .65rem;
+  border: 1px solid var(--vs-border);
+  border-radius: .375rem;
+  background: var(--vs-surface);
+  color: var(--vs-text);
+  font-size: .8rem;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+  min-width: 180px;
+}
+.vis-dt-search input:focus {
+  border-color: var(--vs-accent);
+  box-shadow: 0 0 0 3px rgba(16,163,127,.12);
+}
+
+/* DataTables table */
+.vis-dt-wrap table.dataTable {
+  border-collapse: collapse !important;
+  width: 100% !important;
+}
+.vis-dt-wrap table.dataTable thead th {
+  background: var(--vs-bg);
+  color: var(--vs-text-muted);
+  font-size: .75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  border-bottom: 2px solid var(--vs-border);
+  padding: .5rem .75rem;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+.vis-dt-wrap table.dataTable thead th:hover {
+  color: var(--vs-accent);
+}
+/* Sort arrows */
+.vis-dt-wrap table.dataTable thead .sorting:after,
+.vis-dt-wrap table.dataTable thead .sorting_asc:after,
+.vis-dt-wrap table.dataTable thead .sorting_desc:after {
+  opacity: .6;
+  font-size: .7rem;
+}
+.vis-dt-wrap table.dataTable thead .sorting_asc:after  { content: ' ▲'; color: var(--vs-accent); opacity: 1; }
+.vis-dt-wrap table.dataTable thead .sorting_desc:after { content: ' ▼'; color: var(--vs-accent); opacity: 1; }
+
+.vis-dt-wrap table.dataTable tbody tr {
+  border-bottom: 1px solid var(--vs-border-subtle);
+  transition: background .1s;
+}
+.vis-dt-wrap table.dataTable tbody tr:hover {
+  background: var(--vs-hover);
+}
+.vis-dt-wrap table.dataTable tbody td {
+  padding: .45rem .75rem;
+  color: var(--vs-text);
+  font-size: .8375rem;
+  vertical-align: middle;
+}
+
+/* Processing overlay */
+.vis-dt-wrap .dataTables_processing {
+  background: var(--vs-surface);
+  border: 1px solid var(--vs-border);
+  border-radius: .5rem;
+  box-shadow: var(--vs-shadow);
+  color: var(--vs-text-muted);
+  padding: .75rem 1.25rem;
+  font-size: .8rem;
+}
+
+/* Bottom bar: info + pagination */
+.vis-dt-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .5rem .25rem .25rem;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+.vis-dt-info {
+  color: var(--vs-text-muted);
+  font-size: .78rem;
+}
+.vis-dt-pages .pagination {
+  margin: 0;
+  gap: .15rem;
+}
+.vis-dt-pages .page-link {
+  padding: .25rem .55rem;
+  font-size: .8rem;
+  border-color: var(--vs-border);
+  color: var(--vs-text-muted);
+  background: var(--vs-surface);
+  border-radius: .375rem !important;
+}
+.vis-dt-pages .page-item.active .page-link {
+  background: var(--vs-accent);
+  border-color: var(--vs-accent);
+  color: #fff;
+}
+.vis-dt-pages .page-link:hover {
+  background: var(--vs-hover);
+  color: var(--vs-accent);
+}
+.vis-dt-pages .page-item.disabled .page-link {
+  opacity: .4;
+  pointer-events: none;
+}
+
+/* Dark mode */
+[data-theme="dark"] .vis-dt-length select,
+[data-theme="dark"] .vis-dt-search input {
+  background: var(--vs-surface);
+  color: var(--vs-text);
+  border-color: var(--vs-border);
+}
+[data-theme="dark"] .vis-dt-wrap table.dataTable thead th {
+  background: var(--vs-bg);
+}
+[data-theme="dark"] .vis-dt-wrap table.dataTable tbody tr:hover {
+  background: var(--vs-hover);
+}
+[data-theme="dark"] .vis-dt-pages .page-link {
+  background: var(--vs-surface);
+  border-color: var(--vs-border);
+  color: var(--vs-text-muted);
+}
+[data-theme="dark"] .vis-dt-pages .page-link:hover {
+  background: var(--vs-hover);
 }

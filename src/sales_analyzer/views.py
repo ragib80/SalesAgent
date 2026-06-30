@@ -519,8 +519,7 @@ class DataQueryAPIView(APIView):
             return Response({"cols": list(cols), "rows": serialized}, status=status.HTTP_200_OK)
 
         # ── Table mode ────────────────────────────────────────────────────────
-        # Regex strips the trailing | top N / | take N; caller appends pagination without | skip
-        # (ADX does not support bare | skip N — page 1 uses | take, page 2+ uses row_number()).
+        # Regex converts | top N by col dir → | order by col dir (preserves sort, drops limit).
         kql_base = _rewrite_kql_for_export(kql, mode="table_base")
         _log.debug("[DataQueryAPIView/table] kql_base: %.400s", kql_base)
 
@@ -528,6 +527,16 @@ class DataQueryAPIView(APIView):
         if search:
             safe_search = _re.sub(r'["\']', '', search)[:100]
             kql_base += f'\n| where * has "{safe_search}"'
+
+        # Column sort override from DataTables (sort_col = column name, sort_dir = asc|desc)
+        sort_col = (request.query_params.get("sort_col") or "").strip()
+        sort_dir = (request.query_params.get("sort_dir") or "desc").lower()
+        if sort_dir not in ("asc", "desc"):
+            sort_dir = "desc"
+        if sort_col and _re.match(r'^[\w\[\]\. ]+$', sort_col):
+            # Replace any existing | order by with the user-requested sort
+            kql_base = _re.sub(r'\|\s*order\s+by\s+[^\n]+', '', kql_base, flags=_re.IGNORECASE).strip()
+            kql_base += f'\n| order by {sort_col} {sort_dir}'
 
         # Count total rows on page 1 only
         total_rows = None
