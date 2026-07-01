@@ -2144,10 +2144,21 @@ body {
   box-shadow: 0 0 0 3px rgba(16,163,127,.12);
 }
 
-/* DataTables table */
+/* DataTables table — no fixed width so scrollX can expand the table beyond the container */
 .vis-dt-wrap table.dataTable {
   border-collapse: collapse !important;
+  min-width: 100%;
+}
+
+/* Horizontal scroll wrapper injected by DataTables when scrollX:true */
+.vis-dt-wrap .dataTables_scrollWrapper,
+.vis-dt-wrap .dataTables_scrollHeadInner,
+.vis-dt-wrap .dataTables_scrollHead {
   width: 100% !important;
+}
+.vis-dt-wrap .dataTables_scrollBody {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
 }
 .vis-dt-wrap table.dataTable thead th {
   background: var(--vs-bg);

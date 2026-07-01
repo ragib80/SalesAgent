@@ -237,6 +237,8 @@ def _build_curated_prompt_documents(synced_at: str) -> list[dict[str, Any]]:
         _kpi_rule_lifting(synced_at),
         _pattern_multi_period_individual(synced_at),
         _pattern_dropoff_leftanti(synced_at),
+        _pattern_active_then_inactive_show_zero(synced_at),
+        _pattern_dealer_product_brand_inactive_show_zero(synced_at),
         _pattern_declining_negative_growth(synced_at),
         _pattern_positive_growth(synced_at),
         _pattern_mtd_growth(synced_at),
@@ -517,6 +519,120 @@ def _pattern_dropoff_leftanti(synced_at: str) -> dict[str, Any]:
         sap_columns=["kunrg", "cname", "gsber", "vtweg", "Revenue", "volum", "fkimg", "fkdat"],
         kpi_names=["drop-off", "inactive dealer"],
         intent_tags=["dropoff", "risk", "kql_generation"],
+        kql_pattern=pattern,
+    )
+
+
+def _pattern_active_then_inactive_show_zero(synced_at: str) -> dict[str, Any]:
+    pattern = (
+        "To find dealers/customers who had sales in Period A but no sales in Period B, "
+        "and explicitly show Period B values as zero: "
+        "Build Period A buyers — summarize PeriodA_Revenue = sum(Revenue), PeriodA_Qty = sum(fkimg) "
+        "by kunrg, cname, gsber, vtweg (and any other requested dimensions). "
+        "Build Period B buyers — summarize PeriodB_Revenue = sum(Revenue) by kunrg only. "
+        "Join using join kind=leftouter Period B on kunrg (start from Period A). "
+        "After the join, extend PeriodB_Revenue = iif(isnull(PeriodB_Revenue), 0.0, PeriodB_Revenue). "
+        "Filter where PeriodB_Revenue == 0 to keep only dealers with no Period B sales. "
+        "Project cname, kunrg, gsber, PeriodA_Revenue, PeriodB_Revenue (showing 0 clearly). "
+        "Sort by PeriodA_Revenue desc and take 500. "
+        "This pattern differs from leftanti: leftanti hides Period B columns entirely; "
+        "leftouter + fill zero shows Period B as 0 so the user clearly sees both periods."
+    )
+    return _pattern_doc(
+        doc_id="pattern-active-then-inactive-show-zero",
+        title="Active in Period A, inactive in Period B — show Period B as zero",
+        summary=(
+            "Find dealers who had sales in one period but no sales in the next, "
+            "explicitly displaying the inactive period revenue as zero."
+        ),
+        content=pattern,
+        synced_at=synced_at,
+        aliases=[
+            "active in April inactive in May",
+            "had sales in April but no sales in May",
+            "bought in April not in May",
+            "dealers list who had sales in April 2026 but no sales in May 2026",
+            "active dealers who became inactive",
+            "no sales in next month",
+            "dropped off showing zero",
+            "inactive dealers with zero sales",
+            "dealers with zero May sales",
+            "churned dealers show zero",
+            "sales in month A no sales in month B",
+        ],
+        keywords=[
+            "leftouter", "isnull", "PeriodA_Revenue", "PeriodB_Revenue",
+            "show zero", "inactive", "active then inactive", "kunrg", "cname",
+        ],
+        sap_columns=["kunrg", "cname", "gsber", "vtweg", "Revenue", "fkimg", "fkdat"],
+        kpi_names=["drop-off", "inactive dealer", "zero sales"],
+        intent_tags=["dropoff", "inactive", "risk", "show_zero", "kql_generation"],
+        kql_pattern=pattern,
+    )
+
+
+def _pattern_dealer_product_brand_inactive_show_zero(synced_at: str) -> dict[str, Any]:
+    pattern = (
+        "To find which specific product or brand a dealer bought in Period A but did NOT buy "
+        "in Period B — even if that dealer bought other products in Period B — use a compound "
+        "join key of kunrg + arktx (for product) or kunrg + wgbez (for brand). "
+        "Build Period A: summarize PeriodA_Revenue = sum(Revenue), PeriodA_Qty = sum(fkimg) "
+        "by kunrg, cname, arktx, wgbez, gsber, vtweg. "
+        "Build Period B: summarize PeriodB_Revenue = sum(Revenue) by kunrg, arktx (for product) "
+        "or by kunrg, wgbez (for brand) — use only the join key columns in Period B summarize. "
+        "Join using join kind=leftouter Period B on kunrg, arktx (or kunrg, wgbez for brand). "
+        "After the join, extend PeriodB_Revenue = iif(isnull(PeriodB_Revenue), 0.0, PeriodB_Revenue). "
+        "Filter where PeriodB_Revenue == 0 to keep only dealer-product or dealer-brand combinations "
+        "with no Period B sales. "
+        "Project cname, kunrg, arktx (product name), wgbez (brand), gsber, "
+        "PeriodA_Revenue, PeriodB_Revenue (showing 0 explicitly). "
+        "Sort by PeriodA_Revenue desc and take 500. "
+        "Critical rule: the compound join key must include both kunrg AND the product/brand column — "
+        "joining on kunrg alone would exclude dealers who bought any product in Period B, "
+        "which is incorrect for this pattern. "
+        "If the user asks for both product and brand granularity, include arktx and wgbez "
+        "in Period A summarize but use the more specific one (arktx for product, wgbez for brand) "
+        "as part of the join key."
+    )
+    return _pattern_doc(
+        doc_id="pattern-dealer-product-brand-inactive-show-zero",
+        title="Dealer-product or dealer-brand inactive in Period B — show Period B as zero",
+        summary=(
+            "Find dealer-product or dealer-brand combinations active in Period A but absent "
+            "in Period B, showing Period B revenue as zero. Uses compound join key "
+            "(kunrg + arktx or kunrg + wgbez) so dealers who bought other products still appear "
+            "for the specific missing product/brand."
+        ),
+        content=pattern,
+        synced_at=synced_at,
+        aliases=[
+            "dealer product inactive",
+            "dealer brand inactive",
+            "bought product in April not in May",
+            "bought brand in April not in May",
+            "dealer stopped buying product",
+            "dealer stopped buying brand",
+            "product not sold in May",
+            "brand not sold in May",
+            "specific product drop off",
+            "specific brand drop off",
+            "dealer product month comparison",
+            "dealer brand month comparison",
+            "which product dealer did not buy in May",
+            "which brand dealer did not buy this month",
+            "product level inactive dealer",
+            "brand level inactive dealer",
+            "dealer inactive for specific product",
+            "dealer inactive for specific brand",
+        ],
+        keywords=[
+            "leftouter", "compound join key", "kunrg arktx", "kunrg wgbez",
+            "PeriodA_Revenue", "PeriodB_Revenue", "show zero",
+            "arktx", "wgbez", "product", "brand", "isnull",
+        ],
+        sap_columns=["kunrg", "cname", "arktx", "wgbez", "gsber", "vtweg", "Revenue", "fkimg", "fkdat"],
+        kpi_names=["product drop-off", "brand drop-off", "inactive product", "inactive brand"],
+        intent_tags=["dropoff", "inactive", "product", "brand", "show_zero", "kql_generation"],
         kql_pattern=pattern,
     )
 

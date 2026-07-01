@@ -1209,10 +1209,13 @@ function _renderChart(container, cols, rows, selectedValIdx) {
   if (labelIdx < 0) labelIdx = cols.findIndex(c => !metricRegex.test(c));
   if (labelIdx < 0) labelIdx = 0;
 
-  // ── Metric cols (all value candidates, excluding label col) ───────────────────
+  // Columns that are identifiers/codes — numeric but not meaningful metrics
+  const codeRegex = /code$|_code|^id$|_id$|^id_|_key$|^key$|kunrg|gsber|^rank$/i;
+
+  // ── Metric cols (all value candidates, excluding label and id/code cols) ──────
   const metricIdxs = cols
     .map((c, i) => i)
-    .filter(i => i !== labelIdx && (metricRegex.test(cols[i]) || !isNaN(_coerceNum(firstRow[i]))));
+    .filter(i => i !== labelIdx && !codeRegex.test(cols[i]) && (metricRegex.test(cols[i]) || !isNaN(_coerceNum(firstRow[i]))));
 
   // Pick active value col: honour selectedValIdx if valid, else first metric col
   let valIdx = (selectedValIdx != null && selectedValIdx >= 0 && metricIdxs.includes(selectedValIdx))
@@ -1505,9 +1508,15 @@ async function _loadFullTable(container, messageId) {
 
   const { cols, rows: prefetchRows, total_rows } = prefetch;
 
+  // Update the accordion badge with the real total (API count, not the SSE preview cap)
+  const $badge = $c.closest('.vis-accordion').find('.vis-accordion-count');
+  if ($badge.length && total_rows != null) {
+    $badge.text(Number(total_rows).toLocaleString() + ' records');
+  }
+
   $c.html(`
     <div class="vis-dt-wrap">
-      <table class="vis-data-table display w-100">
+      <table class="vis-data-table display">
         <thead><tr>${cols.map(c => `<th>${escapeAttr(String(c))}</th>`).join('')}</tr></thead>
         <tbody></tbody>
       </table>
@@ -1522,6 +1531,7 @@ async function _loadFullTable(container, messageId) {
     pageLength: 50,
     lengthMenu: [[25, 50, 100], [25, 50, 100]],
     order: [],   // initial order comes from the KQL's preserved ORDER BY
+    scrollX: true,
 
     columns: cols.map(c => ({ title: escapeAttr(String(c)) })),
 
