@@ -19,6 +19,55 @@ from core.middleware.current_user import set_current_chat_user, clear_current_ch
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
+# Human-readable display labels for raw SAP/ADX column names.
+# Lookup is case-insensitive (keys are lowercase); unrecognised columns pass through unchanged.
+_COLUMN_DISPLAY_LABELS = {
+    "cname": "Dealer Name",
+    "kunrg": "Dealer Code",
+    "fkdat": "Invoice Date",
+    "fkimg": "Quantity",
+    "volum": "Volume",
+    "voleh": "Volume Unit",
+    "wgbez": "Brand",
+    "arktx": "Product Name",
+    "matnr": "Product Code",
+    "matkl": "Product Category",
+    "gsber": "Business Area",
+    "bukrs": "Company Code",
+    "szone": "Sales Zone",
+    "vkorg": "Sales Org",
+    "vtweg": "Distribution Channel",
+    "spart_text": "Division",
+    "spart": "Division Code",
+    "vkbur_c": "Sales Office",
+    "vkgrp_c": "Sales Group",
+    "kukla": "Dealer Group",
+    "ktokd": "Account Group",
+    "payer_dl": "Payer ID",
+    "vbeln": "Invoice Number",
+    "kkber": "Credit Control Area",
+    "gk": "Business Group",
+    "meins": "Unit of Measure",
+    "kunnr_sh": "Ship-to Party",
+    "posnr": "Line Item No.",
+    "invoicecount": "Invoice Count",
+    "totalrevenue": "Total Revenue",
+    "py_revenue": "PY Revenue",
+    "cy_revenue": "CY Revenue",
+    "growth_pct": "Growth %",
+    "growthpct": "Growth %",
+    "py_quantity": "PY Quantity",
+    "cy_quantity": "CY Quantity",
+    "py_volume": "PY Volume",
+    "cy_volume": "CY Volume",
+}
+
+
+def _apply_col_labels(cols):
+    """Return human-readable display labels for a list of ADX column names."""
+    return [_COLUMN_DISPLAY_LABELS.get(c.lower(), c) for c in cols]
+
+
 class ChatView(TemplateView):
     template_name = 'sales/chat_index.html'
 
@@ -313,6 +362,7 @@ class ChatStreamAPIView(ChatAPIView):
                         if result_cols and result_rows is not None:
                             yield _sse_event("data", {
                                 "cols": result_cols,
+                                "col_labels": _apply_col_labels(result_cols),
                                 "rows": result_rows[:100],
                                 "total_rows": payload.get("result_total_rows", len(result_rows)),
                                 "message_id": bot_msg.pk,
@@ -516,7 +566,8 @@ class DataQueryAPIView(APIView):
                     return Response({"error": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
             serialized = _serialize_rows(cols, rows)
-            return Response({"cols": list(cols), "rows": serialized}, status=status.HTTP_200_OK)
+            col_list = list(cols)
+            return Response({"cols": col_list, "col_labels": _apply_col_labels(col_list), "rows": serialized}, status=status.HTTP_200_OK)
 
         # ── Table mode ────────────────────────────────────────────────────────
         # Regex converts | top N by col dir → | order by col dir (preserves sort, drops limit).
@@ -588,7 +639,8 @@ class DataQueryAPIView(APIView):
                 return Response({"error": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         serialized = _serialize_rows(cols, rows)
-        result = {"cols": list(cols), "rows": serialized, "page": page, "page_size": page_size}
+        col_list = list(cols)
+        result = {"cols": col_list, "col_labels": _apply_col_labels(col_list), "rows": serialized, "page": page, "page_size": page_size}
         if total_rows is not None:
             result["total_rows"] = total_rows
             result["total_pages"] = total_pages
