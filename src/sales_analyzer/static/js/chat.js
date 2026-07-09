@@ -900,6 +900,7 @@ $(function () {
               if (payload.cols && Array.isArray(payload.rows)) {
                 _pendingChartData = {
                   cols: payload.cols,
+                  col_labels: payload.col_labels || payload.cols,
                   rows: payload.rows,
                   total_rows: payload.total_rows || payload.rows.length,
                   message_id: payload.message_id || null,
@@ -1043,7 +1044,7 @@ $(function () {
       if (tableMessageId) {
         _loadFullTable($body[0], tableMessageId);
       } else if (preview) {
-        _renderPreviewTable($body[0], preview.cols, preview.rows, preview.total_rows, null);
+        _renderPreviewTable($body[0], preview.col_labels || preview.cols, preview.rows, preview.total_rows, null);
       } else {
         $body.html('<p class="vis-error">No table data available.</p>');
       }
@@ -1129,7 +1130,7 @@ function _openChartOffcanvas($wrap) {
 
 /* Attach two accordions (Chart + Table) after a live assistant message row */
 function _attachVisToggles($msgRow, chartData) {
-  const { cols, rows, total_rows, message_id } = chartData;
+  const { cols, col_labels, rows, total_rows, message_id } = chartData;
   const uid = message_id || ('vis-' + Date.now());
 
   const $accordions = $(`
@@ -1157,7 +1158,7 @@ function _attachVisToggles($msgRow, chartData) {
 
   // Store preview rows keyed on wrapper — live chart/table render uses these (no API call)
   window._visStore = window._visStore || new WeakMap();
-  window._visStore.set($accordions[0], { cols, rows, total_rows, message_id });
+  window._visStore.set($accordions[0], { cols, col_labels: col_labels || cols, rows, total_rows, message_id });
 }
 
 /* ── Number helpers ── */
@@ -1506,7 +1507,8 @@ async function _loadFullTable(container, messageId) {
     return;
   }
 
-  const { cols, rows: prefetchRows, total_rows } = prefetch;
+  const { cols, col_labels, rows: prefetchRows, total_rows } = prefetch;
+  const displayCols = col_labels || cols;
 
   // Update the accordion badge with the real total (API count, not the SSE preview cap)
   const $badge = $c.closest('.vis-accordion').find('.vis-accordion-count');
@@ -1517,7 +1519,7 @@ async function _loadFullTable(container, messageId) {
   $c.html(`
     <div class="vis-dt-wrap">
       <table class="vis-data-table display">
-        <thead><tr>${cols.map(c => `<th>${escapeAttr(String(c))}</th>`).join('')}</tr></thead>
+        <thead><tr>${displayCols.map(c => `<th>${escapeAttr(String(c))}</th>`).join('')}</tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -1533,7 +1535,7 @@ async function _loadFullTable(container, messageId) {
     order: [],   // initial order comes from the KQL's preserved ORDER BY
     scrollX: true,
 
-    columns: cols.map(c => ({ title: escapeAttr(String(c)) })),
+    columns: displayCols.map(c => ({ title: escapeAttr(String(c)) })),
 
     ajax(dtParams, callback) {
       // First call: serve the prefetched data to avoid a redundant API round-trip
@@ -1549,7 +1551,7 @@ async function _loadFullTable(container, messageId) {
       }
 
       const orderIdx = dtParams.order[0]?.column;
-      const sortCol  = orderIdx != null ? (cols[orderIdx] || '') : '';
+      const sortCol  = orderIdx != null ? (cols[orderIdx] || '') : '';  // raw name for ADX sort
       const sortDir  = dtParams.order[0]?.dir || 'desc';
       const page     = Math.floor(dtParams.start / dtParams.length) + 1;
 
