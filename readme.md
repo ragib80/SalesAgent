@@ -224,3 +224,7 @@ Before considering a phase complete, verify:
 * Documentation updated
 * `docs/phase_history.md` updated
 * Existing functionality verified
+
+
+
+python manage.py collectstatic --noinput
