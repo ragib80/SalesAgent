@@ -12,3 +12,5 @@ src/logs/
 src/web.config
 
 docs/
+.claude/
+logs/
