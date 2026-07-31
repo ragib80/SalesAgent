@@ -2041,6 +2041,44 @@ body {
 }
 
 /* Dynamic column picker — shown when response has multiple numeric columns */
+.chart-controls-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 2px 12px;
+}
+.chart-seg {
+  display: inline-flex;
+  border: 1px solid var(--vs-border);
+  border-radius: 999px;
+  overflow: hidden;
+  background: transparent;
+}
+.chart-seg-btn {
+  padding: 4px 14px;
+  border: none;
+  background: transparent;
+  color: var(--vs-text-muted);
+  font-size: 11.5px;
+  font-family: var(--vs-font);
+  cursor: pointer;
+  transition: background var(--vs-transition), color var(--vs-transition);
+}
+.chart-seg-btn + .chart-seg-btn {
+  border-left: 1px solid var(--vs-border);
+}
+.chart-seg-btn:hover:not(.active) {
+  background: var(--vs-hover);
+  color: var(--vs-text);
+}
+.chart-seg-btn.active {
+  background: var(--vs-accent-bg);
+  color: var(--vs-accent);
+  font-weight: 600;
+}
+
 .chart-col-picker {
   display: flex;
   flex-wrap: wrap;

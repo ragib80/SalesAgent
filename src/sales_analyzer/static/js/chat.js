@@ -1183,6 +1183,11 @@ function _fmtCell(v) {
   return String(v);
 }
 
+/* ── Chart view state (offcanvas toggles) ── */
+let _chartType = 'bar';        // 'bar' | 'line'
+let _chartSort = 'desc';       // 'desc' | 'asc'
+const CHART_MAX_POINTS = 12;   // line chart shows at most this many points
+
 /* ── Chart renderer (ECharts) ── */
 function _renderChart(container, cols, rows, selectedValIdx) {
   if (typeof echarts === 'undefined') {
@@ -1223,9 +1228,52 @@ function _renderChart(container, cols, rows, selectedValIdx) {
     ? selectedValIdx
     : (metricIdxs[0] ?? (labelIdx === 0 ? 1 : 0));
 
-  // ── Column picker (shown when multiple metrics exist) ─────────────────────────
+  // ── Chart-type + sort controls (offcanvas only) ───────────────────────────────
   const parent = container.parentElement;
-  if (parent) { const p = parent.querySelector('.chart-col-picker'); if (p) p.remove(); }
+  if (parent) {
+    const oldBar = parent.querySelector('.chart-controls-bar'); if (oldBar) oldBar.remove();
+    const p = parent.querySelector('.chart-col-picker'); if (p) p.remove();
+  }
+  if (parent && isOffcanvas) {
+    const rerender = () => {
+      container.innerHTML = '';
+      if (window._chartOffcanvasInstance) {
+        try { window._chartOffcanvasInstance.dispose(); } catch (_) {}
+        window._chartOffcanvasInstance = null;
+      }
+      _renderChart(container, cols, rows, valIdx);
+    };
+    const bar = document.createElement('div');
+    bar.className = 'chart-controls-bar';
+
+    // Chart type: Bar | Line
+    const typeGroup = document.createElement('div');
+    typeGroup.className = 'chart-seg';
+    [['bar', 'Bar'], ['line', 'Line']].forEach(([val, text]) => {
+      const b = document.createElement('button');
+      b.className = 'chart-seg-btn' + (_chartType === val ? ' active' : '');
+      b.textContent = text;
+      b.onclick = () => { if (_chartType !== val) { _chartType = val; rerender(); } };
+      typeGroup.appendChild(b);
+    });
+
+    // Sort: Desc | Asc
+    const sortGroup = document.createElement('div');
+    sortGroup.className = 'chart-seg';
+    [['desc', 'Desc'], ['asc', 'Asc']].forEach(([val, text]) => {
+      const b = document.createElement('button');
+      b.className = 'chart-seg-btn' + (_chartSort === val ? ' active' : '');
+      b.textContent = text;
+      b.onclick = () => { if (_chartSort !== val) { _chartSort = val; rerender(); } };
+      sortGroup.appendChild(b);
+    });
+
+    bar.appendChild(typeGroup);
+    bar.appendChild(sortGroup);
+    parent.insertBefore(bar, container);
+  }
+
+  // ── Column picker (shown when multiple metrics exist) ─────────────────────────
   if (metricIdxs.length > 1 && parent && isOffcanvas) {
     const picker = document.createElement('div');
     picker.className = 'chart-col-picker';
@@ -1246,9 +1294,31 @@ function _renderChart(container, cols, rows, selectedValIdx) {
     parent.insertBefore(picker, container);
   }
 
+  // ── Data preparation ──────────────────────────────────────────────────────────
+  const rawLabels = rows.map(r => String(r[labelIdx] ?? ''));
+  const rawValues = rows.map(r => _coerceNum(r[valIdx]));
+  const isTime = rawLabels.every(l => /^\d{4}[-/]/.test(l));
+
+  // Time-series data is always a line; otherwise honour the Bar/Line toggle.
+  const asLine = isTime || _chartType === 'line';
+
+  // Non-time data: drop null/empty labels + NaN, sort by the chosen direction.
+  let labels = rawLabels;
+  let values = rawValues;
+  if (!isTime) {
+    const pairs = rawLabels
+      .map((l, i) => ({ label: l, value: rawValues[i] }))
+      .filter(d => d.label !== '' && d.label !== 'null' && !isNaN(d.value));
+    pairs.sort((a, b) => _chartSort === 'asc' ? a.value - b.value : b.value - a.value);
+    // Line view is capped to keep the axis readable.
+    const shown = asLine ? pairs.slice(0, CHART_MAX_POINTS) : pairs;
+    labels = shown.map(p => p.label);
+    values = shown.map(p => p.value);
+  }
+
   // ── Chart init ────────────────────────────────────────────────────────────────
   if (isOffcanvas) {
-    container.style.height = Math.max(400, rows.length * 36 + 80) + 'px';
+    container.style.height = asLine ? '440px' : (Math.max(400, values.length * 36 + 80) + 'px');
   } else {
     container.style.height = '360px';
   }
@@ -1260,23 +1330,6 @@ function _renderChart(container, cols, rows, selectedValIdx) {
       try { window._chartOffcanvasInstance.dispose(); } catch (_) {}
     }
     window._chartOffcanvasInstance = chart;
-  }
-
-  // ── Data preparation ──────────────────────────────────────────────────────────
-  const rawLabels = rows.map(r => String(r[labelIdx] ?? ''));
-  const rawValues = rows.map(r => _coerceNum(r[valIdx]));
-  const isTime = rawLabels.every(l => /^\d{4}[-/]/.test(l));
-
-  // Bar charts: sort descending, drop null/empty labels and NaN values
-  let labels = rawLabels;
-  let values = rawValues;
-  if (!isTime) {
-    const pairs = rawLabels
-      .map((l, i) => ({ label: l, value: rawValues[i] }))
-      .filter(d => d.label !== '' && d.label !== 'null' && !isNaN(d.value));
-    pairs.sort((a, b) => b.value - a.value);
-    labels = pairs.map(p => p.label);
-    values = pairs.map(p => p.value);
   }
 
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -1305,7 +1358,7 @@ function _renderChart(container, cols, rows, selectedValIdx) {
     tooltip: {
       trigger: 'axis',
       axisPointer: {
-        type: isTime ? 'line' : 'shadow',
+        type: asLine ? 'line' : 'shadow',
         shadowStyle: { color: 'rgba(16,163,127,.08)' },
         lineStyle: { color: '#10a37f', type: 'dashed', width: 1.5 },
       },
@@ -1317,7 +1370,7 @@ function _renderChart(container, cols, rows, selectedValIdx) {
       extraCssText: 'box-shadow:0 4px 16px rgba(0,0,0,.12);border-radius:8px;',
       formatter(params) {
         const p = params[0];
-        const rankLine = isTime ? '' :
+        const rankLine = asLine ? '' :
           `<div style="margin-top:5px;font-size:11px;color:${textColor}">Rank #${p.dataIndex + 1} of ${rows.length}</div>`;
         return `<div style="font-weight:700;margin-bottom:5px;font-size:13px">${p.name}</div>
                 <div style="font-size:13px">${cols[valIdx] || 'Value'}: <span style="color:#10a37f;font-weight:600">${_fmtNumFull(p.value)}</span></div>
@@ -1325,11 +1378,11 @@ function _renderChart(container, cols, rows, selectedValIdx) {
       },
     },
 
-    grid: isTime
+    grid: asLine
       ? { left: '3%', right: '5%', top: '8%', bottom: '14%', containLabel: true }
       : { left: '2%', right: '17%', top: '2%', bottom: '2%', containLabel: true },
 
-    xAxis: isTime ? {
+    xAxis: asLine ? {
       type: 'category', data: labels,
       axisLabel: { rotate: 30, color: textColor, fontSize: 11, margin: 10 },
       axisLine: { lineStyle: { color: splitColor } },
@@ -1343,7 +1396,7 @@ function _renderChart(container, cols, rows, selectedValIdx) {
       axisTick: { show: false },
     },
 
-    yAxis: isTime ? {
+    yAxis: asLine ? {
       type: 'value',
       axisLabel: { formatter: v => _fmtNum(v), color: textColor, fontSize: 11 },
       splitLine: { lineStyle: { color: splitColor, type: 'dashed' } },
@@ -1358,7 +1411,7 @@ function _renderChart(container, cols, rows, selectedValIdx) {
       axisTick: { show: false },
     },
 
-    series: isTime ? [{
+    series: asLine ? [{
       type: 'line',
       data: values,
       smooth: 0.4,
