@@ -1228,6 +1228,18 @@ function _renderChart(container, cols, rows, selectedValIdx) {
     ? selectedValIdx
     : (metricIdxs[0] ?? (labelIdx === 0 ? 1 : 0));
 
+  // ── Chart shape: time? line? multi-line? ──────────────────────────────────────
+  // Time-series data is always a line; otherwise honour the Bar/Line toggle.
+  const rawLabels = rows.map(r => String(r[labelIdx] ?? ''));
+  const isTime = rawLabels.every(l => /^\d{4}[-/]/.test(l));
+  const asLine = isTime || _chartType === 'line';
+  // When several metric columns exist (e.g. PrevRev + CurrRev), a line chart
+  // overlays them as one line each instead of forcing the user to switch.
+  const seriesCols = (asLine && metricIdxs.length >= 2) ? metricIdxs : [valIdx];
+  const multiLine = asLine && seriesCols.length > 1;
+  // Sequential label (period/month/…) → keep query order; else sort by value.
+  const isSequential = isTime || /period|month|date|time|day|week|quarter|year|fiscal/i.test(cols[labelIdx] || '');
+
   // ── Chart-type + sort controls (offcanvas only) ───────────────────────────────
   const parent = container.parentElement;
   if (parent) {
@@ -1273,8 +1285,8 @@ function _renderChart(container, cols, rows, selectedValIdx) {
     parent.insertBefore(bar, container);
   }
 
-  // ── Column picker (shown when multiple metrics exist) ─────────────────────────
-  if (metricIdxs.length > 1 && parent && isOffcanvas) {
+  // ── Column picker (single-metric selection; hidden when lines are overlaid) ────
+  if (metricIdxs.length > 1 && parent && isOffcanvas && !multiLine) {
     const picker = document.createElement('div');
     picker.className = 'chart-col-picker';
     metricIdxs.forEach(idx => {
@@ -1295,26 +1307,41 @@ function _renderChart(container, cols, rows, selectedValIdx) {
   }
 
   // ── Data preparation ──────────────────────────────────────────────────────────
-  const rawLabels = rows.map(r => String(r[labelIdx] ?? ''));
-  const rawValues = rows.map(r => _coerceNum(r[valIdx]));
-  const isTime = rawLabels.every(l => /^\d{4}[-/]/.test(l));
+  // One record per row: its label plus the value of every series column.
+  let recs = rows.map(r => ({
+    label: String(r[labelIdx] ?? ''),
+    vals: seriesCols.map(ci => _coerceNum(r[ci])),
+  })).filter(d => d.label !== '' && d.label !== 'null');
+  // Single-series: drop rows whose only value is missing (matches old behaviour).
+  if (!multiLine) recs = recs.filter(d => !isNaN(d.vals[0]));
 
-  // Time-series data is always a line; otherwise honour the Bar/Line toggle.
-  const asLine = isTime || _chartType === 'line';
-
-  // Non-time data: drop null/empty labels + NaN, sort by the chosen direction.
-  let labels = rawLabels;
-  let values = rawValues;
-  if (!isTime) {
-    const pairs = rawLabels
-      .map((l, i) => ({ label: l, value: rawValues[i] }))
-      .filter(d => d.label !== '' && d.label !== 'null' && !isNaN(d.value));
-    pairs.sort((a, b) => _chartSort === 'asc' ? a.value - b.value : b.value - a.value);
-    // Line view is capped to keep the axis readable.
-    const shown = asLine ? pairs.slice(0, CHART_MAX_POINTS) : pairs;
-    labels = shown.map(p => p.label);
-    values = shown.map(p => p.value);
+  // Order: a sequential line (months/periods) stays in query order so the axis
+  // reads chronologically; everything else sorts by the primary metric.
+  if (!(isSequential && asLine)) {
+    const dir = _chartSort === 'asc' ? 1 : -1;
+    recs.sort((a, b) => {
+      const av = a.vals[0], bv = b.vals[0];
+      if (isNaN(av)) return 1;
+      if (isNaN(bv)) return -1;
+      return dir * (av - bv);
+    });
   }
+  // Line view is capped to keep the axis readable.
+  if (asLine && recs.length > CHART_MAX_POINTS) recs = recs.slice(0, CHART_MAX_POINTS);
+
+  const labels = recs.map(d => d.label);
+  const seriesValues = seriesCols.map((_, si) => recs.map(d => d.vals[si]));
+  const values = seriesValues[0] || [];   // primary series (bar + single line)
+
+  // Series that are far smaller in magnitude go on a secondary y-axis so a
+  // percentage/growth line doesn't get flattened against a revenue line.
+  const seriesMax = seriesValues.map(vals =>
+    Math.max(1, ...vals.map(v => (isNaN(v) ? 0 : Math.abs(v)))));
+  const globalMax = Math.max(...seriesMax);
+  const yIndexFor = si =>
+    (multiLine && globalMax / seriesMax[si] > 30) ? 1 : 0;
+  const hasSecondaryAxis = multiLine && seriesCols.some((_, si) => yIndexFor(si) === 1);
+  const SERIES_PALETTE = ['#10a37f', '#6366f1', '#f59e0b', '#ef4444', '#0ea5e9', '#a855f7', '#14b8a6', '#ec4899'];
 
   // ── Chart init ────────────────────────────────────────────────────────────────
   if (isOffcanvas) {
@@ -1369,17 +1396,34 @@ function _renderChart(container, cols, rows, selectedValIdx) {
       textStyle: { color: tooltipText, fontSize: 13 },
       extraCssText: 'box-shadow:0 4px 16px rgba(0,0,0,.12);border-radius:8px;',
       formatter(params) {
-        const p = params[0];
+        const arr = Array.isArray(params) ? params : [params];
+        const title = `<div style="font-weight:700;margin-bottom:5px;font-size:13px">${arr[0].name}</div>`;
+        if (multiLine) {
+          return title + arr.map(p =>
+            `<div style="font-size:12.5px">${p.marker}${p.seriesName}: <span style="color:${p.color};font-weight:600">${_fmtNumFull(p.value)}</span></div>`
+          ).join('');
+        }
+        const p = arr[0];
         const rankLine = asLine ? '' :
           `<div style="margin-top:5px;font-size:11px;color:${textColor}">Rank #${p.dataIndex + 1} of ${rows.length}</div>`;
-        return `<div style="font-weight:700;margin-bottom:5px;font-size:13px">${p.name}</div>
-                <div style="font-size:13px">${cols[valIdx] || 'Value'}: <span style="color:#10a37f;font-weight:600">${_fmtNumFull(p.value)}</span></div>
+        return title +
+          `<div style="font-size:13px">${cols[valIdx] || 'Value'}: <span style="color:#10a37f;font-weight:600">${_fmtNumFull(p.value)}</span></div>
                 ${rankLine}`;
       },
     },
 
+    legend: multiLine ? {
+      data: seriesCols.map(ci => cols[ci]),
+      top: 6,
+      icon: 'roundRect',
+      itemWidth: 14,
+      itemHeight: 8,
+      itemGap: 14,
+      textStyle: { color: textColor, fontSize: 11 },
+    } : undefined,
+
     grid: asLine
-      ? { left: '3%', right: '5%', top: '8%', bottom: '14%', containLabel: true }
+      ? { left: '3%', right: hasSecondaryAxis ? '10%' : '5%', top: multiLine ? '16%' : '8%', bottom: '14%', containLabel: true }
       : { left: '2%', right: '17%', top: '2%', bottom: '2%', containLabel: true },
 
     xAxis: asLine ? {
@@ -1396,13 +1440,25 @@ function _renderChart(container, cols, rows, selectedValIdx) {
       axisTick: { show: false },
     },
 
-    yAxis: asLine ? {
+    yAxis: asLine ? (hasSecondaryAxis ? [{
       type: 'value',
       axisLabel: { formatter: v => _fmtNum(v), color: textColor, fontSize: 11 },
       splitLine: { lineStyle: { color: splitColor, type: 'dashed' } },
       axisLine: { show: false },
       axisTick: { show: false },
-    } : {
+    }, {
+      type: 'value',
+      axisLabel: { formatter: v => _fmtNum(v), color: textColor, fontSize: 11 },
+      splitLine: { show: false },
+      axisLine: { show: false },
+      axisTick: { show: false },
+    }] : {
+      type: 'value',
+      axisLabel: { formatter: v => _fmtNum(v), color: textColor, fontSize: 11 },
+      splitLine: { lineStyle: { color: splitColor, type: 'dashed' } },
+      axisLine: { show: false },
+      axisTick: { show: false },
+    }) : {
       type: 'category',
       data: labels,
       inverse: true,
@@ -1411,22 +1467,29 @@ function _renderChart(container, cols, rows, selectedValIdx) {
       axisTick: { show: false },
     },
 
-    series: asLine ? [{
-      type: 'line',
-      data: values,
-      smooth: 0.4,
-      symbol: 'circle',
-      symbolSize: 7,
-      lineStyle: { color: '#10a37f', width: 2.5 },
-      itemStyle: { color: '#10a37f', borderWidth: 2.5, borderColor: isDark ? '#1e293b' : '#fff' },
-      areaStyle: {
-        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-          { offset: 0, color: 'rgba(16,163,127,.28)' },
-          { offset: 1, color: 'rgba(16,163,127,.02)' },
-        ]),
-      },
-      emphasis: { scale: true, itemStyle: { shadowBlur: 10, shadowColor: 'rgba(16,163,127,.45)' } },
-    }] : [{
+    series: asLine ? seriesCols.map((ci, si) => {
+      const color = SERIES_PALETTE[si % SERIES_PALETTE.length];
+      return {
+        name: cols[ci],
+        type: 'line',
+        data: seriesValues[si],
+        yAxisIndex: yIndexFor(si),
+        smooth: 0.4,
+        symbol: 'circle',
+        symbolSize: 7,
+        connectNulls: true,
+        lineStyle: { color, width: 2.5 },
+        itemStyle: { color, borderWidth: 2.5, borderColor: isDark ? '#1e293b' : '#fff' },
+        // Area fill only for a single line — overlapping fills look muddy.
+        areaStyle: multiLine ? undefined : {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(16,163,127,.28)' },
+            { offset: 1, color: 'rgba(16,163,127,.02)' },
+          ]),
+        },
+        emphasis: { scale: true, focus: multiLine ? 'series' : 'none', itemStyle: { shadowBlur: 10, shadowColor: 'rgba(16,163,127,.45)' } },
+      };
+    }) : [{
       type: 'bar',
       data: values.map(v => ({ value: v, itemStyle: barColor(v) })),
       barMaxWidth: 28,
