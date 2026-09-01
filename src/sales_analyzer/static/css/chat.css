@@ -1962,6 +1962,54 @@ body {
   transform: rotate(180deg);
 }
 
+/* Flex row that holds the accordion toggle button + Export button side-by-side */
+.vis-accordion-header-row {
+  display: flex;
+  align-items: stretch;
+}
+
+.vis-accordion-header-row .vis-accordion-header {
+  flex: 1 1 auto;
+  /* border-bottom on the full row when open, not just the button */
+  border-bottom: none !important;
+}
+
+.vis-accordion-header-row.open {
+  border-bottom: 1px solid var(--vs-border);
+}
+
+/* Export to Excel button */
+.vis-export-btn {
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .35rem .75rem;
+  border: none;
+  border-left: 1px solid var(--vs-border);
+  background: transparent;
+  color: var(--vs-text-muted);
+  font-size: .78rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
+  transition: background .15s, color .15s;
+}
+
+.vis-export-btn:hover {
+  background: rgba(33, 136, 56, .08);
+  color: #217a38;
+}
+
+[data-theme="dark"] .vis-export-btn:hover {
+  background: rgba(64, 200, 100, .1);
+  color: #5dba78;
+}
+
+.vis-export-btn:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
 .vis-accordion-body {
   padding: .5rem;
   background: var(--vs-surface, var(--vs-bg));

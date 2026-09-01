@@ -515,11 +515,17 @@ $(function () {
                </button>
              </div>
              <div class="vis-accordion" data-type="table">
-               <button class="vis-accordion-header">
-                 <i class="bi bi-table" aria-hidden="true"></i>
-                 <span>Table</span>
-                 <i class="bi bi-chevron-down vis-chevron" aria-hidden="true"></i>
-               </button>
+               <div class="vis-accordion-header-row">
+                 <button class="vis-accordion-header">
+                   <i class="bi bi-table" aria-hidden="true"></i>
+                   <span>Table</span>
+                   <i class="bi bi-chevron-down vis-chevron" aria-hidden="true"></i>
+                 </button>
+                 <button class="vis-export-btn" data-message-id="${m.id}" title="Export all records to Excel">
+                   <i class="bi bi-file-earmark-excel-fill" aria-hidden="true"></i>
+                   <span>Export</span>
+                 </button>
+               </div>
                <div class="vis-accordion-body" style="display:none;"></div>
              </div>
            </div>`
@@ -1030,6 +1036,7 @@ $(function () {
     const isOpen = $body.is(':visible');
     $body.toggle(!isOpen);
     $header.toggleClass('open', !isOpen);
+    $header.closest('.vis-accordion-header-row').toggleClass('open', !isOpen);
 
     if (!isOpen && !$body.data('loaded')) {
       $body.data('loaded', true);
@@ -1050,6 +1057,55 @@ $(function () {
         $body.html('<p class="vis-error">No table data available.</p>');
       }
     }
+  });
+
+  /* ── Export to Excel ── */
+  $(document).on('click', '.vis-export-btn', function (e) {
+    e.stopPropagation();
+    const $btn = $(this);
+    const messageId = $btn.data('message-id');
+    if (!messageId) return;
+
+    const token = getAuthToken();
+    if (!token) { window.location.href = '/welcome'; return; }
+
+    if ($btn.data('exporting')) return; // prevent duplicate click while in-flight
+
+    $btn.data('exporting', true);
+    const $icon = $btn.find('i');
+    const $label = $btn.find('span');
+    $btn.prop('disabled', true);
+    $icon.removeClass('bi-file-earmark-excel-fill').addClass('bi-hourglass-split');
+    $label.text('Preparing…');
+
+    fetch(`${apiBase}/sales/export-excel/?message_id=${messageId}`, {
+      headers: { 'Authorization': 'Bearer ' + token },
+    })
+    .then(r => {
+      if (!r.ok) return r.json().then(d => { throw new Error(d.error || 'Export failed (HTTP ' + r.status + ')'); });
+      const disposition = r.headers.get('Content-Disposition') || '';
+      const match = disposition.match(/filename="([^"]+)"/);
+      const filename = match ? match[1] : `sales_export_${messageId}.xlsx`;
+      return r.blob().then(blob => ({ blob, filename }));
+    })
+    .then(({ blob, filename }) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    })
+    .catch(err => {
+      Swal.fire({ icon: 'error', title: 'Export failed', text: err.message || 'Could not generate Excel file. Please try again.' });
+    })
+    .finally(() => {
+      $btn.data('exporting', false).prop('disabled', false);
+      $icon.removeClass('bi-hourglass-split').addClass('bi-file-earmark-excel-fill');
+      $label.text('Export');
+    });
   });
 });
 
@@ -1144,12 +1200,18 @@ function _attachVisToggles($msgRow, chartData) {
         </button>
       </div>
       <div class="vis-accordion" data-type="table">
-        <button class="vis-accordion-header">
-          <i class="bi bi-table" aria-hidden="true"></i>
-          <span>Table</span>
-          <span class="vis-accordion-count">${total_rows} records</span>
-          <i class="bi bi-chevron-down vis-chevron" aria-hidden="true"></i>
-        </button>
+        <div class="vis-accordion-header-row">
+          <button class="vis-accordion-header">
+            <i class="bi bi-table" aria-hidden="true"></i>
+            <span>Table</span>
+            <span class="vis-accordion-count">${total_rows} records</span>
+            <i class="bi bi-chevron-down vis-chevron" aria-hidden="true"></i>
+          </button>
+          ${message_id ? `<button class="vis-export-btn" data-message-id="${message_id}" title="Export all records to Excel">
+            <i class="bi bi-file-earmark-excel-fill" aria-hidden="true"></i>
+            <span>Export</span>
+          </button>` : ''}
+        </div>
         <div class="vis-accordion-body" style="display:none;"></div>
       </div>
     </div>

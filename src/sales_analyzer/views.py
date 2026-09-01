@@ -1,8 +1,9 @@
+import io
 import json
 import queue
 import threading
 
-from django.http import StreamingHttpResponse
+from django.http import HttpResponse, StreamingHttpResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -646,3 +647,204 @@ class DataQueryAPIView(APIView):
             result["total_rows"] = total_rows
             result["total_pages"] = total_pages
         return Response(result, status=status.HTTP_200_OK)
+
+
+class ExcelExportAPIView(APIView):
+    """
+    Stream a full-dataset Excel export for a bot message that has a stored KQL.
+
+    GET /api/sales/export-excel/?message_id=<pk>
+
+    Retrieves all rows (no pagination), attaches the original user prompt
+    as metadata at the top of the worksheet, and returns a downloadable .xlsx file.
+    """
+
+    authentication_classes = (JWTAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        import datetime as _dt
+        import logging as _logging
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment
+        from openpyxl.utils import get_column_letter
+        from agent.agent import (
+            _enforce_bukrs_filter,
+            _rewrite_kql_for_export,
+            _verify_kql_with_llm,
+            adx,
+            get_user_area_scope,
+        )
+
+        _log = _logging.getLogger(__name__)
+
+        message_id = request.query_params.get("message_id", "").strip()
+        if not message_id:
+            return Response({"error": "message_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Ownership check — user can only export their own messages
+        try:
+            msg = Message.objects.get(pk=message_id, conversation__user=request.user, is_deleted=False)
+        except (Message.DoesNotExist, ValueError):
+            return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        kql = (msg.kql or "").strip()
+        if not kql:
+            return Response({"error": "No data available for this message."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Same security checks as DataQueryAPIView
+        if "bukrs" not in kql.lower() or "1000" not in kql:
+            return Response({"error": "KQL missing required company filter."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        kql = _enforce_bukrs_filter(kql)
+
+        try:
+            scope = get_user_area_scope(request.user)
+            if getattr(scope, "restricted", False) and not scope.depots:
+                return Response({"error": "No depot assigned to your account."}, status=status.HTTP_403_FORBIDDEN)
+        except Exception:
+            pass
+
+        # Retrieve the original user prompt from the message that preceded this bot reply
+        user_msg = Message.objects.filter(
+            conversation=msg.conversation,
+            sender='user',
+            is_deleted=False,
+            pk__lt=msg.pk,
+        ).order_by('-pk').first()
+        prompt_text = (user_msg.text if user_msg else "") or "N/A"
+
+        # Rewrite KQL to remove the row-limit clause so we export the full dataset
+        kql_export = _rewrite_kql_for_export(kql, mode="table_base")
+
+        try:
+            cols, rows = adx().run(kql_export)
+        except Exception as exc:
+            _log.warning("[ExcelExportAPIView] ADX error — attempting LLM fix: %s", exc)
+            kql_fixed = _verify_kql_with_llm(kql_export)
+            if kql_fixed != kql_export:
+                try:
+                    cols, rows = adx().run(kql_fixed)
+                except Exception as exc2:
+                    _log.error("[ExcelExportAPIView] ADX error after LLM fix: %s", exc2)
+                    return Response({"error": "Failed to retrieve data for export."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            else:
+                _log.error("[ExcelExportAPIView] ADX error, no LLM fix available: %s", exc)
+                return Response({"error": "Failed to retrieve data for export."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        col_list = list(cols)
+        col_labels = _apply_col_labels(col_list)
+        num_cols = len(col_labels)
+        total_row_count = len(rows)
+
+        if total_row_count == 0:
+            return Response({"error": "No data to export."}, status=status.HTTP_404_NOT_FOUND)
+
+        # ── Build Excel workbook ────────────────────────────────────────────────
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Sales Data"
+
+        _title_font  = Font(bold=True, size=13, color="1F3864")
+        _label_font  = Font(bold=True, size=10)
+        _value_font  = Font(size=10)
+        _header_font = Font(bold=True, size=10, color="FFFFFF")
+        _header_fill = PatternFill(start_color="1F3864", end_color="1F3864", fill_type="solid")
+        _center      = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        _wrap        = Alignment(wrap_text=True, vertical="top")
+
+        # ── Metadata rows (1–7) ────────────────────────────────────────────────
+        HEADER_ROW = 9  # data header row number (1-indexed)
+
+        ws.append(["Sales Data Export"])
+        ws["A1"].font = _title_font
+
+        ws.append([])  # row 2 blank
+
+        ws.append(["Original Prompt:"])
+        ws["A3"].font = _label_font
+
+        # ── Prompt row — merged across all data columns so text is fully visible ──
+        # Place the full prompt text in A4, then merge A4 across the table width.
+        merge_span = max(num_cols, 8)          # span at least 8 columns
+        merge_end_letter = get_column_letter(merge_span)
+        ws.append([prompt_text])
+        ws["A4"].font = _value_font
+        ws["A4"].alignment = _wrap
+        if merge_span > 1:
+            ws.merge_cells(f"A4:{merge_end_letter}4")
+        # Row height: estimate lines based on merged cell width (~9 chars per Excel width unit)
+        merged_pixel_width = sum(
+            ws.column_dimensions[get_column_letter(i)].width if get_column_letter(i) in ws.column_dimensions else 14
+            for i in range(1, merge_span + 1)
+        )
+        chars_per_line = max(40, int(merged_pixel_width * 1.2))
+        prompt_lines = max(2, min(20, (len(prompt_text) // chars_per_line) + 2))
+        ws.row_dimensions[4].height = 15 * prompt_lines
+
+        ws.append([])  # row 5 blank
+
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ws.append(["Generated At:", now_str])
+        ws["A6"].font = _label_font
+        ws["B6"].font = _value_font
+
+        ws.append(["Total Records:", total_row_count])
+        ws["A7"].font = _label_font
+        ws["B7"].font = _value_font
+
+        ws.append([])  # row 8 blank separator
+
+        # ── Column header row (HEADER_ROW = 9) ────────────────────────────────
+        ws.append(col_labels)
+        ws.row_dimensions[HEADER_ROW].height = 22
+        for col_idx in range(1, num_cols + 1):
+            cell = ws.cell(row=HEADER_ROW, column=col_idx)
+            cell.font = _header_font
+            cell.fill = _header_fill
+            cell.alignment = _center
+
+        # Auto-filter on header row (no Table object — avoids freeze-pane conflicts)
+        if num_cols > 0:
+            ws.auto_filter.ref = (
+                f"A{HEADER_ROW}:{get_column_letter(num_cols)}{HEADER_ROW}"
+            )
+
+        # Freeze rows 1-9 so the header stays visible when scrolling.
+        # Use a string address — ws.cell() would create a phantom empty row.
+        ws.freeze_panes = f"A{HEADER_ROW + 1}"
+
+        # ── Data rows ─────────────────────────────────────────────────────────
+        for row in rows:
+            row_out = []
+            for val in row:
+                if isinstance(val, (_dt.datetime, _dt.date)):
+                    val = val.strftime("%Y-%m-%d")
+                elif val is None:
+                    val = ""
+                row_out.append(val)
+            ws.append(row_out)
+
+        # ── Column widths ─────────────────────────────────────────────────────
+        # Set data column widths first (these also cover the metadata section).
+        for col_idx, label in enumerate(col_labels, start=1):
+            letter = get_column_letter(col_idx)
+            ws.column_dimensions[letter].width = max(14, min(40, len(str(label)) + 4))
+        # Ensure at least 8 columns get a reasonable width for the merged prompt cell.
+        for col_idx in range(1, merge_span + 1):
+            letter = get_column_letter(col_idx)
+            if letter not in ws.column_dimensions or ws.column_dimensions[letter].width < 14:
+                ws.column_dimensions[letter].width = 14
+
+        # ── Serialize to buffer and stream ────────────────────────────────────
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+
+        filename = f"sales_export_{datetime.now():%Y%m%d_%H%M%S}.xlsx"
+        response = HttpResponse(
+            buf.read(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
