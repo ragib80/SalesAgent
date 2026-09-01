@@ -904,6 +904,7 @@ $(function () {
                   rows: payload.rows,
                   total_rows: payload.total_rows || payload.rows.length,
                   message_id: payload.message_id || null,
+                  chart_meta: payload.chart_meta || null,
                 };
               }
             } else if (eventName === 'final') {
@@ -1071,7 +1072,7 @@ function _openChartOffcanvas($wrap) {
       }
       container.innerHTML = '';
       if (preview) {
-        _renderChart(container, preview.cols, preview.rows);
+        _renderChart(container, preview.cols, preview.rows, undefined, preview.chart_meta);
       } else if (messageId) {
         _loadChartFromApi(container, messageId);
       } else {
@@ -1107,7 +1108,7 @@ function _openChartOffcanvas($wrap) {
       container.innerHTML = '';
 
       if (pending.preview) {
-        _renderChart(container, pending.preview.cols, pending.preview.rows);
+        _renderChart(container, pending.preview.cols, pending.preview.rows, undefined, pending.preview.chart_meta);
       } else if (pending.messageId) {
         _loadChartFromApi(container, pending.messageId);
       } else {
@@ -1130,7 +1131,7 @@ function _openChartOffcanvas($wrap) {
 
 /* Attach two accordions (Chart + Table) after a live assistant message row */
 function _attachVisToggles($msgRow, chartData) {
-  const { cols, col_labels, rows, total_rows, message_id } = chartData;
+  const { cols, col_labels, rows, total_rows, message_id, chart_meta } = chartData;
   const uid = message_id || ('vis-' + Date.now());
 
   const $accordions = $(`
@@ -1158,7 +1159,7 @@ function _attachVisToggles($msgRow, chartData) {
 
   // Store preview rows keyed on wrapper — live chart/table render uses these (no API call)
   window._visStore = window._visStore || new WeakMap();
-  window._visStore.set($accordions[0], { cols, col_labels: col_labels || cols, rows, total_rows, message_id });
+  window._visStore.set($accordions[0], { cols, col_labels: col_labels || cols, rows, total_rows, message_id, chart_meta: chart_meta || null });
 }
 
 /* ── Number helpers ── */
@@ -1186,10 +1187,199 @@ function _fmtCell(v) {
 /* ── Chart view state (offcanvas toggles) ── */
 let _chartType = 'bar';        // 'bar' | 'line'
 let _chartSort = 'desc';       // 'desc' | 'asc'
-const CHART_MAX_POINTS = 12;   // line chart shows at most this many points
+const CHART_MAX_POINTS = 24;   // line chart shows at most this many points
+
+/* ── Grouped pivot renderer ────────────────────────────────────────────────────
+   Called by _renderChart() when chartMeta.group_col is present.
+   Pivots flat rows (time × group × metric) into one ECharts series per group.
+   Does NOT touch any other code path. ── */
+function _renderGroupedChart(container, cols, rows, xColIdx, yColIdx, groupColIdx, chartMeta, isOffcanvas) {
+  const _cn = v => (v === null || v === undefined || v === '') ? 0 : (Number(v) || 0);
+
+  // ── 1. Collect ordered x-axis values ────────────────────────────────────────
+  const xOrdered = [];
+  const xSeen = new Set();
+  rows.forEach(r => {
+    const x = String(r[xColIdx] ?? '');
+    if (x && x !== 'null' && !xSeen.has(x)) { xSeen.add(x); xOrdered.push(x); }
+  });
+
+  // Sort chronologically when the x-axis looks like dates / periods
+  const isTimeAxis = xOrdered.length > 0 && xOrdered.every(l =>
+    /^\d{4}[-/]/.test(l) ||
+    /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i.test(l) ||
+    /^Q[1-4]/i.test(l) || /^FY\d/i.test(l)
+  );
+  if (isTimeAxis) xOrdered.sort();
+
+  // ── 2. Rank groups by total metric → keep top N ─────────────────────────────
+  const topN = Math.max(1, (chartMeta && chartMeta.top_n) || 5);
+  const totals = {};
+  rows.forEach(r => {
+    const g = String(r[groupColIdx] ?? '');
+    if (!g || g === 'null') return;
+    totals[g] = (totals[g] || 0) + _cn(r[yColIdx]);
+  });
+  const topGroups = Object.entries(totals)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, topN)
+    .map(e => e[0]);
+
+  if (!topGroups.length) {
+    container.innerHTML = '<p class="vis-error">No chart data available.</p>';
+    return;
+  }
+
+  // ── 3. Build lookup: group → { xVal → yVal } ────────────────────────────────
+  const lookup = {};
+  topGroups.forEach(g => { lookup[g] = {}; });
+  rows.forEach(r => {
+    const g = String(r[groupColIdx] ?? '');
+    const x = String(r[xColIdx] ?? '');
+    if (lookup[g] !== undefined && x && x !== 'null') {
+      lookup[g][x] = _cn(r[yColIdx]);
+    }
+  });
+  const pivotSeries = topGroups.map(g => ({
+    name: g,
+    data: xOrdered.map(x => (lookup[g][x] !== undefined ? lookup[g][x] : null)),
+  }));
+
+  // ── 4. Controls (Bar | Line toggle, offcanvas only) ─────────────────────────
+  const parent = container.parentElement;
+  if (parent) {
+    const ob = parent.querySelector('.chart-controls-bar'); if (ob) ob.remove();
+    const op = parent.querySelector('.chart-col-picker');   if (op) op.remove();
+  }
+  if (parent && isOffcanvas) {
+    const rerender = () => {
+      container.innerHTML = '';
+      if (window._chartOffcanvasInstance) {
+        try { window._chartOffcanvasInstance.dispose(); } catch (_) {}
+        window._chartOffcanvasInstance = null;
+      }
+      _renderGroupedChart(container, cols, rows, xColIdx, yColIdx, groupColIdx, chartMeta, isOffcanvas);
+    };
+    const bar = document.createElement('div');
+    bar.className = 'chart-controls-bar';
+    const tg = document.createElement('div');
+    tg.className = 'chart-seg';
+    [['bar', 'Bar'], ['line', 'Line']].forEach(([val, text]) => {
+      const b = document.createElement('button');
+      b.className = 'chart-seg-btn' + (_chartType === val ? ' active' : '');
+      b.textContent = text;
+      b.onclick = () => { if (_chartType !== val) { _chartType = val; rerender(); } };
+      tg.appendChild(b);
+    });
+    bar.appendChild(tg);
+    parent.insertBefore(bar, container);
+  }
+
+  // ── 5. ECharts option ───────────────────────────────────────────────────────
+  // Time-series x-axis → default line; user toggle overrides.
+  const useBar = (_chartType === 'bar') && !isTimeAxis && !(chartMeta && chartMeta.chart_type === 'line');
+  container.style.height = isOffcanvas ? '480px' : '360px';
+
+  const chart = echarts.init(container, null, { renderer: 'canvas' });
+  if (isOffcanvas) {
+    if (window._chartOffcanvasInstance && window._chartOffcanvasInstance !== chart) {
+      try { window._chartOffcanvasInstance.dispose(); } catch (_) {}
+    }
+    window._chartOffcanvasInstance = chart;
+  }
+
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const textColor   = isDark ? '#94a3b8' : '#64748b';
+  const splitColor  = isDark ? 'rgba(255,255,255,.06)' : '#edf0f4';
+  const tooltipBg   = isDark ? '#1e293b' : '#ffffff';
+  const tooltipBdr  = isDark ? '#334155' : '#e2e8f0';
+  const tooltipText = isDark ? '#e2e8f0' : '#0f172a';
+  const PAL = ['#10a37f','#6366f1','#f59e0b','#ef4444','#0ea5e9','#a855f7','#14b8a6','#ec4899'];
+
+  const option = {
+    backgroundColor: 'transparent',
+    animation: true,
+    animationDuration: 600,
+    animationEasing: 'cubicOut',
+
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: useBar ? 'shadow' : 'line', lineStyle: { color: '#10a37f', type: 'dashed', width: 1.5 } },
+      backgroundColor: tooltipBg,
+      borderColor: tooltipBdr,
+      borderWidth: 1,
+      padding: [10, 14],
+      textStyle: { color: tooltipText, fontSize: 13 },
+      extraCssText: 'box-shadow:0 4px 16px rgba(0,0,0,.12);border-radius:8px;',
+      formatter(params) {
+        const arr = Array.isArray(params) ? params : [params];
+        const title = `<div style="font-weight:700;margin-bottom:5px;font-size:13px">${arr[0].name}</div>`;
+        return title + arr
+          .filter(p => p.value !== null && p.value !== undefined)
+          .map(p => `<div style="font-size:12.5px">${p.marker}${p.seriesName}: <span style="color:${p.color};font-weight:600">${_fmtNumFull(p.value)}</span></div>`)
+          .join('');
+      },
+    },
+
+    legend: {
+      data: topGroups,
+      type: 'scroll',
+      top: 6,
+      icon: 'roundRect',
+      itemWidth: 14, itemHeight: 8, itemGap: 12,
+      textStyle: { color: textColor, fontSize: 11 },
+    },
+
+    grid: { left: '3%', right: '4%', top: '18%', bottom: '14%', containLabel: true },
+
+    xAxis: {
+      type: 'category',
+      data: xOrdered,
+      axisLabel: { rotate: 30, color: textColor, fontSize: 11, margin: 10 },
+      axisLine: { lineStyle: { color: splitColor } },
+      axisTick: { show: false },
+      splitLine: { show: false },
+    },
+
+    yAxis: {
+      type: 'value',
+      axisLabel: { formatter: v => _fmtNum(v), color: textColor, fontSize: 11 },
+      splitLine: { lineStyle: { color: splitColor, type: 'dashed' } },
+      axisLine: { show: false },
+      axisTick: { show: false },
+    },
+
+    series: pivotSeries.map((s, si) => {
+      const color = PAL[si % PAL.length];
+      if (useBar) {
+        return {
+          name: s.name, type: 'bar',
+          data: s.data,
+          itemStyle: { color, borderRadius: [3, 3, 0, 0] },
+          emphasis: { itemStyle: { opacity: 1, shadowBlur: 8, shadowColor: color + '80' } },
+        };
+      }
+      return {
+        name: s.name, type: 'line',
+        data: s.data,
+        smooth: 0.3,
+        symbol: 'circle', symbolSize: 6,
+        connectNulls: true,
+        lineStyle: { color, width: 2.5 },
+        itemStyle: { color, borderWidth: 2, borderColor: isDark ? '#1e293b' : '#fff' },
+        emphasis: { scale: true, focus: 'series', itemStyle: { shadowBlur: 10, shadowColor: color + '80' } },
+      };
+    }),
+  };
+
+  chart.setOption(option);
+  window.addEventListener('resize', () => { try { chart.resize(); } catch (_) {} });
+}
 
 /* ── Chart renderer (ECharts) ── */
-function _renderChart(container, cols, rows, selectedValIdx) {
+// chartMeta (optional): {chart_type, x_col, y_col, top_n, sort} from the backend LLM.
+// When present it drives axis/type selection; user toggle controls can still override type+sort.
+function _renderChart(container, cols, rows, selectedValIdx, chartMeta) {
   if (typeof echarts === 'undefined') {
     container.innerHTML = '<p class="vis-error">Chart library not loaded.</p>';
     return;
@@ -1206,8 +1396,13 @@ function _renderChart(container, cols, rows, selectedValIdx) {
   const metricRegex = /revenue|quantity|volume|growth|pct|amount|count|sales|total|invoice/i;
 
   // ── Label col (dimension) ──────────────────────────────────────────────────────
-  // Three-pass: named dimension keyword (excluding metric cols) → first non-metric string → first non-metric col
-  let labelIdx = cols.findIndex(c =>
+  // If chartMeta specifies x_col and it exists in cols, use it directly.
+  // Otherwise three-pass heuristic: named keyword → first non-metric string → first non-metric col.
+  let labelIdx = -1;
+  if (chartMeta && chartMeta.x_col) {
+    labelIdx = cols.findIndex(c => c.toLowerCase() === chartMeta.x_col.toLowerCase());
+  }
+  if (labelIdx < 0) labelIdx = cols.findIndex(c =>
     !metricRegex.test(c) &&
     /name|brand|product|zone|territory|period|month|depo|cname|wgbez|arktx|szone/i.test(c)
   );
@@ -1223,16 +1418,67 @@ function _renderChart(container, cols, rows, selectedValIdx) {
     .map((c, i) => i)
     .filter(i => i !== labelIdx && !codeRegex.test(cols[i]) && (metricRegex.test(cols[i]) || !isNaN(_coerceNum(firstRow[i]))));
 
-  // Pick active value col: honour selectedValIdx if valid, else first metric col
+  // Pick active value col: honour selectedValIdx (user pick) first, then chartMeta.y_col, then first metric.
+  let _chartMetaValIdx = -1;
+  if (chartMeta && chartMeta.y_col) {
+    const mi = cols.findIndex(c => c.toLowerCase() === chartMeta.y_col.toLowerCase());
+    if (mi >= 0 && metricIdxs.includes(mi)) _chartMetaValIdx = mi;
+  }
   let valIdx = (selectedValIdx != null && selectedValIdx >= 0 && metricIdxs.includes(selectedValIdx))
     ? selectedValIdx
-    : (metricIdxs[0] ?? (labelIdx === 0 ? 1 : 0));
+    : (_chartMetaValIdx >= 0 ? _chartMetaValIdx : (metricIdxs[0] ?? (labelIdx === 0 ? 1 : 0)));
+
+  // ── Grouped pivot path (2-dimension data: time × brand, month × zone, etc.) ──
+  // Priority 1: LLM emitted group_col in chartMeta.
+  // Priority 2: auto-detect — when the x-axis is time-based AND a second
+  //   non-metric string column exists, it must be a grouping dimension.
+  //   (Safe: only fires on time x-axis, preventing false pivots on simple ranking queries.)
+  {
+    let _gci = -1;
+
+    // Priority 1: explicit LLM signal
+    if (chartMeta && chartMeta.group_col) {
+      const gi = cols.findIndex(c => c.toLowerCase() === chartMeta.group_col.toLowerCase());
+      if (gi >= 0 && gi !== labelIdx && gi !== valIdx) _gci = gi;
+    }
+
+    // Priority 2: auto-detect (only when x-axis labels look like dates/periods)
+    if (_gci < 0) {
+      const _lbls = rows.map(r => String(r[labelIdx] ?? ''));
+      const _isTimeAxis = _lbls.length > 0 && _lbls.every(l =>
+        /^\d{4}[-/]/.test(l) ||
+        /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i.test(l) ||
+        /^Q[1-4]/i.test(l) || /^FY\d/i.test(l)
+      );
+      if (_isTimeAxis) {
+        _gci = cols.findIndex((c, i) =>
+          i !== labelIdx &&
+          !metricRegex.test(c) &&
+          !codeRegex.test(c) &&
+          typeof firstRow[i] === 'string' &&
+          !!firstRow[i] && firstRow[i] !== 'null'
+        );
+      }
+    }
+
+    if (_gci >= 0) {
+      _renderGroupedChart(container, cols, rows, labelIdx, valIdx, _gci, chartMeta, isOffcanvas);
+      return;
+    }
+  }
 
   // ── Chart shape: time? line? multi-line? ──────────────────────────────────────
-  // Time-series data is always a line; otherwise honour the Bar/Line toggle.
+  // Time-series data is always a line; chartMeta.chart_type==='line' also forces it;
+  // otherwise honour the Bar/Line user toggle.
   const rawLabels = rows.map(r => String(r[labelIdx] ?? ''));
-  const isTime = rawLabels.every(l => /^\d{4}[-/]/.test(l));
-  const asLine = isTime || _chartType === 'line';
+  const isTime = rawLabels.every(l =>
+    /^\d{4}[-/]/.test(l) ||                                              // 2024-04, 2024/04
+    /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i.test(l) ||    // April 2025, Jan 2025
+    /^Q[1-4]\s*\d{4}$/i.test(l) ||                                       // Q1 2025
+    /^FY\d/i.test(l)                                                      // FY2025
+  );
+  const metaWantsLine = !!(chartMeta && chartMeta.chart_type === 'line');
+  const asLine = isTime || metaWantsLine || _chartType === 'line';
   // When several metric columns exist (e.g. PrevRev + CurrRev), a line chart
   // overlays them as one line each instead of forcing the user to switch.
   const seriesCols = (asLine && metricIdxs.length >= 2) ? metricIdxs : [valIdx];
@@ -1253,7 +1499,7 @@ function _renderChart(container, cols, rows, selectedValIdx) {
         try { window._chartOffcanvasInstance.dispose(); } catch (_) {}
         window._chartOffcanvasInstance = null;
       }
-      _renderChart(container, cols, rows, valIdx);
+      _renderChart(container, cols, rows, valIdx, chartMeta);
     };
     const bar = document.createElement('div');
     bar.className = 'chart-controls-bar';
@@ -1299,7 +1545,7 @@ function _renderChart(container, cols, rows, selectedValIdx) {
           try { window._chartOffcanvasInstance.dispose(); } catch (_) {}
           window._chartOffcanvasInstance = null;
         }
-        _renderChart(container, cols, rows, idx);
+        _renderChart(container, cols, rows, idx, chartMeta);
       };
       picker.appendChild(btn);
     });

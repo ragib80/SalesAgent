@@ -1334,6 +1334,31 @@ def _extract_meta_line_and_strip(text: str) -> tuple[dict, str]:
     stripped = text[:m.start()] + text[m.end():]
     return meta, stripped.strip()
 
+# Holds the CHART_META from the most recent KQL generation.
+# Same module-level pattern as LAST_KQL_META — read immediately after generate_kql() returns.
+LAST_CHART_META: dict = {}
+
+_CHART_META_LINE_RE = re.compile(r'^\s*//\s*CHART_META\s+(\{.*?\})\s*$', re.M)
+
+def _extract_chart_meta_line_and_strip(text: str) -> tuple[dict, str]:
+    """
+    Looks for a comment line:  // CHART_META {...}
+    Returns (chart_meta_dict, text_without_that_line).
+    If not found or invalid JSON → ({}, original_text).
+    Never raises — any failure returns ({}, original_text) so KQL generation is unaffected.
+    """
+    if not text:
+        return {}, text
+    try:
+        m = _CHART_META_LINE_RE.search(text)
+        if not m:
+            return {}, text
+        chart_meta = json.loads(m.group(1))
+        stripped = text[:m.start()] + text[m.end():]
+        return chart_meta, stripped.strip()
+    except Exception:
+        return {}, text
+
 #end column data type
 
 @dataclass
@@ -1978,6 +2003,13 @@ def generate_kql(
     prompt += (
         "\n\nOUTPUT FORMAT (strict):\n"
         "- First line: // META {compact-json-of-actually-applied dates, filters}\n"
+        "- Second line: // CHART_META {\"chart_type\":\"bar|line\",\"x_col\":\"<col>\",\"y_col\":\"<col>\",\"group_col\":\"<col-or-null>\",\"top_n\":<n-or-null>,\"sort\":\"asc|desc\"}\n"
+        "  chart_type: \"line\" for time/trend queries (monthly, quarterly, weekly); \"bar\" for all others\n"
+        "  x_col: the PRIMARY dimension column for the X-axis (e.g. TimePeriod for time queries, cname for dealer queries)\n"
+        "  y_col: the primary numeric metric column (e.g. TotalRevenue, CY_Revenue, growth_pct)\n"
+        "  group_col: ONLY set when the result has TWO categorical dimensions (e.g. brand+month → group_col=\"wgbez\"; zone+month → group_col=\"Territory\"); null for simple 1-dimension queries\n"
+        "  top_n: when group_col is set use 5; for simple ranking queries use 10; for pure time-series use null\n"
+        "  sort: \"asc\" for time-series x_col; \"desc\" for rankings\n"
         "- Then: RAW KQL ONLY (no markdown, no commentary)."
     )
 
@@ -1992,6 +2024,10 @@ def generate_kql(
     meta, kql_body = _extract_meta_line_and_strip(response)
     LAST_KQL_META = meta
     logger.debug("KQL META: %s", LAST_KQL_META)
+
+    chart_meta_extracted, kql_body = _extract_chart_meta_line_and_strip(kql_body)
+    LAST_CHART_META = chart_meta_extracted
+    logger.debug("CHART META: %s", LAST_CHART_META)
 
     try:
         message_id = get_latest_message_id(conversation_uuid)
@@ -2442,6 +2478,8 @@ def handle_user_query(
                 query_plan=query_plan,
                 rag_context=rag_context,
             )
+            # Capture chart_meta immediately — before any strict-mode retry can overwrite LAST_CHART_META.
+            _chart_meta_for_response = dict(LAST_CHART_META) if LAST_CHART_META else None
             kql = _post_process_generated_kql(kql, user_prompt)
             kql = _validate_or_repair_kql(
                 kql,
@@ -2663,6 +2701,7 @@ def handle_user_query(
             "rows": raw_rows_serialized,
             "total_rows": len(rows),
             "kql": kql,
+            "chart_meta": _chart_meta_for_response or None,
         }
 
     except Exception as exc:

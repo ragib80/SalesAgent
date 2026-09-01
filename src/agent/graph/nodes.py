@@ -151,6 +151,7 @@ def execute_existing_agent_node(state: SalesAgentState) -> SalesAgentState:
         new_state["result_rows"] = result.get("rows")
         new_state["result_total_rows"] = result.get("total_rows")
         new_state["result_kql"] = result.get("kql")
+        new_state["result_chart_meta"] = result.get("chart_meta")
 
     return new_state
 
@@ -191,6 +192,7 @@ def finalize_response_node(state: SalesAgentState) -> SalesAgentState:
         final_payload["result_rows"] = state.get("result_rows")
         final_payload["result_total_rows"] = state.get("result_total_rows")
         final_payload["result_kql"] = state.get("result_kql")
+        final_payload["result_chart_meta"] = state.get("result_chart_meta")
 
     return {
         "answer": answer,

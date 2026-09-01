@@ -366,6 +366,7 @@ class ChatStreamAPIView(ChatAPIView):
                                 "rows": result_rows[:100],
                                 "total_rows": payload.get("result_total_rows", len(result_rows)),
                                 "message_id": bot_msg.pk,
+                                "chart_meta": payload.get("result_chart_meta"),
                             })
 
                         final_sent = True

@@ -24,3 +24,4 @@ class SalesAgentState(TypedDict, total=False):
     result_rows: list[list] | None
     result_total_rows: int | None
     result_kql: str | None
+    result_chart_meta: dict | None
