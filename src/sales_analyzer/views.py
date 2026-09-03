@@ -69,6 +69,26 @@ def _apply_col_labels(cols):
     return [_COLUMN_DISPLAY_LABELS.get(c.lower(), c) for c in cols]
 
 
+# Column names (lowercase) hidden from all table/chart/export output.
+# Filtering happens at the presentation layer only — KQL WHERE filters
+# (e.g. `where vtweg == 10`) are unaffected; just the projected column is dropped.
+_HIDDEN_COLUMNS = frozenset({"vtweg"})
+
+
+def _strip_hidden_cols(cols, rows):
+    """Drop hidden columns (e.g. vtweg) from ADX result cols and rows.
+
+    Returns (filtered_cols, filtered_rows) with rows as lists. Filtering by
+    column index keeps every row aligned with its columns.
+    """
+    keep = [i for i, c in enumerate(cols) if c.lower() not in _HIDDEN_COLUMNS]
+    if len(keep) == len(cols):
+        return list(cols), [list(r) for r in rows]
+    filtered_cols = [cols[i] for i in keep]
+    filtered_rows = [[row[i] for i in keep] for row in rows]
+    return filtered_cols, filtered_rows
+
+
 class ChatView(TemplateView):
     template_name = 'sales/chat_index.html'
 
@@ -361,11 +381,13 @@ class ChatStreamAPIView(ChatAPIView):
                         result_cols = payload.get("result_cols")
                         result_rows = payload.get("result_rows")
                         if result_cols and result_rows is not None:
+                            total_rows = payload.get("result_total_rows", len(result_rows))
+                            result_cols, result_rows = _strip_hidden_cols(result_cols, result_rows)
                             yield _sse_event("data", {
                                 "cols": result_cols,
                                 "col_labels": _apply_col_labels(result_cols),
                                 "rows": result_rows[:100],
-                                "total_rows": payload.get("result_total_rows", len(result_rows)),
+                                "total_rows": total_rows,
                                 "message_id": bot_msg.pk,
                                 "chart_meta": payload.get("result_chart_meta"),
                             })
@@ -567,8 +589,8 @@ class DataQueryAPIView(APIView):
                     _log.error("[DataQueryAPIView/chart] ADX error, LLM produced no change: %s", exc)
                     return Response({"error": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            serialized = _serialize_rows(cols, rows)
-            col_list = list(cols)
+            col_list, rows = _strip_hidden_cols(cols, rows)
+            serialized = _serialize_rows(col_list, rows)
             return Response({"cols": col_list, "col_labels": _apply_col_labels(col_list), "rows": serialized}, status=status.HTTP_200_OK)
 
         # ── Table mode ────────────────────────────────────────────────────────
@@ -640,8 +662,8 @@ class DataQueryAPIView(APIView):
                 _log.error("[DataQueryAPIView/table] ADX error, LLM produced no change: %s", exc)
                 return Response({"error": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        serialized = _serialize_rows(cols, rows)
-        col_list = list(cols)
+        col_list, rows = _strip_hidden_cols(cols, rows)
+        serialized = _serialize_rows(col_list, rows)
         result = {"cols": col_list, "col_labels": _apply_col_labels(col_list), "rows": serialized, "page": page, "page_size": page_size}
         if total_rows is not None:
             result["total_rows"] = total_rows
@@ -651,38 +673,242 @@ class DataQueryAPIView(APIView):
 
 class ExcelExportAPIView(APIView):
     """
-    Stream a full-dataset Excel export for a bot message that has a stored KQL.
+    Two-sheet Excel export: Summary cover page + Sales Data table.
+    Sheet 1 — Summary  : title banner, analysis query, KPI cards, optional chart.
+    Sheet 2 — Sales Data: fully formatted Excel Table with conditional formatting.
 
     GET /api/sales/export-excel/?message_id=<pk>
-
-    Retrieves all rows (no pagination), attaches the original user prompt
-    as metadata at the top of the worksheet, and returns a downloadable .xlsx file.
     """
 
     authentication_classes = (JWTAuthentication,)
     permission_classes = (IsAuthenticated,)
 
+    # ── Column classification sets ──────────────────────────────────────────
+    _REV  = frozenset(['revenue','amount','sales','totalrevenue','cy_revenue',
+                       'py_revenue','periodb_revenue'])
+    _QTY  = frozenset(['fkimg','quantity','qty','invoicecount','py_quantity',
+                       'cy_quantity','totalquantity'])
+    _VOL  = frozenset(['volum','volume','py_volume','cy_volume','totalvolume'])
+    _GRW  = frozenset(['growth_pct','growthpct','growth'])
+    _DT   = frozenset(['fkdat','invoicedate'])
+    _PER  = frozenset(['period','timeperiod','timperiod','fiscalperiod'])
+    _CODE = frozenset(['kunrg','gsber','bukrs','vkorg','vtweg','spart','matnr',
+                       'matkl','kunnr_sh','payer_dl','vbeln','posnr','gk','kkber','szone'])
+
+    def _col_type(self, name, sample):
+        """Dynamically classify a column by its name and a small value sample."""
+        n = name.lower()
+        if n in self._DT  or 'date' in n:                               return 'date'
+        if n in self._PER or 'period' in n or 'month' in n or 'quarter' in n: return 'period'
+        if n in self._REV or 'revenue' in n or 'amount' in n:           return 'revenue'
+        if n in self._QTY or 'quantity' in n:                           return 'quantity'
+        if n in self._VOL or 'volume' in n:                             return 'volume'
+        if n in self._GRW or 'growth' in n or 'pct' in n:              return 'growth'
+        if n in self._CODE:                                              return 'code'
+        non_null = [v for v in sample if v is not None]
+        if non_null and all(isinstance(v, (int, float)) for v in non_null):
+            return 'numeric'
+        return 'text'
+
+    def _detect_period(self, col_list, col_types, rows):
+        """Return 'Apr 2024 – Mar 2026' style string, or None."""
+        import datetime as _dt
+        for i, col in enumerate(col_list):
+            if col_types.get(col) not in ('date', 'period'):
+                continue
+            dates = []
+            for row in rows:
+                v = row[i]
+                if isinstance(v, (_dt.datetime, _dt.date)):
+                    dates.append(v if isinstance(v, _dt.datetime)
+                                 else _dt.datetime(v.year, v.month, 1))
+                elif isinstance(v, str) and v:
+                    for fmt in ('%Y-%m-%d', '%Y-%m', '%b %Y', '%B %Y'):
+                        try:
+                            dates.append(_dt.datetime.strptime(v[:10].strip(), fmt))
+                            break
+                        except ValueError:
+                            pass
+            if not dates:
+                continue
+            mn, mx = min(dates), max(dates)
+            if mn.year == mx.year and mn.month == mx.month:
+                return mn.strftime('%b %Y')
+            return f"{mn.strftime('%b %Y')} – {mx.strftime('%b %Y')}"
+        return None
+
+    def _maybe_add_growth(self, col_list, col_labels, rows, col_types):
+        """Append a computed Growth % column when CY_Revenue + PY_Revenue are both present."""
+        cy = next((i for i, c in enumerate(col_list) if 'cy_revenue' in c.lower()), None)
+        py = next((i for i, c in enumerate(col_list) if 'py_revenue' in c.lower()), None)
+        if cy is None or py is None:
+            return col_list, col_labels, rows, col_types
+        new_rows = []
+        for row in rows:
+            cv = row[cy] if isinstance(row[cy], (int, float)) else 0
+            pv = row[py] if isinstance(row[py], (int, float)) else 0
+            # Store as decimal so Excel % format (×100) renders correctly: 0.155 → 15.5%
+            g = round((cv - pv) / abs(pv), 4) if pv else None
+            new_rows.append(list(row) + [g])
+        k = 'growth_pct_computed'
+        t = dict(col_types)
+        t[k] = 'growth'
+        return list(col_list) + [k], list(col_labels) + ['Growth %'], new_rows, t
+
+    def _build_charts_sheet(self, wb, col_list, col_labels, col_types, rows):
+        """
+        Create a 'Charts' sheet containing pre-aggregated data and charts.
+
+        Two charts are generated when the data supports them:
+          • Line chart  — total revenue aggregated by time period (trend)
+          • Column chart — total revenue per entity, top-15 (comparison)
+
+        Aggregating here (rather than referencing raw Sales Data rows) means
+        the charts are meaningful regardless of how many rows the query returns.
+        """
+        from collections import defaultdict
+        import datetime as _dt
+        from openpyxl.chart import BarChart, LineChart, Reference
+        from openpyxl.styles import Font, PatternFill, Alignment
+        from openpyxl.utils import get_column_letter
+
+        rev_cols  = [(i, col_labels[i]) for i, c in enumerate(col_list)
+                     if col_types.get(c) == 'revenue']
+        time_cols = [(i,)              for i, c in enumerate(col_list)
+                     if col_types.get(c) in ('date', 'period')]
+        text_cols = [(i, col_labels[i]) for i, c in enumerate(col_list)
+                     if col_types.get(c) == 'text']
+
+        if not rev_cols:
+            return
+
+        rv_i, rv_lbl = rev_cols[0]
+
+        # ── Aggregate by time period ─────────────────────────────────────────
+        time_data = None
+        if time_cols:
+            ti = time_cols[0][0]
+            agg: dict = defaultdict(float)
+            for row in rows:
+                t, v = row[ti], row[rv_i]
+                if t is not None and isinstance(v, (int, float)):
+                    key = t.date() if isinstance(t, _dt.datetime) else t
+                    agg[key] += v
+            sorted_keys = sorted(agg.keys())
+            if len(sorted_keys) > 1:
+                time_data = [(k, round(agg[k], 2)) for k in sorted_keys]
+
+        # ── Aggregate by entity (top 15) ─────────────────────────────────────
+        entity_data = None
+        if text_cols:
+            te_i, te_lbl = text_cols[0]
+            agg = defaultdict(float)
+            for row in rows:
+                e, v = row[te_i], row[rv_i]
+                if e is not None and isinstance(v, (int, float)):
+                    agg[str(e)] += v
+            top15 = sorted(agg.items(), key=lambda x: x[1], reverse=True)[:15]
+            if top15:
+                entity_data = (top15, te_lbl)
+
+        if not time_data and not entity_data:
+            return
+
+        ws = wb.create_sheet("Charts")
+        ws.sheet_view.showGridLines = False
+
+        _NAVY = "1F3864"
+
+        def _hdr_cell(ws, row, col, val):
+            c = ws.cell(row=row, column=col, value=val)
+            c.font = Font(bold=True, color="FFFFFF", name="Calibri", size=10)
+            c.fill = PatternFill(start_color=_NAVY, end_color=_NAVY, fill_type="solid")
+            c.alignment = Alignment(horizontal="center", vertical="center")
+
+        DATA_A, DATA_B = 1, 2   # data written in cols A–B
+        CHART_COL     = 4       # charts start at col D
+        r = 1                   # current data row pointer
+        chart_row     = 1       # chart anchor row
+
+        # ── Write time-series data + line chart ──────────────────────────────
+        if time_data:
+            _hdr_cell(ws, r, DATA_A, "Period")
+            _hdr_cell(ws, r, DATA_B, rv_lbl)
+            hdr_row = r;  r += 1
+            for t, v in time_data:
+                ws.cell(row=r, column=DATA_A, value=t).number_format = 'DD-MMM-YYYY'
+                ws.cell(row=r, column=DATA_B, value=v).number_format  = '#,##0.00'
+                r += 1
+            end_row = r - 1
+
+            data_ref = Reference(ws, min_col=DATA_B, max_col=DATA_B,
+                                 min_row=hdr_row, max_row=end_row)
+            cats_ref = Reference(ws, min_col=DATA_A, max_col=DATA_A,
+                                 min_row=hdr_row + 1, max_row=end_row)
+            ch = LineChart()
+            ch.style  = 10
+            ch.title  = f"{rv_lbl} — Trend by Period"
+            ch.y_axis.title = rv_lbl
+            ch.x_axis.title = "Period"
+            ch.add_data(data_ref, titles_from_data=True)
+            ch.set_categories(cats_ref)
+            ch.width, ch.height = 22, 14
+            ws.add_chart(ch, f"{get_column_letter(CHART_COL)}{chart_row}")
+            chart_row += 24   # move anchor down for next chart
+            r         += 2    # gap before entity block
+
+        # ── Write entity data + column chart ─────────────────────────────────
+        if entity_data:
+            rows15, te_lbl = entity_data
+            ent_start = r
+            _hdr_cell(ws, r, DATA_A, te_lbl)
+            _hdr_cell(ws, r, DATA_B, rv_lbl)
+            r += 1
+            for name, val in rows15:
+                ws.cell(row=r, column=DATA_A, value=name)
+                ws.cell(row=r, column=DATA_B, value=val).number_format = '#,##0.00'
+                r += 1
+            ent_end = r - 1
+
+            data_ref = Reference(ws, min_col=DATA_B, max_col=DATA_B,
+                                 min_row=ent_start, max_row=ent_end)
+            cats_ref = Reference(ws, min_col=DATA_A, max_col=DATA_A,
+                                 min_row=ent_start + 1, max_row=ent_end)
+            ch = BarChart()
+            ch.type  = "col"
+            ch.style = 10
+            ch.title = f"Top {len(rows15)} {te_lbl} by {rv_lbl}"
+            ch.y_axis.title = rv_lbl
+            ch.add_data(data_ref, titles_from_data=True)
+            ch.set_categories(cats_ref)
+            ch.width, ch.height = 22, 14
+            ws.add_chart(ch, f"{get_column_letter(CHART_COL)}{chart_row}")
+
+        # Column widths for the data area
+        ws.column_dimensions[get_column_letter(DATA_A)].width = 26
+        ws.column_dimensions[get_column_letter(DATA_B)].width = 18
+
+    # ── Main request handler ────────────────────────────────────────────────
     def get(self, request):
         import datetime as _dt
+        import decimal as _decimal
         import logging as _logging
         from openpyxl import Workbook
         from openpyxl.styles import Font, PatternFill, Alignment
         from openpyxl.utils import get_column_letter
+        from openpyxl.worksheet.table import Table, TableStyleInfo
+        from openpyxl.formatting.rule import ColorScaleRule
         from agent.agent import (
-            _enforce_bukrs_filter,
-            _rewrite_kql_for_export,
-            _verify_kql_with_llm,
-            adx,
-            get_user_area_scope,
+            _enforce_bukrs_filter, _rewrite_kql_for_export,
+            _verify_kql_with_llm, adx, get_user_area_scope,
         )
-
         _log = _logging.getLogger(__name__)
 
+        # ── Auth / KQL security (unchanged) ──────────────────────────────────
         message_id = request.query_params.get("message_id", "").strip()
         if not message_id:
             return Response({"error": "message_id is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Ownership check — user can only export their own messages
         try:
             msg = Message.objects.get(pk=message_id, conversation__user=request.user, is_deleted=False)
         except (Message.DoesNotExist, ValueError):
@@ -692,7 +918,6 @@ class ExcelExportAPIView(APIView):
         if not kql:
             return Response({"error": "No data available for this message."}, status=status.HTTP_404_NOT_FOUND)
 
-        # Same security checks as DataQueryAPIView
         if "bukrs" not in kql.lower() or "1000" not in kql:
             return Response({"error": "KQL missing required company filter."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -705,18 +930,13 @@ class ExcelExportAPIView(APIView):
         except Exception:
             pass
 
-        # Retrieve the original user prompt from the message that preceded this bot reply
         user_msg = Message.objects.filter(
-            conversation=msg.conversation,
-            sender='user',
-            is_deleted=False,
-            pk__lt=msg.pk,
+            conversation=msg.conversation, sender='user',
+            is_deleted=False, pk__lt=msg.pk,
         ).order_by('-pk').first()
         prompt_text = (user_msg.text if user_msg else "") or "N/A"
 
-        # Rewrite KQL to remove the row-limit clause so we export the full dataset
         kql_export = _rewrite_kql_for_export(kql, mode="table_base")
-
         try:
             cols, rows = adx().run(kql_export)
         except Exception as exc:
@@ -729,119 +949,269 @@ class ExcelExportAPIView(APIView):
                     _log.error("[ExcelExportAPIView] ADX error after LLM fix: %s", exc2)
                     return Response({"error": "Failed to retrieve data for export."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             else:
-                _log.error("[ExcelExportAPIView] ADX error, no LLM fix available: %s", exc)
+                _log.error("[ExcelExportAPIView] ADX error, no LLM fix: %s", exc)
                 return Response({"error": "Failed to retrieve data for export."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        col_list = list(cols)
+        col_list, rows = _strip_hidden_cols(cols, rows)
         col_labels = _apply_col_labels(col_list)
-        num_cols = len(col_labels)
-        total_row_count = len(rows)
+        n_rows     = len(rows)
 
-        if total_row_count == 0:
+        if n_rows == 0:
             return Response({"error": "No data to export."}, status=status.HTTP_404_NOT_FOUND)
 
-        # ── Build Excel workbook ────────────────────────────────────────────────
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "Sales Data"
+        now = datetime.now()
 
-        _title_font  = Font(bold=True, size=13, color="1F3864")
-        _label_font  = Font(bold=True, size=10)
-        _value_font  = Font(size=10)
-        _header_font = Font(bold=True, size=10, color="FFFFFF")
-        _header_fill = PatternFill(start_color="1F3864", end_color="1F3864", fill_type="solid")
-        _center      = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        _wrap        = Alignment(wrap_text=True, vertical="top")
+        # ── Dynamic analysis ──────────────────────────────────────────────────
+        col_types = {
+            col: self._col_type(col, [rows[j][i] for j in range(min(15, n_rows))])
+            for i, col in enumerate(col_list)
+        }
+        period_str = self._detect_period(col_list, col_types, rows)
 
-        # ── Metadata rows (1–7) ────────────────────────────────────────────────
-        HEADER_ROW = 9  # data header row number (1-indexed)
+        # Add computed Growth % column if CY + PY revenue are both present
+        col_list, col_labels, rows, col_types = self._maybe_add_growth(
+            col_list, col_labels, rows, col_types)
+        n_cols = len(col_list)
+        n_rows = len(rows)
 
-        ws.append(["Sales Data Export"])
-        ws["A1"].font = _title_font
 
-        ws.append([])  # row 2 blank
+        # ── Style helpers ─────────────────────────────────────────────────────
+        _NAVY, _NAVY2, _GOLD = "1F3864", "2E4A7A", "C9A84C"
+        _LBLUE, _WHITE = "DCE6F1", "FFFFFF"
+        _CARD_COLS = ["1F3864", "2E75B6", "17375E"]
 
-        ws.append(["Original Prompt:"])
-        ws["A3"].font = _label_font
+        def _fill(h):
+            return PatternFill(start_color=h, end_color=h, fill_type="solid")
 
-        # ── Prompt row — merged across all data columns so text is fully visible ──
-        # Place the full prompt text in A4, then merge A4 across the table width.
-        merge_span = max(num_cols, 8)          # span at least 8 columns
-        merge_end_letter = get_column_letter(merge_span)
-        ws.append([prompt_text])
-        ws["A4"].font = _value_font
-        ws["A4"].alignment = _wrap
-        if merge_span > 1:
-            ws.merge_cells(f"A4:{merge_end_letter}4")
-        # Row height: estimate lines based on merged cell width (~9 chars per Excel width unit)
-        merged_pixel_width = sum(
-            ws.column_dimensions[get_column_letter(i)].width if get_column_letter(i) in ws.column_dimensions else 14
-            for i in range(1, merge_span + 1)
-        )
-        chars_per_line = max(40, int(merged_pixel_width * 1.2))
-        prompt_lines = max(2, min(20, (len(prompt_text) // chars_per_line) + 2))
-        ws.row_dimensions[4].height = 15 * prompt_lines
+        def _fnt(bold=False, sz=11, color="000000", italic=False):
+            return Font(bold=bold, size=sz, color=color, italic=italic, name="Calibri")
 
-        ws.append([])  # row 5 blank
+        def _aln(h="left", v="center", wrap=False, indent=0):
+            return Alignment(horizontal=h, vertical=v, wrap_text=wrap, indent=indent)
 
-        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        ws.append(["Generated At:", now_str])
-        ws["A6"].font = _label_font
-        ws["B6"].font = _value_font
+        # ════════════════════════════════════════════════════════════════════
+        # SHEET 1 — Summary
+        # ════════════════════════════════════════════════════════════════════
+        wb   = Workbook()
+        SPAN = max(n_cols, 8)
 
-        ws.append(["Total Records:", total_row_count])
-        ws["A7"].font = _label_font
-        ws["B7"].font = _value_font
+        ws_sum = wb.active
+        ws_sum.title = "Summary"
+        ws_sum.sheet_view.showGridLines = False
+        for ci in range(1, SPAN + 1):
+            ws_sum.column_dimensions[get_column_letter(ci)].width = 14
 
-        ws.append([])  # row 8 blank separator
+        def _fill_row(row_num, hex_color, n=SPAN):
+            for ci in range(1, n + 1):
+                ws_sum.cell(row=row_num, column=ci).fill = _fill(hex_color)
 
-        # ── Column header row (HEADER_ROW = 9) ────────────────────────────────
-        ws.append(col_labels)
-        ws.row_dimensions[HEADER_ROW].height = 22
-        for col_idx in range(1, num_cols + 1):
-            cell = ws.cell(row=HEADER_ROW, column=col_idx)
-            cell.font = _header_font
-            cell.fill = _header_fill
-            cell.alignment = _center
+        def _banner(row_num, hex_color, value, font, align, height):
+            _fill_row(row_num, hex_color)
+            c = ws_sum.cell(row=row_num, column=1)
+            c.value, c.font, c.alignment = value, font, align
+            ws_sum.row_dimensions[row_num].height = height
+            ws_sum.merge_cells(start_row=row_num, start_column=1,
+                               end_row=row_num, end_column=SPAN)
 
-        # Auto-filter on header row (no Table object — avoids freeze-pane conflicts)
-        if num_cols > 0:
-            ws.auto_filter.ref = (
-                f"A{HEADER_ROW}:{get_column_letter(num_cols)}{HEADER_ROW}"
-            )
+        r = 1
+        # Top spacer
+        _fill_row(r, _NAVY); ws_sum.row_dimensions[r].height = 6; r += 1
+        # Main title
+        _banner(r, _NAVY, "SALES DATA EXPORT",
+                _fnt(bold=True, sz=22, color=_WHITE), _aln("center", "center"), 38); r += 1
+        # Subtitle
+        _banner(r, _NAVY, "AI Sales Analysis Report",
+                _fnt(sz=13, color=_GOLD, italic=True), _aln("center", "center"), 22); r += 1
+        # Bottom of title block
+        _fill_row(r, _NAVY); ws_sum.row_dimensions[r].height = 6; r += 1
+        # Section label
+        _banner(r, _NAVY2, "  ANALYSIS QUERY",
+                _fnt(bold=True, sz=9, color=_GOLD), _aln("left", "center"), 20); r += 1
 
-        # Freeze rows 1-9 so the header stays visible when scrolling.
-        # Use a string address — ws.cell() would create a phantom empty row.
-        ws.freeze_panes = f"A{HEADER_ROW + 1}"
+        # Prompt row (wrapped, light-blue background)
+        chars_per_row = max(60, SPAN * 9)
+        p_lines = max(2, min(10, len(prompt_text) // chars_per_row + 2))
+        _fill_row(r, _LBLUE)
+        ws_sum.merge_cells(start_row=r, start_column=1, end_row=r, end_column=SPAN)
+        c = ws_sum.cell(row=r, column=1)
+        c.value = prompt_text
+        c.font = _fnt(sz=11, color="1A1A2E", italic=True)
+        c.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True, indent=1)
+        ws_sum.row_dimensions[r].height = max(36, p_lines * 16); r += 1
 
-        # ── Data rows ─────────────────────────────────────────────────────────
+        # Spacer
+        ws_sum.row_dimensions[r].height = 10; r += 1
+
+        # KPI cards — 3 cards across SPAN columns
+        CARD_LBL, CARD_VAL = r, r + 1
+        ws_sum.row_dimensions[CARD_LBL].height = 18
+        ws_sum.row_dimensions[CARD_VAL].height = 32
+        cw = SPAN // 3
+        c_s = [1, cw + 1, cw * 2 + 1]
+        c_e = [cw, cw * 2, SPAN]
+        cards = [
+            ("GENERATED AT",  now.strftime("%d %b %Y  %H:%M")),
+            ("TOTAL RECORDS",  f"{n_rows:,}"),
+            ("PERIOD",         period_str or "—"),
+        ]
+        for idx, (lbl, val) in enumerate(cards):
+            cs, ce, cc = c_s[idx], c_e[idx], _CARD_COLS[idx]
+            for ri2 in (CARD_LBL, CARD_VAL):
+                for ci2 in range(cs, ce + 1):
+                    ws_sum.cell(row=ri2, column=ci2).fill = _fill(cc)
+            ws_sum.merge_cells(start_row=CARD_LBL, start_column=cs,
+                               end_row=CARD_LBL, end_column=ce)
+            c = ws_sum.cell(row=CARD_LBL, column=cs)
+            c.value, c.font, c.alignment = (
+                lbl, _fnt(bold=True, sz=8, color=_GOLD), _aln("center", "center"))
+            ws_sum.merge_cells(start_row=CARD_VAL, start_column=cs,
+                               end_row=CARD_VAL, end_column=ce)
+            c = ws_sum.cell(row=CARD_VAL, column=cs)
+            c.value = val
+            c.font = _fnt(bold=True, sz=16 if len(val) <= 16 else 12, color=_WHITE)
+            c.alignment = _aln("center", "center")
+        r += 2
+
+        # Spacer + pointer
+        ws_sum.row_dimensions[r].height = 10; r += 1
+        _banner(r, _WHITE,
+                "\U0001f4ca  Full dataset is available on the 'Sales Data' sheet  →",
+                _fnt(sz=11, color=_NAVY, italic=True), _aln("center", "center"), 22); r += 1
+        ws_sum.row_dimensions[r].height = 8; r += 1
+
+        # ════════════════════════════════════════════════════════════════════
+        # SHEET 2 — Sales Data
+        # ════════════════════════════════════════════════════════════════════
+        ws_data = wb.create_sheet("Sales Data")
+        ws_data.sheet_view.showGridLines = False
+
+        HDR = 1; DATA_S = 2; DATA_E = 1 + n_rows
+
+        # Header row
+        ws_data.append(col_labels)
+        ws_data.row_dimensions[HDR].height = 22
+        for ci in range(1, n_cols + 1):
+            c = ws_data.cell(row=HDR, column=ci)
+            c.font = _fnt(bold=True, sz=10, color=_WHITE)
+            c.fill = _fill(_NAVY)
+            c.alignment = _aln("center", "center", wrap=True)
+
+        # String address avoids creating a phantom empty row (known openpyxl pitfall)
+        ws_data.freeze_panes = "A2"
+
+        # Number format map (growth stored as decimal → Excel % format renders ×100)
+        _FMT = {
+            'date':     'DD-MMM-YYYY',
+            'period':   'DD-MMM-YYYY',
+            'revenue':  '#,##0.00',
+            'quantity': '#,##0',
+            'volume':   '#,##0.00',
+            'numeric':  '#,##0.##',
+            'growth':   '+0.00%;-0.00%;0.00%',
+        }
+
+        def _safe_cell(val):
+            """Return a value that openpyxl can safely write to a cell."""
+            if val is None:
+                return ""
+            if isinstance(val, _dt.datetime):
+                v = val.replace(tzinfo=None)
+                # If there's no time component (midnight), return a plain date so
+                # Excel shows "01-Apr-2024" instead of "2024-04-01 0:00:00"
+                if v.hour == 0 and v.minute == 0 and v.second == 0 and v.microsecond == 0:
+                    return v.date()
+                return v
+            if isinstance(val, _dt.date):
+                return val
+            if isinstance(val, _dt.timedelta):
+                # timedelta has no native Excel type — render as total hours string
+                total_h = val.total_seconds() / 3600
+                return f"{total_h:.2f}h"
+            if isinstance(val, _decimal.Decimal):
+                # Kusto decimal columns → convert to float for Excel numeric formatting
+                return float(val)
+            if isinstance(val, (bool, int, float, str)):
+                return val
+            # Fallback: stringify anything else so the workbook never errors
+            return str(val)
+
+        # Write data rows (fast batch append — no per-cell ops in this loop)
         for row in rows:
-            row_out = []
-            for val in row:
-                if isinstance(val, (_dt.datetime, _dt.date)):
-                    val = val.strftime("%Y-%m-%d")
-                elif val is None:
-                    val = ""
-                row_out.append(val)
-            ws.append(row_out)
+            ws_data.append([_safe_cell(v) for v in row])
 
-        # ── Column widths ─────────────────────────────────────────────────────
-        # Set data column widths first (these also cover the metadata section).
-        for col_idx, label in enumerate(col_labels, start=1):
-            letter = get_column_letter(col_idx)
-            ws.column_dimensions[letter].width = max(14, min(40, len(str(label)) + 4))
-        # Ensure at least 8 columns get a reasonable width for the merged prompt cell.
-        for col_idx in range(1, merge_span + 1):
-            letter = get_column_letter(col_idx)
-            if letter not in ws.column_dimensions or ws.column_dimensions[letter].width < 14:
-                ws.column_dimensions[letter].width = 14
+        # Apply number / date formats per column after appending all rows
+        for ci, col in enumerate(col_list, start=1):
+            fmt = _FMT.get(col_types.get(col))
+            if not fmt:
+                continue
+            for ri in range(DATA_S, DATA_E + 1):
+                ws_data.cell(row=ri, column=ci).number_format = fmt
 
-        # ── Serialize to buffer and stream ────────────────────────────────────
+        # Excel Table — banded rows + auto-filter (freeze_panes is a string so no conflict)
+        tbl = Table(
+            displayName="SalesData",
+            ref=f"A{HDR}:{get_column_letter(n_cols)}{DATA_E}",
+        )
+        tbl.tableStyleInfo = TableStyleInfo(
+            name="TableStyleMedium2",
+            showFirstColumn=False, showLastColumn=False,
+            showRowStripes=True, showColumnStripes=False,
+        )
+        ws_data.add_table(tbl)
+
+        # Conditional formatting: color scale on revenue; RYG scale on growth
+        for ci, col in enumerate(col_list, start=1):
+            ctype = col_types.get(col)
+            rng = f"{get_column_letter(ci)}{DATA_S}:{get_column_letter(ci)}{DATA_E}"
+            if ctype == 'revenue' and n_rows > 1:
+                ws_data.conditional_formatting.add(rng, ColorScaleRule(
+                    start_type='min',        start_color='FFFFFFFF',
+                    mid_type='percentile',   mid_value=50, mid_color='FFBDD7EE',
+                    end_type='max',          end_color='FF1F3864',
+                ))
+            elif ctype == 'growth' and n_rows > 1:
+                ws_data.conditional_formatting.add(rng, ColorScaleRule(
+                    start_type='min',  start_color='FFF8696B',   # red  (low / negative)
+                    mid_type='num',    mid_value=0, mid_color='FFFFFFEB',  # yellow (zero)
+                    end_type='max',    end_color='FF63BE7B',      # green (high / positive)
+                ))
+
+        # Column widths — based on column type and sampled data values
+        for ci, col in enumerate(col_list, start=1):
+            ctype = col_types.get(col, 'text')
+            label = col_labels[ci - 1]
+            clet  = get_column_letter(ci)
+            if ctype == 'date':
+                w = 14
+            elif ctype == 'period':
+                samp = [str(rows[j][ci - 1]) for j in range(min(5, n_rows)) if rows[j][ci - 1]]
+                w = max(len(label) + 2, max((len(v) for v in samp), default=10) + 2, 12)
+            elif ctype in ('revenue', 'volume'):
+                w = 16
+            elif ctype in ('quantity', 'numeric', 'code'):
+                w = 14
+            elif ctype == 'growth':
+                w = 12
+            elif ctype == 'text':
+                samp = [str(rows[j][ci - 1]) for j in range(min(20, n_rows)) if rows[j][ci - 1]]
+                avg  = int(sum(len(v) for v in samp) / len(samp)) if samp else len(label)
+                w    = max(len(label) + 2, min(avg + 4, 40))
+            else:
+                w = max(12, len(label) + 2)
+            ws_data.column_dimensions[clet].width = w
+
+        # ── Charts sheet (aggregated data → meaningful charts) ────────────────
+        try:
+            self._build_charts_sheet(wb, col_list, col_labels, col_types, rows)
+        except Exception as e:
+            _log.warning("[ExcelExportAPIView] Charts sheet skipped: %s", e)
+
+        # ── Serialize ─────────────────────────────────────────────────────────
         buf = io.BytesIO()
         wb.save(buf)
         buf.seek(0)
 
-        filename = f"sales_export_{datetime.now():%Y%m%d_%H%M%S}.xlsx"
+        filename = f"sales_export_{now:%Y%m%d_%H%M%S}.xlsx"
         response = HttpResponse(
             buf.read(),
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

@@ -167,24 +167,47 @@ class ApplyFiltersAPIView(APIView):
 
             system_prompt = (
                 "You are an SAP Sales Analysis Assistant. "
-                "The user’s filters {filter_text} describe SAP sales data (Dealer, Brand, Product, etc.). "
-                "Refine the given prompt into a natural, concise English query. "
-                "Ensure it still includes all key filters and the selected metric. "
-                "Do not add extra explanations — only return the final query text."
+                "The user selected filters that describe SAP sales data (Dealer, Brand, Product, Date, etc.). "
+                "Rewrite the base query into natural, concise English questions a user would actually type. "
+                "Keep ALL filters and the selected metric intact and accurate. "
+                "Use natural connectors like 'for', 'and', 'between' — never raw labels such as "
+                "'Dealer:' or 'where Dealer:' or comma-separated value dumps. "
+                "Return EXACTLY TWO alternative phrasings, one per line, "
+                "with no numbering, bullets, quotes, or extra commentary."
             )
 
-            user_prompt = f"The base query is: '{base_prompt}'"
+            user_prompt = (
+                f"Base query: '{base_prompt}'\n"
+                f"Filters: {filter_text or 'none'}\n"
+                f"Metric: {metric or 'none'}"
+            )
 
             print(" Sending to LLM:", user_prompt)
 
-            refined_prompt = llm.invoke(
+            refined_raw = llm.invoke(
                 [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ]
             ).content.strip()
 
-            print("✨ Refined Prompt:", refined_prompt)
+            print("✨ Refined Prompt:", refined_raw)
+
+            # Parse the LLM output into individual natural-language variants
+            variants = [
+                line.strip("-•*0123456789. \t\"'")
+                for line in refined_raw.split("\n")
+                if line.strip()
+            ]
+            variants = [v for v in variants if v]
+
+            # Prefer two natural variants; fall back to the raw template only if needed
+            if len(variants) >= 2:
+                prompts = variants[:2]
+            elif len(variants) == 1:
+                prompts = [variants[0], base_prompt]
+            else:
+                prompts = [base_prompt]
 
             # ───────────────────────────────
             #   Return response
@@ -194,8 +217,8 @@ class ApplyFiltersAPIView(APIView):
                     "status": "success",
                     "filters": filters,
                     "metric": metric,
-                    "refined_prompt": refined_prompt,
-                    "prompts": [base_prompt, refined_prompt],
+                    "refined_prompt": prompts[0],
+                    "prompts": prompts,
                 },
                 status=status.HTTP_200_OK,
             )

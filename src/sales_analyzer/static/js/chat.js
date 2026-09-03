@@ -505,14 +505,21 @@ $(function () {
     const html    = marked.parse(rawText);
 
     if (role === 'assistant') {
-      const historyToggle = (m.has_data && m.id)
+      const hasData = m.has_data && m.id;
+
+      // With data: action buttons sit inline with the Chart button (.vis-topline),
+      // Table on its own row below. Without data: standalone actions bar only.
+      const withData = hasData
         ? `<div class="vis-accordions vis-history-mode" data-message-id="${m.id}">
-             <div class="vis-accordion vis-accordion-offcanvas" data-type="chart">
-               <button class="vis-accordion-header">
-                 <i class="bi bi-bar-chart" aria-hidden="true"></i>
-                 <span>Chart</span>
-                 <i class="bi bi-box-arrow-right vis-panel-hint" aria-hidden="true"></i>
-               </button>
+             <div class="vis-topline">
+               ${_actionsHtml(rawText)}
+               <div class="vis-accordion vis-accordion-offcanvas" data-type="chart">
+                 <button class="vis-accordion-header">
+                   <i class="bi bi-bar-chart" aria-hidden="true"></i>
+                   <span>Chart</span>
+                   <i class="bi bi-box-arrow-right vis-panel-hint" aria-hidden="true"></i>
+                 </button>
+               </div>
              </div>
              <div class="vis-accordion" data-type="table">
                <div class="vis-accordion-header-row">
@@ -537,8 +544,7 @@ $(function () {
             <div class="message-avatar ${cls}" aria-hidden="true">${avatar}</div>
             <div class="message-content">${html}</div>
           </div>
-          ${_actionsHtml(rawText)}
-          ${historyToggle}
+          ${hasData ? withData : _actionsHtml(rawText)}
         </div>
       `;
     }
@@ -1192,12 +1198,14 @@ function _attachVisToggles($msgRow, chartData) {
 
   const $accordions = $(`
     <div class="vis-accordions" data-vis-uid="${uid}">
-      <div class="vis-accordion vis-accordion-offcanvas" data-type="chart">
-        <button class="vis-accordion-header">
-          <i class="bi bi-bar-chart" aria-hidden="true"></i>
-          <span>Chart</span>
-          <i class="bi bi-box-arrow-right vis-panel-hint" aria-hidden="true"></i>
-        </button>
+      <div class="vis-topline">
+        <div class="vis-accordion vis-accordion-offcanvas" data-type="chart">
+          <button class="vis-accordion-header">
+            <i class="bi bi-bar-chart" aria-hidden="true"></i>
+            <span>Chart</span>
+            <i class="bi bi-box-arrow-right vis-panel-hint" aria-hidden="true"></i>
+          </button>
+        </div>
       </div>
       <div class="vis-accordion" data-type="table">
         <div class="vis-accordion-header-row">
@@ -1216,6 +1224,10 @@ function _attachVisToggles($msgRow, chartData) {
       </div>
     </div>
   `);
+
+  // Move this message's action bar (copy/like/dislike) up next to the Chart button
+  const $actions = $msgRow.find('.message-actions').first();
+  if ($actions.length) $accordions.find('.vis-topline').prepend($actions);
 
   $msgRow.after($accordions);
 

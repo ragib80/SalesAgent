@@ -1771,6 +1771,25 @@ body {
   gap: .375rem;
 }
 
+/* Top row: action buttons (copy/like/dislike) inline with the Chart button */
+.vis-topline {
+  display: flex;
+  align-items: center;
+  gap: .375rem;
+  flex-wrap: wrap;
+}
+.vis-topline .message-actions {
+  padding-left: 0;
+  margin-top: 0;
+  opacity: 1;               /* always visible when grouped with the Chart button */
+}
+.vis-topline .vis-accordion {
+  flex: 0 0 auto;           /* Chart chip sizes to its content, not full width */
+}
+.vis-topline .vis-accordion-header {
+  width: auto;
+}
+
 /* Individual accordion item */
 .vis-accordion {
   border: 1px solid var(--vs-border);
