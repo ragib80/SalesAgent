@@ -738,7 +738,14 @@ class ExcelExportAPIView(APIView):
         return None
 
     def _maybe_add_growth(self, col_list, col_labels, rows, col_types):
-        """Append a computed Growth % column when CY_Revenue + PY_Revenue are both present."""
+        """Append Growth % only when CY/PY are present and no growth column exists."""
+        has_growth = any(
+            (c.lower() in self._GRW) or ('growth' in c.lower())
+            for c in col_list
+        )
+        if has_growth:
+            return col_list, col_labels, rows, col_types
+
         cy = next((i for i, c in enumerate(col_list) if 'cy_revenue' in c.lower()), None)
         py = next((i for i, c in enumerate(col_list) if 'py_revenue' in c.lower()), None)
         if cy is None or py is None:
@@ -747,8 +754,8 @@ class ExcelExportAPIView(APIView):
         for row in rows:
             cv = row[cy] if isinstance(row[cy], (int, float)) else 0
             pv = row[py] if isinstance(row[py], (int, float)) else 0
-            # Store as decimal so Excel % format (×100) renders correctly: 0.155 → 15.5%
-            g = round((cv - pv) / abs(pv), 4) if pv else None
+            # Match table/KQL convention: 15.5 means 15.5% growth.
+            g = round((cv - pv) / abs(pv) * 100.0, 4) if pv else None
             new_rows.append(list(row) + [g])
         k = 'growth_pct_computed'
         t = dict(col_types)
@@ -1099,7 +1106,7 @@ class ExcelExportAPIView(APIView):
         # String address avoids creating a phantom empty row (known openpyxl pitfall)
         ws_data.freeze_panes = "A2"
 
-        # Number format map (growth stored as decimal → Excel % format renders ×100)
+        # Number format map (growth stored as percent points: 15.5 means 15.5%)
         _FMT = {
             'date':     'DD-MMM-YYYY',
             'period':   'DD-MMM-YYYY',
@@ -1107,7 +1114,7 @@ class ExcelExportAPIView(APIView):
             'quantity': '#,##0',
             'volume':   '#,##0.00',
             'numeric':  '#,##0.##',
-            'growth':   '+0.00%;-0.00%;0.00%',
+            'growth':   '+0.00"%";-0.00"%";0.00"%"',
         }
 
         def _safe_cell(val):
@@ -1166,8 +1173,8 @@ class ExcelExportAPIView(APIView):
             if ctype == 'revenue' and n_rows > 1:
                 ws_data.conditional_formatting.add(rng, ColorScaleRule(
                     start_type='min',        start_color='FFFFFFFF',
-                    mid_type='percentile',   mid_value=50, mid_color='FFBDD7EE',
-                    end_type='max',          end_color='FF1F3864',
+                    mid_type='percentile',   mid_value=50, mid_color='FFD9EAF7',
+                    end_type='max',          end_color='FF9DC3E6',
                 ))
             elif ctype == 'growth' and n_rows > 1:
                 ws_data.conditional_formatting.add(rng, ColorScaleRule(
