@@ -94,6 +94,7 @@ class SalesAuthUserAdmin(UserAdmin):
     """
     add_form = SalesAuthUserCreateFromADForm
     form = SalesAuthUserChangeForm
+    # inlines = [UserDivisionInline]
     inlines = [UserDepoInline, UserZoneInline, UserTerritoryInline, UserDivisionInline]
     save_on_top = True
 
@@ -154,6 +155,7 @@ class SalesAuthUserAdmin(UserAdmin):
     # CHANGE view (add our sync checkbox)
     fieldsets = (
         (None, {"fields": ("username", "email", "first_name", "last_name")}),
+        (_("Coverage Access"), {"fields": ("depos", "zones", "territories")}),
         (_("Active Directory"), {"fields": ("sync_from_ad",)}),
         (_("Microsoft Identity"), {"fields": (
             "identity_provider",
