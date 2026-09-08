@@ -114,18 +114,21 @@ class SalesAuthUserChangeForm(forms.ModelForm):
         queryset=Depo.objects.none(),
         required=False,
         widget=FilteredSelectMultiple("Depos", is_stacked=False),
+        help_text="Move selected depos to the right-hand list, then save.",
     )
     zones = forms.ModelMultipleChoiceField(
         label="Zones",
         queryset=Zone.objects.none(),
         required=False,
         widget=FilteredSelectMultiple("Zones", is_stacked=False),
+        help_text="Move selected zones to the right-hand list, then save.",
     )
     territories = forms.ModelMultipleChoiceField(
         label="Territories",
         queryset=Territory.objects.none(),
         required=False,
         widget=FilteredSelectMultiple("Territories", is_stacked=False),
+        help_text="Move selected territories to the right-hand list, then save.",
     )
     sync_from_ad = forms.BooleanField(
         label="Sync from AD now",
@@ -144,45 +147,41 @@ class SalesAuthUserChangeForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["depos"].queryset = Depo.objects.order_by("code", "name")
-        self.fields["zones"].queryset = Zone.objects.order_by("code", "name")
         self.fields["territories"].queryset = Territory.objects.order_by("code", "name")
+        self.fields["zones"].queryset = Zone.objects.order_by("code", "name")
+        self.fields["depos"].widget.attrs["class"] = "coverage-selector"
+        self.fields["territories"].widget.attrs["class"] = "coverage-selector"
+        self.fields["zones"].widget.attrs["class"] = "coverage-selector"
 
         if self.instance and self.instance.pk:
             self.fields["depos"].initial = self.instance.depo_links.values_list("depo_id", flat=True)
-            self.fields["zones"].initial = self.instance.zone_links.values_list("zone_id", flat=True)
             self.fields["territories"].initial = self.instance.territory_links.values_list("territory_id", flat=True)
+            self.fields["zones"].initial = self.instance.zone_links.values_list("zone_id", flat=True)
 
-    def _sync_user_links(self, user):
+    def sync_user_links(self, user):
         selected_depo_ids = set(self.cleaned_data["depos"].values_list("id", flat=True))
-        selected_zone_ids = set(self.cleaned_data["zones"].values_list("id", flat=True))
         selected_territory_ids = set(self.cleaned_data["territories"].values_list("id", flat=True))
+        selected_zone_ids = set(self.cleaned_data["zones"].values_list("id", flat=True))
 
         current_depo_ids = set(user.depo_links.values_list("depo_id", flat=True))
-        current_zone_ids = set(user.zone_links.values_list("zone_id", flat=True))
         current_territory_ids = set(user.territory_links.values_list("territory_id", flat=True))
+        current_zone_ids = set(user.zone_links.values_list("zone_id", flat=True))
 
         UserDepoMap.objects.filter(user=user, depo_id__in=current_depo_ids - selected_depo_ids).delete()
-        UserZoneMap.objects.filter(user=user, zone_id__in=current_zone_ids - selected_zone_ids).delete()
         UserTerritoryMap.objects.filter(
             user=user,
             territory_id__in=current_territory_ids - selected_territory_ids,
         ).delete()
+        UserZoneMap.objects.filter(user=user, zone_id__in=current_zone_ids - selected_zone_ids).delete()
 
-        UserDepoMap.objects.bulk_create(
-            [UserDepoMap(user=user, depo_id=depo_id) for depo_id in (selected_depo_ids - current_depo_ids)],
-            ignore_conflicts=True,
-        )
-        UserZoneMap.objects.bulk_create(
-            [UserZoneMap(user=user, zone_id=zone_id) for zone_id in (selected_zone_ids - current_zone_ids)],
-            ignore_conflicts=True,
-        )
-        UserTerritoryMap.objects.bulk_create(
-            [
-                UserTerritoryMap(user=user, territory_id=territory_id)
-                for territory_id in (selected_territory_ids - current_territory_ids)
-            ],
-            ignore_conflicts=True,
-        )
+        for depo_id in (selected_depo_ids - current_depo_ids):
+            UserDepoMap.objects.get_or_create(user=user, depo_id=depo_id)
+
+        for territory_id in (selected_territory_ids - current_territory_ids):
+            UserTerritoryMap.objects.get_or_create(user=user, territory_id=territory_id)
+
+        for zone_id in (selected_zone_ids - current_zone_ids):
+            UserZoneMap.objects.get_or_create(user=user, zone_id=zone_id)
 
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -204,7 +203,7 @@ class SalesAuthUserChangeForm(forms.ModelForm):
             with transaction.atomic():
                 user.save()
                 self.save_m2m()
-                self._sync_user_links(user)
+                self.sync_user_links(user)
         return user
 
 

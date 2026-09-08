@@ -4,6 +4,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
 from django.db.models import Count
+from django.utils.html import format_html, format_html_join
 
 from custom_admin.forms import (
     SalesAuthUserCreateFromADForm,
@@ -117,6 +118,7 @@ class SalesAuthUserAdmin(UserAdmin):
         "azure_ad_tenant_id",
         "azure_ad_object_id",
         "last_microsoft_login",
+        "coverage_summary",
         "last_login",
         "date_joined",
     )
@@ -155,7 +157,7 @@ class SalesAuthUserAdmin(UserAdmin):
     # CHANGE view (add our sync checkbox)
     fieldsets = (
         (None, {"fields": ("username", "email", "first_name", "last_name")}),
-        (_("Coverage Access"), {"fields": ("depos", "zones", "territories")}),
+        (_("Coverage Access"), {"fields": ("coverage_summary", "depos", "territories", "zones")}),
         (_("Active Directory"), {"fields": ("sync_from_ad",)}),
         (_("Microsoft Identity"), {"fields": (
             "identity_provider",
@@ -197,3 +199,53 @@ class SalesAuthUserAdmin(UserAdmin):
                 updated += 1
         self.message_user(request, f"Synced {updated} user(s) from AD.")
     sync_from_ad_action.short_description = "Sync selected users from AD"
+
+    def _coverage_group_html(self, title, items):
+        count = len(items)
+        badges = format_html_join(
+            "",
+            '<span class="coverage-badge">{}</span>',
+            ((item,) for item in items),
+        ) if items else format_html('<span class="coverage-empty">None assigned</span>')
+
+        return format_html(
+            '<div class="coverage-card">'
+            '<div class="coverage-card-title">{} <span class="coverage-card-count">({})</span></div>'
+            '<div class="coverage-badge-list">{}</div>'
+            "</div>",
+            title,
+            count,
+            badges,
+        )
+
+    def coverage_summary(self, obj):
+        if not obj or not obj.pk:
+            return "Save the user first to manage coverage access."
+
+        depo_items = [str(link.depo) for link in obj.depo_links.select_related("depo").order_by("depo__code", "depo__name")]
+        territory_items = [
+            str(link.territory)
+            for link in obj.territory_links.select_related("territory").order_by("territory__code", "territory__name")
+        ]
+        zone_items = [str(link.zone) for link in obj.zone_links.select_related("zone").order_by("zone__code", "zone__name")]
+
+        return format_html(
+            '<div class="coverage-summary">'
+            "{}{}{}"
+            "</div>",
+            self._coverage_group_html("Current Depos", depo_items),
+            self._coverage_group_html("Current Territories", territory_items),
+            self._coverage_group_html("Current Zones", zone_items),
+        )
+    coverage_summary.short_description = "Current assignments"
+
+    def save_related(self, request, form, formsets, change):
+        with_transaction = hasattr(form, "sync_user_links")
+        super().save_related(request, form, formsets, change)
+        if with_transaction:
+            form.sync_user_links(form.instance)
+
+    class Media:
+        css = {
+            "all": ("custom_admin/admin.css",)
+        }
