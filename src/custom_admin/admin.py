@@ -94,8 +94,8 @@ class SalesAuthUserAdmin(UserAdmin):
     """
     add_form = SalesAuthUserCreateFromADForm
     form = SalesAuthUserChangeForm
-    # inlines = [UserDivisionInline]
-    inlines = [UserDepoInline, UserZoneInline, UserTerritoryInline, UserDivisionInline]
+    inlines = [UserDivisionInline]
+    # inlines = [UserDepoInline, UserZoneInline, UserTerritoryInline, UserDivisionInline]
     save_on_top = True
 
     list_display = (
