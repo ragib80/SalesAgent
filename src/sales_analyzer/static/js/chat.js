@@ -206,6 +206,7 @@ $(function () {
         localStorage.setItem('auth_token', resp.access);
         localStorage.setItem('refresh_token', resp.refresh);
         fetchChats(false);
+        loadUserManagementLinks();
       },
       error() {
         localStorage.clear();
@@ -230,6 +231,24 @@ $(function () {
       },
     });
   }
+
+  // User management links follow the SalesAuthUser view/add/change permissions
+  // (enforced again by the APIs). Silent on failure: the chat requests refresh an expired
+  // token and refreshToken() calls this again, so it never starts a second (racing) refresh.
+  function loadUserManagementLinks() {
+    if (!getAuthToken()) return;
+    $.ajax({
+      url: apiBase + '/user/whoami/',
+      method: 'GET',
+      headers: { Authorization: 'Bearer ' + getAuthToken() },
+      success(me) {
+        const perms = (me && me.user_management) || {};
+        if (perms.view) $('#users-link').show();
+        if (perms.add) $('#add-user-link').show();
+      },
+    });
+  }
+  loadUserManagementLinks();
 
   function scrollToBottom() {
     const c = document.getElementById('chat-content');

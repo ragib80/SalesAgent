@@ -28,6 +28,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from core.services.ad_service import ActiveDirectoryService
+from custom_admin.permissions import user_management_perms
 from user_auth.models import OTPToken
 
 logger = logging.getLogger(__name__)
@@ -784,4 +785,5 @@ class WhoAmIView(APIView):
             "email": u.email,
             "is_staff": u.is_staff,
             "is_superuser": u.is_superuser,
+            "user_management": user_management_perms(u),
         })

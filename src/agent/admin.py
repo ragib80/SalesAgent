@@ -3,6 +3,7 @@ from django.contrib.admin import SimpleListFilter
 from django.urls import reverse
 from django.utils.html import format_html
 
+from agent.dashboard import OUTCOMES, outcome_q
 from agent.models import AgentQueryAudit
 
 
@@ -27,6 +28,19 @@ class UserFilter(SimpleListFilter):
         return queryset
 
 
+class OutcomeFilter(SimpleListFilter):
+    """Same buckets as the dashboard's "Outcome breakdown" card (its drill-down links use this)."""
+    title = "outcome"
+    parameter_name = "outcome"
+
+    def lookups(self, request, model_admin):
+        return OUTCOMES
+
+    def queryset(self, request, queryset):
+        q = outcome_q(self.value()) if self.value() else None
+        return queryset.filter(q) if q is not None else queryset
+
+
 @admin.register(AgentQueryAudit)
 class AgentQueryAuditAdmin(admin.ModelAdmin):
     list_display = (
@@ -44,6 +58,7 @@ class AgentQueryAuditAdmin(admin.ModelAdmin):
     )
     list_filter = (
         UserFilter,
+        OutcomeFilter,
         "success",
         "is_sales_query",
         "kql_validation_status",

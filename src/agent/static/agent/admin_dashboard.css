@@ -1,0 +1,295 @@
+/* Voice of Sales — admin usage dashboard (templates/admin/index.html) */
+
+.vos-dash {
+  --vos-page: #f4f6fa;
+  --vos-surface: #ffffff;
+  --vos-ink: #16181d;
+  --vos-ink-2: #52514e;
+  --vos-muted: #898781;
+  --vos-grid: #e9e8e3;
+  --vos-axis: #c3c2b7;
+  --vos-border: rgba(11, 11, 11, 0.07);
+  --vos-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 16px rgba(16, 24, 40, 0.05);
+  --vos-track: #ebeae5;
+  --vos-hover: #f5f6f9;
+
+  /* categorical slots (validated reference order) */
+  --vos-s1: #2a78d6;
+  --vos-s2: #eb6834;
+  --vos-s3: #1baf7a;
+  --vos-s4: #eda100;
+  --vos-s5: #e87ba4;
+  --vos-s6: #008300;
+  --vos-s7: #6250d6;
+  --vos-other: #b4b3ac;
+
+  /* status — always paired with an icon + label */
+  --vos-good: #0ca30c;
+  --vos-good-ink: #006300;
+  --vos-warning: #fab219;
+  --vos-serious: #ec835a;
+  --vos-critical: #d03b3b;
+  --vos-critical-ink: #b42323;
+
+  --vos-radius: 14px;
+  color: var(--vos-ink);
+  font-size: 14px;
+  padding-bottom: 32px;
+}
+
+body.theme-dark .vos-dash {
+  --vos-page: #0d0d0d;
+  --vos-surface: #1a1a19;
+  --vos-ink: #f0efec;
+  --vos-ink-2: #c3c2b7;
+  --vos-muted: #898781;
+  --vos-grid: #2c2c2a;
+  --vos-axis: #383835;
+  --vos-border: rgba(255, 255, 255, 0.10);
+  --vos-shadow: none;
+  --vos-track: #2c2c2a;
+  --vos-hover: #242423;
+  --vos-s1: #3987e5;
+  --vos-s2: #d95926;
+  --vos-s3: #199e70;
+  --vos-s4: #c98500;
+  --vos-s5: #d55181;
+  --vos-s7: #9085e9;
+  --vos-other: #5d5c57;
+  --vos-good-ink: #0ca30c;
+  --vos-critical-ink: #e66767;
+}
+
+body.dashboard .content-wrapper { background: var(--vos-page, #f4f6fa); }
+
+.vos-dash *, .vos-dash *::before, .vos-dash *::after { box-sizing: border-box; }
+.vos-dash [hidden] { display: none !important; }
+.vos-dash h2, .vos-dash h3 { margin: 0; color: var(--vos-ink); }
+.vos-dash p { margin: 0; }
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.vos-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; margin: 4px 0 14px;
+}
+.vos-head-title { display: flex; align-items: center; gap: 12px; }
+.vos-head-icon {
+  width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--vos-s1) 12%, transparent); color: var(--vos-s1); font-size: 18px;
+}
+.vos-head h2 { font-size: 20px; font-weight: 700; line-height: 1.2; }
+.vos-head p { color: var(--vos-ink-2); font-size: 13px; margin-top: 2px; }
+
+.vos-link {
+  color: var(--vos-s1); font-weight: 600; font-size: 13px; white-space: nowrap;
+  text-decoration: none;
+}
+.vos-link:hover { text-decoration: underline; color: var(--vos-s1); }
+.vos-link i { font-size: 11px; margin-left: 4px; }
+
+/* ── Filters ────────────────────────────────────────────────────────────── */
+.vos-filters {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 18px;
+}
+.vos-seg {
+  display: inline-flex; padding: 3px; gap: 2px; border-radius: 10px;
+  background: var(--vos-surface); border: 1px solid var(--vos-border); box-shadow: var(--vos-shadow);
+  overflow-x: auto; max-width: 100%;
+}
+.vos-seg button {
+  border: 0; background: transparent; color: var(--vos-ink-2); font: inherit; font-size: 13px;
+  font-weight: 600; padding: 6px 12px; border-radius: 7px; cursor: pointer; white-space: nowrap;
+}
+.vos-seg button:hover { background: var(--vos-hover); color: var(--vos-ink); }
+.vos-seg button.is-active { background: var(--vos-s1); color: #fff; }
+.vos-seg-sm button { padding: 4px 10px; font-size: 12px; }
+
+.vos-custom { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.vos-custom label { margin: 0; font-size: 12px; color: var(--vos-ink-2); font-weight: 600; }
+.vos-custom input, .vos-select select {
+  font: inherit; font-size: 13px; color: var(--vos-ink); background: var(--vos-surface);
+  border: 1px solid var(--vos-border); border-radius: 8px; padding: 5px 8px; margin-left: 4px;
+}
+.vos-select {
+  display: inline-flex; align-items: center; gap: 6px; margin: 0; padding: 0 0 0 10px;
+  background: var(--vos-surface); border: 1px solid var(--vos-border); border-radius: 10px;
+  box-shadow: var(--vos-shadow); color: var(--vos-muted);
+}
+.vos-select select { border: 0; margin: 0; padding: 7px 10px 7px 2px; max-width: 220px; background: transparent; }
+
+.vos-btn {
+  display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 13px; font-weight: 600;
+  border: 0; border-radius: 9px; padding: 7px 14px; cursor: pointer;
+  background: var(--vos-s1); color: #fff;
+}
+.vos-btn-ghost {
+  background: var(--vos-surface); color: var(--vos-ink-2);
+  border: 1px solid var(--vos-border); box-shadow: var(--vos-shadow);
+}
+.vos-btn-ghost:hover { color: var(--vos-ink); }
+.vos-btn.is-loading i { animation: vos-spin 0.9s linear infinite; }
+@keyframes vos-spin { to { transform: rotate(360deg); } }
+.vos-updated { font-size: 12px; color: var(--vos-muted); margin-left: auto; }
+
+.vos-alert {
+  border-radius: 10px; padding: 10px 14px; margin-bottom: 16px; font-size: 13px;
+  background: color-mix(in srgb, var(--vos-critical) 10%, var(--vos-surface));
+  color: var(--vos-critical-ink); border: 1px solid color-mix(in srgb, var(--vos-critical) 25%, transparent);
+}
+
+/* ── KPI tiles ──────────────────────────────────────────────────────────── */
+.vos-kpis {
+  display: grid; gap: 16px; margin-bottom: 18px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+@media (min-width: 1760px) { .vos-kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+.vos-kpi {
+  position: relative; overflow: hidden; display: flex; gap: 14px; align-items: flex-start;
+  background: var(--vos-surface); border: 1px solid var(--vos-border);
+  border-radius: var(--vos-radius); box-shadow: var(--vos-shadow); padding: 18px;
+}
+.vos-kpi::after {
+  content: ""; position: absolute; right: -36px; bottom: -48px; width: 120px; height: 120px;
+  border-radius: 50%; background: var(--tone); opacity: 0.07; pointer-events: none;
+}
+.vos-kpi[data-tone="blue"]   { --tone: var(--vos-s1); }
+.vos-kpi[data-tone="green"]  { --tone: var(--vos-good); }
+.vos-kpi[data-tone="red"]    { --tone: var(--vos-critical); }
+.vos-kpi[data-tone="violet"] { --tone: var(--vos-s7); }
+.vos-kpi[data-tone="amber"]  { --tone: var(--vos-s4); }
+.vos-kpi[data-tone="aqua"]   { --tone: var(--vos-s3); }
+.vos-kpi-icon {
+  flex: none; width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center;
+  font-size: 17px; color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 13%, transparent);
+}
+.vos-kpi-body { min-width: 0; }
+.vos-kpi h3 { font-size: 13px; font-weight: 600; color: var(--vos-ink-2); }
+.vos-kpi-value { font-size: 28px; font-weight: 700; line-height: 1.15; margin: 4px 0 6px; letter-spacing: -0.01em; }
+.vos-kpi-value small { font-size: 15px; font-weight: 600; color: var(--vos-ink-2); margin-left: 2px; }
+.vos-kpi-foot { font-size: 12px; color: var(--vos-ink-2); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+
+.vos-delta {
+  display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.vos-delta.is-good { color: var(--vos-good-ink); background: color-mix(in srgb, var(--vos-good) 13%, transparent); }
+.vos-delta.is-bad  { color: var(--vos-critical-ink); background: color-mix(in srgb, var(--vos-critical) 12%, transparent); }
+.vos-delta.is-flat { color: var(--vos-ink-2); background: var(--vos-track); }
+.vos-delta i { font-size: 9px; }
+
+/* ── Cards grid ─────────────────────────────────────────────────────────── */
+.vos-grid { display: grid; gap: 18px; grid-template-columns: repeat(12, minmax(0, 1fr)); }
+.vos-span-4 { grid-column: span 4; }
+.vos-span-5 { grid-column: span 5; }
+.vos-span-7 { grid-column: span 7; }
+.vos-span-8 { grid-column: span 8; }
+
+.vos-card {
+  background: var(--vos-surface); border: 1px solid var(--vos-border); border-radius: var(--vos-radius);
+  box-shadow: var(--vos-shadow); padding: 18px 20px; min-width: 0;
+}
+.vos-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+.vos-card-head h3 { font-size: 16px; font-weight: 700; }
+.vos-card-head p { font-size: 13px; color: var(--vos-ink-2); margin-top: 2px; }
+
+.vos-toggle {
+  font: inherit; font-size: 12px; font-weight: 600; color: var(--vos-ink-2);
+  background: var(--vos-surface); border: 1px solid var(--vos-border); border-radius: 999px;
+  padding: 4px 12px; cursor: pointer; white-space: nowrap;
+}
+.vos-toggle:hover, .vos-toggle[aria-pressed="true"] { color: var(--vos-s1); border-color: color-mix(in srgb, var(--vos-s1) 40%, transparent); }
+
+.vos-chart { width: 100%; height: 300px; }
+.vos-chart-lg { height: 340px; }
+
+/* table view (accessible alternative to every chart) */
+.vos-table-wrap { max-height: 340px; overflow: auto; border-radius: 10px; border: 1px solid var(--vos-border); }
+.vos-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.vos-table th, .vos-table td { padding: 8px 12px; border-bottom: 1px solid var(--vos-grid); text-align: left; white-space: nowrap; }
+.vos-table th { position: sticky; top: 0; background: var(--vos-surface); color: var(--vos-ink-2); font-weight: 700; font-size: 12px; }
+.vos-table td.num, .vos-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.vos-table tbody tr:hover { background: var(--vos-hover); }
+
+/* ── Pipeline (progress list) ───────────────────────────────────────────── */
+.vos-pipeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.vos-pipeline li { display: grid; grid-template-columns: 20px 1fr auto auto; gap: 4px 10px; align-items: center; }
+.vos-pipeline .ico { font-size: 14px; text-align: center; }
+.vos-pipeline .lbl { font-size: 14px; color: var(--vos-ink); }
+.vos-pipeline .cnt { font-weight: 700; font-variant-numeric: tabular-nums; }
+.vos-pipeline .pct { font-size: 11.5px; color: var(--vos-muted); min-width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
+.vos-pipeline .bar { grid-column: 1 / -1; height: 7px; border-radius: 999px; background: var(--vos-track); overflow: hidden; }
+.vos-pipeline .bar > span { display: block; height: 100%; border-radius: 999px; background: var(--c); min-width: 0; transition: width 0.5s ease; }
+.vos-pipeline li.is-zero .lbl, .vos-pipeline li.is-zero .cnt { color: var(--vos-muted); }
+
+.vos-divider {
+  display: flex; align-items: center; gap: 10px; margin: 18px 0 12px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--vos-muted);
+}
+.vos-divider::after { content: ""; flex: 1; height: 1px; background: var(--vos-grid); }
+
+.vos-mini-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.vos-mini-stats > div {
+  background: var(--vos-hover); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column;
+}
+.vos-mini-stats span { font-size: 20px; font-weight: 700; }
+.vos-mini-stats small { font-size: 12px; color: var(--vos-ink-2); }
+
+/* ── Latest queries feed ────────────────────────────────────────────────── */
+.vos-feed { list-style: none; margin: 0; padding: 0; max-height: 470px; overflow-y: auto; }
+.vos-feed li + li { border-top: 1px solid var(--vos-grid); }
+.vos-feed a {
+  display: grid; grid-template-columns: 34px 1fr auto; gap: 12px; align-items: center;
+  padding: 11px 6px; color: inherit; text-decoration: none; border-radius: 8px;
+}
+.vos-feed a:hover { background: var(--vos-hover); }
+.vos-feed .st {
+  width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font-size: 14px;
+}
+.vos-feed .st.ok  { color: var(--vos-good-ink); background: color-mix(in srgb, var(--vos-good) 13%, transparent); }
+.vos-feed .st.bad { color: var(--vos-critical-ink); background: color-mix(in srgb, var(--vos-critical) 12%, transparent); }
+.vos-dash .vos-feed .q { color: var(--vos-ink); }
+.vos-feed .q { font-weight: 600; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vos-feed .meta { font-size: 12px; color: var(--vos-ink-2); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vos-feed .right { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.vos-badge {
+  font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px; white-space: nowrap;
+}
+.vos-badge.ok  { color: var(--vos-good-ink); background: color-mix(in srgb, var(--vos-good) 14%, transparent); }
+.vos-badge.bad { color: var(--vos-critical-ink); background: color-mix(in srgb, var(--vos-critical) 12%, transparent); }
+.vos-feed time { font-size: 11px; color: var(--vos-muted); white-space: nowrap; }
+
+.vos-empty { padding: 36px 12px; text-align: center; color: var(--vos-muted); font-size: 13px; }
+.vos-empty i { display: block; font-size: 22px; margin-bottom: 8px; opacity: 0.6; }
+
+.vos-empty-state { text-align: center; padding: 48px 24px; max-width: 560px; margin: 24px auto; }
+.vos-empty-state i { font-size: 28px; color: var(--vos-muted); margin-bottom: 12px; }
+.vos-empty-state h2 { font-size: 18px; margin-bottom: 8px; }
+.vos-empty-state p { color: var(--vos-ink-2); }
+
+/* loading shimmer on values */
+.vos-dash.is-loading .vos-kpi-value,
+.vos-dash.is-loading .vos-chart { opacity: 0.45; transition: opacity 0.2s; }
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 1199.98px) {
+  .vos-grid { grid-auto-flow: row dense; }
+  .vos-span-4, .vos-span-5, .vos-span-7, .vos-span-8 { grid-column: span 12; }
+  .vos-grid > [data-card="outcomes"], .vos-grid > [data-card="quality"],
+  .vos-grid > [data-card="share"], .vos-grid > [data-card="heatmap"] { grid-column: span 6; }
+}
+@media (max-width: 767.98px) {
+  .vos-grid > * { grid-column: span 12 !important; }
+  .vos-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .vos-kpi { padding: 14px; flex-direction: column; gap: 10px; }
+  .vos-kpi-value { font-size: 24px; }
+  .vos-card { padding: 16px; }
+  .vos-chart, .vos-chart-lg { height: 280px; }
+  .vos-updated { margin-left: 0; width: 100%; }
+  .vos-feed a { grid-template-columns: 30px 1fr; }
+  .vos-feed .right { grid-column: 2; flex-direction: row; align-items: center; justify-content: flex-start; }
+}
+@media (max-width: 420px) {
+  .vos-kpis { grid-template-columns: minmax(0, 1fr); }
+  .vos-mini-stats { grid-template-columns: minmax(0, 1fr); }
+}

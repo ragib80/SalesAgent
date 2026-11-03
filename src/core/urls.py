@@ -18,11 +18,14 @@ from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import TemplateView
 from user_auth.views import MicrosoftAuthorizeRepairView, login_template_view
+from agent.dashboard import dashboard_stats_view
 
 urlpatterns = [
+    path('admin/dashboard/stats/', dashboard_stats_view, name='admin-dashboard-stats'),
     path('admin/', admin.site.urls),
     path("agent/", include("agent.urls")),
     path('api/sales/', include('sales_analyzer.urls')),
+    path('api/manage/', include('custom_admin.urls')),
     path('api/', include('conversation.urls')),
     path('api/user/', include('user_auth.urls')),
     path('welcome/', login_template_view, name='login-template'),

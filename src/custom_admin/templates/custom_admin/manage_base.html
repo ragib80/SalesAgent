@@ -1,0 +1,82 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Users{% endblock %} · Voice of Sales</title>
+
+  <link rel="stylesheet" href="{% static 'vendor/bootstrap-icons/bootstrap-icons.min.css' %}">
+  <link rel="stylesheet" href="{% static 'css/chat.css' %}">
+  <link rel="stylesheet" href="{% static 'custom_admin/manage.css' %}">
+
+  <!-- Theme init: applied before first paint to prevent flash -->
+  <script>
+    (function () {
+      var saved = localStorage.getItem('theme') || 'auto';
+      var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.setAttribute('data-theme', saved === 'dark' || (saved === 'auto' && dark) ? 'dark' : 'light');
+    })();
+  </script>
+
+  <!-- Auth guard -->
+  <script>
+    (function () {
+      if (!localStorage.getItem('auth_token') && !localStorage.getItem('refresh_token')) {
+        window.location.replace('/welcome');
+      }
+    })();
+  </script>
+</head>
+<body class="ua-body" data-page="{% block page_id %}{% endblock %}">
+  <header class="ua-topbar">
+    <a class="ua-back" href="/api/sales/index/">
+      <i class="bi bi-arrow-left" aria-hidden="true"></i>
+      <span>Back to chat</span>
+    </a>
+    <a class="ua-brand" href="/api/sales/index/" aria-label="Voice of Sales home">
+      <span class="ua-brand-icon" aria-hidden="true"><i class="bi bi-bar-chart-line-fill"></i></span>
+      <span class="ua-brand-text">Voice of Sales</span>
+    </a>
+    <nav class="ua-nav" aria-label="User management">
+      <a class="ua-nav-link" id="ua-nav-users" href="/api/manage/users/" hidden>
+        <i class="bi bi-people" aria-hidden="true"></i> Users
+      </a>
+      <a class="ua-nav-link" id="ua-nav-add" href="/api/manage/users/add/" hidden>
+        <i class="bi bi-person-plus" aria-hidden="true"></i> Add user
+      </a>
+    </nav>
+    <button id="theme-toggle" type="button" aria-label="Toggle dark/light mode" title="Toggle theme">
+      <i class="bi bi-moon-fill" aria-hidden="true"></i>
+    </button>
+  </header>
+
+  <!-- Shared page states -->
+  <main class="ua-state" id="ua-loading">
+    <div class="ua-spinner" aria-hidden="true"></div>
+    <p>Loading…</p>
+  </main>
+
+  <main class="ua-state" id="ua-denied" hidden>
+    <span class="ua-state-icon ua-state-icon--muted" aria-hidden="true"><i class="bi bi-lock"></i></span>
+    <h1 id="ua-denied-title">You don't have access</h1>
+    <p id="ua-denied-text">Ask an administrator for permission.</p>
+    <a class="ua-btn ua-btn--ghost" href="/api/sales/index/">Back to chat</a>
+  </main>
+
+  <main class="ua-state" id="ua-error" hidden>
+    <span class="ua-state-icon ua-state-icon--danger" aria-hidden="true"><i class="bi bi-exclamation-triangle"></i></span>
+    <h1 id="ua-error-title">Couldn't load this page</h1>
+    <p id="ua-error-text">Check your connection and try again.</p>
+    <button class="ua-btn ua-btn--ghost" type="button" onclick="window.location.reload()">Try again</button>
+  </main>
+
+  {% block content %}{% endblock %}
+
+  <div class="ua-toast" id="ua-toast" role="status" aria-live="polite" hidden></div>
+
+  <script>const apiBase = `${window.location.origin}/api`;</script>
+  <script src="{% static 'custom_admin/manage_common.js' %}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
