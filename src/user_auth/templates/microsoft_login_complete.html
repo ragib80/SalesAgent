@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signing in</title>
+    <style>
+        body {
+            align-items: center;
+            background: #f5f7fb;
+            color: #1f2937;
+            display: flex;
+            font-family: Segoe UI, Arial, sans-serif;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .status {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+            padding: 24px;
+            text-align: center;
+            width: min(90vw, 360px);
+        }
+    </style>
+</head>
+<body>
+    <div class="status">
+        <strong>Signing you in...</strong>
+    </div>
+
+    {{ payload|json_script:"auth-payload" }}
+    {{ next_url|json_script:"auth-next" }}
+    <script>
+        (function () {
+            var payload = JSON.parse(document.getElementById('auth-payload').textContent);
+            var nextUrl = JSON.parse(document.getElementById('auth-next').textContent) || '/api/sales/index/';
+
+            localStorage.setItem('auth_token', payload.access || '');
+            localStorage.setItem('refresh_token', payload.refresh || '');
+            localStorage.setItem('full_name', payload.full_name || '');
+            localStorage.setItem('designation', payload.designation || '');
+            localStorage.setItem('username', payload.username || '');
+            localStorage.setItem('user_uuid', payload.user_uuid || '');
+
+            window.location.replace(nextUrl);
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+<div class="sidebar-header">
+  <div class="sidebar-brand">
+    <div class="sidebar-brand-icon" aria-hidden="true">
+      <i class="bi bi-bar-chart-line-fill"></i>
+    </div>
+    <strong>Voice of Sales</strong>
+  </div>
+</div>
+
+<div class="sidebar-menu">
+  <div class="menu-item new-chat-btn" role="button" aria-label="New chat" tabindex="0">
+    <i class="bi bi-plus-lg menu-icon" style="fill:none;"></i>
+    New chat
+  </div>
+
+  <div class="menu-item" id="search-chats-btn" role="button" aria-label="Search chats" tabindex="0">
+    <i class="bi bi-search menu-icon" style="fill:none;"></i>
+    Search chats
+  </div>
+
+  <a class="menu-item" id="users-link" href="/api/manage/users/" aria-label="Users" style="display:none;">
+    <i class="bi bi-people menu-icon" style="fill:none;"></i>
+    Users
+  </a>
+
+  <a class="menu-item" id="add-user-link" href="/api/manage/users/add/" aria-label="Add user" style="display:none;">
+    <i class="bi bi-person-plus menu-icon" style="fill:none;"></i>
+    Add user
+  </a>
+
+  <div id="chat-search-wrap" style="display:none;">
+    <input id="chat-search-input" type="search"
+           placeholder="Search chats…"
+           aria-label="Search chats" />
+  </div>
+</div>
+
+<div class="chats-section" aria-label="Chat history">
+  <div class="chats-header">Recent</div>
+</div>
+
+<div class="user-section">
+  <div class="user-dropdown" id="user-dropdown" role="menu">
+    <button class="dropdown-item" onclick="logOut()" role="menuitem">
+      <i class="bi bi-box-arrow-right dropdown-icon" style="fill:none;"></i>
+      Sign out
+    </button>
+  </div>
+  <div class="user-info" onclick="toggleUserDropdown()"
+       role="button" aria-haspopup="true" aria-expanded="false"
+       aria-controls="user-dropdown" tabindex="0">
+    <div class="user-avatar" aria-hidden="true">RS</div>
+    <div>
+      <div class="user-name">Ragib Shahriar</div>
+      <div class="user-plan">Free plan</div>
+    </div>
+  </div>
+</div>

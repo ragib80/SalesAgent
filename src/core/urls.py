@@ -15,10 +15,25 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path,include
+from django.urls import path, include
+from django.views.generic import TemplateView
+from user_auth.views import MicrosoftAuthorizeRepairView, login_template_view
+from agent.dashboard import dashboard_stats_view
 
 urlpatterns = [
+    path('admin/dashboard/stats/', dashboard_stats_view, name='admin-dashboard-stats'),
     path('admin/', admin.site.urls),
     path("agent/", include("agent.urls")),
     path('api/sales/', include('sales_analyzer.urls')),
+    path('api/manage/', include('custom_admin.urls')),
+    path('api/', include('conversation.urls')),
+    path('api/user/', include('user_auth.urls')),
+    path('welcome/', login_template_view, name='login-template'),
+    path(
+        '<str:tenant_id>/oauth2/v2.0/authorize',
+        MicrosoftAuthorizeRepairView.as_view(),
+        name='microsoft-authorize-repair',
+    ),
+    path('', TemplateView.as_view(template_name="home.html"), name='home'),
+
 ]

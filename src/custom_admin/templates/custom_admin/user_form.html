@@ -1,0 +1,208 @@
+{% extends "custom_admin/manage_base.html" %}
+{% load static %}
+{% block title %}{% if form_mode == "add" %}Add user{% else %}User details{% endif %}{% endblock %}
+{% block page_id %}{{ form_mode }}{% endblock %}
+
+{% block content %}
+{% if form_mode == "add" %}
+<!-- Success (add) -->
+<main class="ua-state" id="ua-success" hidden>
+  <span class="ua-state-icon ua-state-icon--ok" aria-hidden="true"><i class="bi bi-check-lg"></i></span>
+  <h1 id="ua-success-title">User added</h1>
+  <p id="ua-success-text"></p>
+  <div class="ua-state-actions">
+    <button class="ua-btn ua-btn--primary" type="button" id="ua-add-another">
+      <i class="bi bi-person-plus" aria-hidden="true"></i> Add another user
+    </button>
+    <a class="ua-btn ua-btn--ghost" id="ua-success-open" href="#" hidden>Open user</a>
+    <a class="ua-btn ua-btn--ghost" id="ua-success-list" href="/api/manage/users/" hidden>Back to users</a>
+  </div>
+</main>
+{% endif %}
+
+<main class="ua-page" id="ua-content" data-mode="{{ form_mode }}" data-user-uuid="{{ user_uuid|default:'' }}" hidden>
+  <div class="ua-heading">
+    {% if form_mode == "add" %}
+      <h1>Add a user</h1>
+      <p>Find a colleague in Microsoft Entra ID, then choose which sales data they can see.</p>
+    {% else %}
+      <a class="ua-crumb" id="ua-crumb" href="/api/manage/users/" hidden><i class="bi bi-chevron-left" aria-hidden="true"></i> All users</a>
+      <h1 id="ua-edit-title">User details</h1>
+      <p id="ua-edit-sub">Update this person's name, status and sales data access.</p>
+    {% endif %}
+  </div>
+
+  {% if form_mode == "edit" %}
+  <div class="ua-banner" id="ua-readonly-banner" role="note" hidden>
+    <i class="bi bi-eye" aria-hidden="true"></i>
+    <span id="ua-readonly-text"></span>
+  </div>
+  {% endif %}
+
+  <form class="ua-layout" id="ua-form" novalidate>
+    <div class="ua-main">
+
+      {% if form_mode == "add" %}
+      <!-- Step 1: identity -->
+      <section class="ua-section" aria-labelledby="ua-step1-title">
+        <div class="ua-section-head">
+          <span class="ua-step" aria-hidden="true">1</span>
+          <div>
+            <h2 id="ua-step1-title">Find the person</h2>
+            <p>Enter their work email or Microsoft username.</p>
+          </div>
+        </div>
+
+        <div class="ua-lookup">
+          <div class="ua-input-wrap">
+            <i class="bi bi-envelope" aria-hidden="true"></i>
+            <input type="text" id="ua-identifier" class="ua-input" autocomplete="off" spellcheck="false"
+                   placeholder="name@bergerbd.com" aria-label="Work email or Microsoft username"
+                   aria-describedby="ua-lookup-msg">
+          </div>
+          <button type="button" class="ua-btn ua-btn--primary" id="ua-lookup-btn">
+            <span class="ua-btn-label">Find user</span>
+          </button>
+        </div>
+        <p class="ua-field-msg" id="ua-lookup-msg" role="status" aria-live="polite"></p>
+
+        <div class="ua-identity" id="ua-identity" hidden>
+          <div class="ua-avatar" id="ua-identity-avatar" aria-hidden="true"></div>
+          <div class="ua-identity-text">
+            <div class="ua-identity-name" id="ua-identity-name"></div>
+            <div class="ua-identity-meta" id="ua-identity-meta"></div>
+          </div>
+          <span class="ua-pill ua-pill--ok"><i class="bi bi-patch-check-fill" aria-hidden="true"></i> Found in directory</span>
+        </div>
+      </section>
+      {% else %}
+      <!-- Profile (edit) -->
+      <section class="ua-section" aria-labelledby="ua-profile-title">
+        <div class="ua-section-head ua-section-head--split">
+          <div>
+            <h2 id="ua-profile-title">Profile</h2>
+            <p>Username and email come from Microsoft and can't be edited here.</p>
+          </div>
+          <button type="button" class="ua-btn ua-btn--ghost ua-btn--md" id="ua-sync-btn" data-editable>
+            <span class="ua-btn-label"><i class="bi bi-arrow-repeat" aria-hidden="true"></i> Refresh from Microsoft</span>
+          </button>
+        </div>
+
+        <dl class="ua-facts">
+          <div><dt>Username</dt><dd class="ua-mono" id="ua-f-username"></dd></div>
+          <div><dt>Email</dt><dd id="ua-f-email"></dd></div>
+          <div><dt>Sign-in method</dt><dd id="ua-f-provider"></dd></div>
+          <div><dt>Added</dt><dd id="ua-f-joined"></dd></div>
+          <div><dt>Last sign-in</dt><dd id="ua-f-last-login"></dd></div>
+          <div><dt>Role</dt><dd id="ua-f-role"></dd></div>
+        </dl>
+
+        <div class="ua-fields">
+          <label class="ua-field">
+            <span>First name</span>
+            <input type="text" id="ua-first-name" class="ua-input ua-input--plain" maxlength="150" autocomplete="off" data-editable>
+          </label>
+          <label class="ua-field">
+            <span>Last name</span>
+            <input type="text" id="ua-last-name" class="ua-input ua-input--plain" maxlength="150" autocomplete="off" data-editable>
+          </label>
+        </div>
+
+        <label class="ua-switch-row">
+          <span class="ua-switch">
+            <input type="checkbox" id="ua-active" role="switch" data-editable>
+            <span class="ua-switch-track" aria-hidden="true"></span>
+          </span>
+          <span>
+            <span class="ua-switch-label">Active</span>
+            <span class="ua-switch-help">Inactive users can't sign in or use Voice of Sales.</span>
+          </span>
+        </label>
+      </section>
+      {% endif %}
+
+      <!-- Coverage -->
+      <section class="ua-section" aria-labelledby="ua-cov-title">
+        <div class="ua-section-head">
+          {% if form_mode == "add" %}<span class="ua-step" aria-hidden="true">2</span>{% endif %}
+          <div>
+            <h2 id="ua-cov-title">{% if form_mode == "add" %}Choose coverage access{% else %}Coverage access{% endif %}</h2>
+            <p id="ua-cov-help">A depo is required. Leave territory, zone or division empty to allow all of them.</p>
+          </div>
+        </div>
+
+        <div id="ua-picker-wrap">
+          <div class="ua-tabs" role="tablist" aria-label="Coverage level" id="ua-tabs"></div>
+
+          <div class="ua-picker" role="tabpanel" id="ua-panel">
+            <div class="ua-picker-tools">
+              <div class="ua-input-wrap ua-input-wrap--sm">
+                <i class="bi bi-search" aria-hidden="true"></i>
+                <input type="search" id="ua-search" class="ua-input" autocomplete="off"
+                       placeholder="Search by code or name" aria-label="Search">
+              </div>
+              <div class="ua-seg" role="group" aria-label="Show">
+                <button type="button" class="ua-seg-btn is-active" data-view="all" aria-pressed="true">All</button>
+                <button type="button" class="ua-seg-btn" data-view="selected" aria-pressed="false">Selected</button>
+              </div>
+            </div>
+            <div class="ua-picker-bar">
+              <span id="ua-shown-count"></span>
+              <span class="ua-picker-actions">
+                <button type="button" class="ua-link" id="ua-select-shown">Select shown</button>
+                <button type="button" class="ua-link" id="ua-clear">Clear</button>
+              </span>
+            </div>
+            <div class="ua-options" id="ua-options"></div>
+          </div>
+        </div>
+
+        <dl class="ua-cov-readonly" id="ua-cov-readonly" hidden></dl>
+      </section>
+    </div>
+
+    <!-- Live summary -->
+    <aside class="ua-aside" aria-label="Summary">
+      <div class="ua-pass">
+        <div class="ua-pass-person">
+          <div class="ua-avatar ua-avatar--empty" id="ua-pass-avatar" aria-hidden="true"><i class="bi bi-person"></i></div>
+          <div class="ua-pass-person-text">
+            <div class="ua-pass-name" id="ua-pass-name">No one selected yet</div>
+            <div class="ua-pass-sub" id="ua-pass-sub">Find a person in step 1</div>
+          </div>
+        </div>
+
+        <dl class="ua-pass-levels" id="ua-pass-levels"></dl>
+
+        <div class="ua-pass-note" id="ua-pass-note" hidden>
+          <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
+          <span>Without a depo, this user won't be able to run any sales query.</span>
+        </div>
+
+        <button type="submit" class="ua-btn ua-btn--primary ua-btn--block" id="ua-submit" disabled>
+          <span class="ua-btn-label">{% if form_mode == "add" %}Add user{% else %}Save changes{% endif %}</span>
+        </button>
+        {% if form_mode == "edit" %}
+        <button type="button" class="ua-link ua-pass-discard" id="ua-discard" hidden>Discard changes</button>
+        {% endif %}
+        <p class="ua-pass-hint" id="ua-submit-hint"></p>
+        <p class="ua-field-msg ua-field-msg--error" id="ua-submit-msg" role="alert"></p>
+      </div>
+    </aside>
+  </form>
+</main>
+
+<!-- Confirm: no depo -->
+<dialog class="ua-dialog" id="ua-nodepo-dialog" aria-labelledby="ua-nodepo-title">
+  <h2 id="ua-nodepo-title">{% if form_mode == "add" %}Add without a depo?{% else %}Save without a depo?{% endif %}</h2>
+  <p>This user won't be able to run sales queries until a depo is assigned.</p>
+  <div class="ua-dialog-actions">
+    <button type="button" class="ua-btn ua-btn--ghost" data-close="pick">Choose a depo</button>
+    <button type="button" class="ua-btn ua-btn--primary" data-close="confirm">{% if form_mode == "add" %}Add anyway{% else %}Save anyway{% endif %}</button>
+  </div>
+</dialog>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'custom_admin/user_form.js' %}"></script>
+{% endblock %}

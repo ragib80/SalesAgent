@@ -1,0 +1,115 @@
+.coverage-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.coverage-card {
+    background: #f8fafc;
+    border: 1px solid #d9e2ec;
+    border-radius: 10px;
+    padding: 12px;
+}
+
+.coverage-card-title {
+    color: #1f2937;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.coverage-card-count {
+    color: #64748b;
+    font-weight: 600;
+}
+
+.coverage-badge-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.coverage-badge {
+    background: #e8f1ff;
+    border: 1px solid #bcd2f7;
+    border-radius: 999px;
+    color: #1d4ed8;
+    display: inline-flex;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.3;
+    max-width: 100%;
+    padding: 4px 10px;
+}
+
+.coverage-empty {
+    color: #64748b;
+    font-style: italic;
+}
+
+.form-row.field-depos .selector,
+.form-row.field-zones .selector,
+.form-row.field-territories .selector {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: minmax(240px, 1fr) 44px minmax(240px, 1fr);
+    max-width: 980px;
+    width: 100%;
+}
+
+.form-row.field-depos .selector select,
+.form-row.field-zones .selector select,
+.form-row.field-territories .selector select {
+    min-height: 280px;
+}
+
+.form-row.field-depos .selector-filter,
+.form-row.field-zones .selector-filter,
+.form-row.field-territories .selector-filter {
+    margin-bottom: 8px;
+}
+
+.form-row.field-depos .selector-available,
+.form-row.field-depos .selector-chosen,
+.form-row.field-zones .selector-available,
+.form-row.field-zones .selector-chosen,
+.form-row.field-territories .selector-available,
+.form-row.field-territories .selector-chosen {
+    width: 100%;
+}
+
+.form-row.field-depos .selector-chooser,
+.form-row.field-zones .selector-chooser,
+.form-row.field-territories .selector-chooser {
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    justify-content: center;
+    padding-top: 52px;
+}
+
+.form-row.field-depos .help,
+.form-row.field-zones .help,
+.form-row.field-territories .help {
+    color: #64748b;
+    font-size: 12px;
+    margin-top: 6px;
+}
+
+@media (max-width: 960px) {
+    .form-row.field-depos .selector,
+    .form-row.field-zones .selector,
+    .form-row.field-territories .selector {
+        grid-template-columns: 1fr;
+    }
+
+    .form-row.field-depos .selector-chooser,
+    .form-row.field-zones .selector-chooser,
+    .form-row.field-territories .selector-chooser {
+        flex-direction: row;
+        justify-content: flex-start;
+        padding-top: 0;
+    }
+}

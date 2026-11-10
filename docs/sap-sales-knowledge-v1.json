@@ -1,0 +1,297 @@
+{
+  "name": "sap-sales-knowledge-v1",
+  "description": "Business/context knowledge index for SAP sales analysis RAG. Stores schema, mappings, KPI rules, date rules, and approved KQL patterns. Does not store raw sales facts or dealer aliases.",
+  "fields": [
+    {
+      "name": "id",
+      "type": "Edm.String",
+      "key": true,
+      "retrievable": true,
+      "searchable": false,
+      "filterable": true,
+      "sortable": false,
+      "facetable": false
+    },
+    {
+      "name": "parent_id",
+      "type": "Edm.String",
+      "retrievable": true,
+      "searchable": false,
+      "filterable": true,
+      "sortable": false,
+      "facetable": false
+    },
+    {
+      "name": "chunk_id",
+      "type": "Edm.String",
+      "retrievable": true,
+      "searchable": false,
+      "filterable": true,
+      "sortable": true,
+      "facetable": false
+    },
+    {
+      "name": "chunk_ordinal",
+      "type": "Edm.Int32",
+      "retrievable": true,
+      "searchable": false,
+      "filterable": true,
+      "sortable": true,
+      "facetable": false
+    },
+    {
+      "name": "doc_type",
+      "type": "Edm.String",
+      "retrievable": true,
+      "searchable": false,
+      "filterable": true,
+      "sortable": true,
+      "facetable": true
+    },
+    {
+      "name": "category",
+      "type": "Edm.String",
+      "retrievable": true,
+      "searchable": true,
+      "filterable": true,
+      "sortable": true,
+      "facetable": true
+    },
+    {
+      "name": "title",
+      "type": "Edm.String",
+      "retrievable": true,
+      "searchable": true,
+      "filterable": true,
+      "sortable": true,
+      "facetable": false,
+      "analyzer": "en.microsoft"
+    },
+    {
+      "name": "summary",
+      "type": "Edm.String",
+      "retrievable": true,
+      "searchable": true,
+      "filterable": false,
+      "sortable": false,
+      "facetable": false,
+      "analyzer": "en.microsoft"
+    },
+    {
+      "name": "content",
+      "type": "Edm.String",
+      "retrievable": true,
+      "searchable": true,
+      "filterable": false,
+      "sortable": false,
+      "facetable": false,
+      "analyzer": "en.microsoft"
+    },
+    {
+      "name": "aliases",
+      "type": "Collection(Edm.String)",
+      "retrievable": true,
+      "searchable": true,
+      "filterable": true,
+      "facetable": true
+    },
+    {
+      "name": "keywords",
+      "type": "Collection(Edm.String)",
+      "retrievable": true,
+      "searchable": true,
+      "filterable": true,
+      "facetable": true
+    },
+    {
+      "name": "sap_table",
+      "type": "Edm.String",
+      "retrievable": true,
+      "searchable": false,
+      "filterable": true,
+      "sortable": true,
+      "facetable": true
+    },
+    {
+      "name": "sap_columns",
+      "type": "Collection(Edm.String)",
+      "retrievable": true,
+      "searchable": true,
+      "filterable": true,
+      "facetable": true
+    },
+    {
+      "name": "column_types",
+      "type": "Collection(Edm.String)",
+      "retrievable": true,
+      "searchable": true,
+      "filterable": true,
+      "facetable": true
+    },
+    {
+      "name": "kpi_names",
+      "type": "Collection(Edm.String)",
+      "retrievable": true,
+      "searchable": true,
+      "filterable": true,
+      "facetable": true
+    },
+    {
+      "name": "intent_tags",
+      "type": "Collection(Edm.String)",
+      "retrievable": true,
+      "searchable": true,
+      "filterable": true,
+      "facetable": true
+    },
+    {
+      "name": "gsber_codes",
+      "type": "Collection(Edm.String)",
+      "retrievable": true,
+      "searchable": false,
+      "filterable": true,
+      "facetable": true
+    },
+    {
+      "name": "vtweg_codes",
+      "type": "Collection(Edm.String)",
+      "retrievable": true,
+      "searchable": false,
+      "filterable": true,
+      "facetable": true
+    },
+    {
+      "name": "kql_pattern",
+      "type": "Edm.String",
+      "retrievable": true,
+      "searchable": true,
+      "filterable": false,
+      "sortable": false,
+      "facetable": false
+    },
+    {
+      "name": "source_name",
+      "type": "Edm.String",
+      "retrievable": true,
+      "searchable": true,
+      "filterable": true,
+      "sortable": true,
+      "facetable": true
+    },
+    {
+      "name": "source_version",
+      "type": "Edm.String",
+      "retrievable": true,
+      "searchable": false,
+      "filterable": true,
+      "sortable": true,
+      "facetable": true
+    },
+    {
+      "name": "last_synced_at",
+      "type": "Edm.DateTimeOffset",
+      "retrievable": true,
+      "searchable": false,
+      "filterable": true,
+      "sortable": true,
+      "facetable": false
+    },
+    {
+      "name": "is_active",
+      "type": "Edm.Boolean",
+      "retrievable": true,
+      "searchable": false,
+      "filterable": true,
+      "sortable": true,
+      "facetable": true
+    },
+    {
+      "name": "contentVector",
+      "type": "Collection(Edm.Single)",
+      "searchable": true,
+      "retrievable": false,
+      "stored": false,
+      "dimensions": 1536,
+      "vectorSearchProfile": "sap-sales-vector-profile"
+    }
+  ],
+  "scoringProfiles": [
+    {
+      "name": "businessContextBoost",
+      "text": {
+        "weights": {
+          "title": 4,
+          "aliases": 3,
+          "kpi_names": 3,
+          "sap_columns": 2.5,
+          "keywords": 2,
+          "summary": 1.5,
+          "content": 1,
+          "kql_pattern": 1
+        }
+      }
+    }
+  ],
+  "defaultScoringProfile": "businessContextBoost",
+  "semantic": {
+    "defaultConfiguration": "sap-sales-semantic",
+    "configurations": [
+      {
+        "name": "sap-sales-semantic",
+        "prioritizedFields": {
+          "titleField": {
+            "fieldName": "title"
+          },
+          "prioritizedContentFields": [
+            {
+              "fieldName": "content"
+            },
+            {
+              "fieldName": "summary"
+            },
+            {
+              "fieldName": "kql_pattern"
+            }
+          ],
+          "prioritizedKeywordsFields": [
+            {
+              "fieldName": "aliases"
+            },
+            {
+              "fieldName": "keywords"
+            },
+            {
+              "fieldName": "sap_columns"
+            },
+            {
+              "fieldName": "kpi_names"
+            },
+            {
+              "fieldName": "intent_tags"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "vectorSearch": {
+    "algorithms": [
+      {
+        "name": "sap-sales-hnsw",
+        "kind": "hnsw",
+        "hnswParameters": {
+          "m": 4,
+          "efConstruction": 400,
+          "efSearch": 500,
+          "metric": "cosine"
+        }
+      }
+    ],
+    "profiles": [
+      {
+        "name": "sap-sales-vector-profile",
+        "algorithm": "sap-sales-hnsw"
+      }
+    ]
+  }
+}

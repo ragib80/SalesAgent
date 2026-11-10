@@ -9,15 +9,58 @@ https://docs.djangoproject.com/en/5.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.0/ref/settings/
 """
-
+from datetime import timedelta
 import os
+# import environ
 from pathlib import Path
+from urllib.parse import urlparse
 from dotenv import load_dotenv
+# add these two imports:
 
-load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / "core" / ".env")
 
+
+def env_bool(name, default=False):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def env_list(name, default=""):
+    value = os.getenv(name, default)
+    if not value:
+        return []
+    normalized = value.replace(",", " ")
+    return [item.strip() for item in normalized.split() if item.strip()]
+
+
+MICROSOFT_LOGIN_HOST = "login.microsoftonline.com"
+
+
+def normalize_microsoft_authority(authority, tenant_id):
+    raw_authority = (authority or "").strip().rstrip("/")
+    tenant = (tenant_id or "").strip().strip("/")
+
+    if raw_authority:
+        if "://" in raw_authority:
+            parsed = urlparse(raw_authority)
+            parts = [part for part in parsed.path.split("/") if part]
+            tenant = parts[0] if parts else tenant
+        else:
+            parts = [part for part in raw_authority.strip("/").split("/") if part]
+            if parts and parts[0].lower() == MICROSOFT_LOGIN_HOST:
+                tenant = parts[1] if len(parts) > 1 else tenant
+            elif parts:
+                tenant = parts[0]
+
+    return f"https://{MICROSOFT_LOGIN_HOST}/{tenant}" if tenant else f"https://{MICROSOFT_LOGIN_HOST}"
+# env = environ.Env(
+#     # set default values and casting
+#     DEBUG=(bool, False)
+# )
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
@@ -27,13 +70,26 @@ SECRET_KEY = 'django-insecure-z350z@5$p*7=3ll0iw8n!7et86d-mw1zga94*q45^_b(so_#j4
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
+# DEBUG = False
+# AUTH_DEV_BYPASS_AD = True
+AUTH_DEV_BYPASS_AD = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['172.16.0.5',
+                 '127.0.0.1',
+                 'voiceofsales.bergerbd.com',
+                 'https://voiceofsales.bergerbd.com',
+                 'financeexpiry.bergerbd.com',
+                 'https://financeexpiry.bergerbd.com',
+                 'localhost'
+                 ]
 
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Application definition
 
 INSTALLED_APPS = [
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -42,24 +98,110 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'agent',
     'sales_analyzer',
+    'conversation',
+    'custom_admin',
+    'corsheaders',
+    'rest_framework',
+    'rest_framework.authtoken',  # For token-based authentication
+    'user_auth',
+    'rest_framework_simplejwt.token_blacklist',
+    'django_python3_ldap',
+    'django_extensions',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    "core.middleware.current_user.AttachCurrentAdminUserMiddleware",  # session/admin users
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+     
+
 ]
+
+AUTHENTICATION_BACKENDS = [
+    "core.auth_backends.ad_db_backend.ADDBBackend",   # AD check for existing users
+    "django.contrib.auth.backends.ModelBackend",      # keep for local superuser fallback
+]
+
+
+
+# Microsoft Entra ID login and legacy auth controls
+MICROSOFT_AUTH_CLIENT_ID = os.getenv("MICROSOFT_AUTH_CLIENT_ID", "").strip()
+MICROSOFT_AUTH_TENANT_ID = os.getenv("MICROSOFT_AUTH_TENANT_ID", "").strip().strip("/")
+MICROSOFT_AUTH_AUTHORITY = normalize_microsoft_authority(
+    os.getenv("MICROSOFT_AUTH_AUTHORITY", ""),
+    MICROSOFT_AUTH_TENANT_ID,
+)
+MICROSOFT_AUTH_CLIENT_SECRET = os.getenv("MICROSOFT_AUTH_CLIENT_SECRET", "")
+MICROSOFT_AUTH_REDIRECT_URI = os.getenv("MICROSOFT_AUTH_REDIRECT_URI", "").strip()
+MICROSOFT_AUTH_SCOPES = env_list("MICROSOFT_AUTH_SCOPES")
+MICROSOFT_AUTH_AUTO_CREATE_USERS = env_bool("MICROSOFT_AUTH_AUTO_CREATE_USERS", False)
+MICROSOFT_AUTH_PROMPT = os.getenv("MICROSOFT_AUTH_PROMPT", "").strip()
+MICROSOFT_GRAPH_DEFAULT_UPN_SUFFIX = os.getenv(
+    "MICROSOFT_GRAPH_DEFAULT_UPN_SUFFIX",
+    os.getenv("AUTH_LDAP_UPN_SUFFIX", ""),
+).strip()
+
+AUTH_ENABLE_LEGACY_AD_PASSWORD_LOGIN = env_bool("AUTH_ENABLE_LEGACY_AD_PASSWORD_LOGIN", False)
+AUTH_ENABLE_PASSWORD_TOKEN_ENDPOINT = env_bool("AUTH_ENABLE_PASSWORD_TOKEN_ENDPOINT", False)
+AUTH_ENABLE_ADMIN_AD_LOGIN = env_bool("AUTH_ENABLE_ADMIN_AD_LOGIN", False)
+
+# Prod behavior: if you want to allow local-password fallback for some users
+AUTH_ALLOW_LOCAL_PASSWORD_FALLBACK = env_bool("AUTH_ALLOW_LOCAL_PASSWORD_FALLBACK", True)
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:8000",
+    "http://172.16.0.196:8000",
+    "https://voiceofsales.bergerbd.com",
+    "https://financeexpiry.bergerbd.com",
+    "http://127.0.0.1:8000" # Frontend URL
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://voiceofsales.bergerbd.com",
+    "http://voiceofsales.bergerbd.com",
+    "https://financeexpiry.bergerbd.com",
+    "http://financeexpiry.bergerbd.com",
+    "http://127.0.0.1:8004"  # include if HTTP is also used
+]
+
+
+
+REST_FRAMEWORK = {
+     'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',  # for JWT tokens
+        # 'rest_framework.authentication.SessionAuthentication',  # for Session-based authentication (optional)
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
+
+SIMPLE_JWT = {
+    # Example: Access token expiration time
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=6),
+    # Example: Refresh token expiration time
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+   # Set to True if you want to rotate refresh tokens
+    # If True, refresh tokens will be blacklisted after rotation
+     'BLACKLIST_AFTER_ROTATION': True,  # Ensure tokens are blacklisted after rotation
+     # Set to True if you want to rotate refresh tokens
+    # If True, refresh tokens will be blacklisted after rotation
+    'ROTATE_REFRESH_TOKENS': True,  # Refresh tokens should be rotated
+}
 
 ROOT_URLCONF = 'core.urls'
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / "templates"],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -79,9 +221,33 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
 DATABASES = {
+    # 'default': {
+    #     'ENGINE': 'django.db.backends.sqlite3',
+    #     'NAME': BASE_DIR / 'db.sqlite3',
+    # },
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'mssql',
+        'NAME': os.getenv('DB_NAME', 'default_db_name'),  # default fallback value
+        'HOST': os.getenv('DB_HOST', 'localhost'),  # default fallback value
+        'PORT': os.getenv('DB_PORT', ''),  # Use default port if not specified
+        'USER': os.getenv('DB_USER', ''),  # Optional, if your SQL Server uses authentication
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),  # Optional, if your SQL Server uses authentication
+        'OPTIONS': {
+            'driver': os.getenv('DB_DRIVER', 'ODBC Driver 17 for SQL Server'),  # Default driver if not specified
+            'extra_params': os.getenv('DB_EXTRA_PARAMS', 'Trusted_Connection=yes;TrustServerCertificate=yes'),
+        },
+    },
+    'data_import': {
+        'ENGINE': 'mssql',
+        'NAME': os.getenv('DATA_IMPORT_DB_NAME', 'default_db_name'),  # default fallback value
+        'HOST': os.getenv('DB_HOST', 'localhost'),  # default fallback value
+        'PORT': os.getenv('DB_PORT', ''),  # Use default port if not specified
+        'USER': os.getenv('DB_USER', ''),  # Optional, if your SQL Server uses authentication
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),  # Optional, if your SQL Server uses authentication
+        'OPTIONS': {
+            'driver': os.getenv('DB_DRIVER', 'ODBC Driver 17 for SQL Server'),  # Default driver if not specified
+            'extra_params': os.getenv('DB_EXTRA_PARAMS', 'Trusted_Connection=yes;TrustServerCertificate=yes'),
+        },
     }
 }
 
@@ -104,7 +270,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
+AUTH_USER_MODEL = 'custom_admin.SalesAuthUser'
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
 
@@ -120,10 +286,14 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
+
+
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -132,9 +302,129 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AZURE_SEARCH_ENDPOINT = os.getenv('AZURE_SEARCH_ENDPOINT')
 AZURE_SEARCH_KEY = os.getenv('AZURE_SEARCH_KEY')
 AZURE_SEARCH_INDEX = os.getenv('AZURE_SEARCH_INDEX_NAME')
+AZURE_SEARCH_RAG_ENABLED = env_bool('AZURE_SEARCH_RAG_ENABLED', False)
 
 # Azure OpenAI settings
 AZURE_OPENAI_ENDPOINT = os.getenv('AZURE_OPENAI_ENDPOINT')
 AZURE_OPENAI_KEY = os.getenv('AZURE_OPENAI_KEY')
 AZURE_OPENAI_DEPLOYMENT = os.getenv('AZURE_OPENAI_DEPLOYMENT')
+AZURE_OPENAI_DEPLOYMENT_VERSION = os.getenv('AZURE_OPENAI_DEPLOYMENT_VERSION')
+AZURE_OPENAI_ANALYSIS = os.getenv('AZURE_OPENAI_ANALYSIS')
+AZURE_OPENAI_ANALYSIS_VERSION = os.getenv('AZURE_OPENAI_ANALYSIS_VERSION')
 AZURE_OPENAI_EMBED_DEPLOYMENT = os.getenv('AZURE_OPENAI_EMBED_DEPLOYMENT')
+AZURE_OPENAI_ANALYSIS_TEMPERATURE = os.getenv('AZURE_OPENAI_ANALYSIS_TEMPERATURE')
+ADX_CLUSTER = os.getenv('ADX_CLUSTER')
+ADX_DATABASE = os.getenv('ADX_DATABASE')
+
+ADX_CLUSTER_DEV = os.getenv('ADX_CLUSTER_DEV')
+ADX_DATABASE_DEV = os.getenv('ADX_DATABASE_DEV')
+
+AZURE_TENANT_ID     = os.getenv('AZURE_TENANT_ID')
+AZURE_CLIENT_ID     = os.getenv('AZURE_CLIENT_ID')
+AZURE_CLIENT_SECRET = os.getenv('AZURE_CLIENT_SECRET')
+
+#ms sql
+DB_ENGINE       = os.getenv('DB_ENGINE', 'mssql')
+DB_NAME         = os.getenv('DB_NAME')
+DB_HOST         = os.getenv('DB_HOST')
+DB_PORT         = os.getenv('DB_PORT', '')             # '' will let driver pick default
+DB_USER         = os.getenv('DB_USER', '')
+DB_PASSWORD     = os.getenv('DB_PASSWORD', '')
+DB_DRIVER       = os.getenv('DB_DRIVER', 'ODBC Driver 17 for SQL Server')
+DB_EXTRA_PARAMS = os.getenv('DB_EXTRA_PARAMS', 'Trusted_Connection=yes;TrustServerCertificate=yes')
+
+
+JAZZMIN_SETTINGS = {
+    "site_brand": "SAP Y-Sales Admin",
+    "site_header": "SAP Y-Sales Admin Dashboard",
+    "site_title": "SAP Y-Sales Admin",
+    # ...more config
+}
+
+# 3. LDAP / AD settings
+AUTH_LDAP_SERVER_URI      = os.getenv('AUTH_LDAP_SERVER_URI')
+AUTH_LDAP_SERVER_URI        = os.getenv("AUTH_LDAP_SERVER_URI")
+AUTH_LDAP_TLS_STRICT        = os.getenv("AUTH_LDAP_TLS_STRICT", default=True)
+AUTH_LDAP_CA_CERT_FILE      = os.getenv("AUTH_LDAP_CA_CERT_FILE")
+AUTH_LDAP_BIND_DN         = os.getenv('AUTH_LDAP_BIND_DN')
+AUTH_LDAP_BIND_PASSWORD   = os.getenv('AUTH_LDAP_BIND_PASSWORD')
+AUTH_LDAP_USER_SEARCH_BASE       = os.getenv('AUTH_LDAP_USER_SEARCH_BASE')
+LDAP_AUTH_SEARCH_FILTER      = os.getenv('LDAP_AUTH_SEARCH_FILTER ')
+
+AUTH_LDAP_UPN_SUFFIX       =        os.getenv('AUTH_LDAP_UPN_SUFFIX')
+
+AUTH_LDAP_DISABLE_NTLM     =        os.getenv('AUTH_LDAP_DISABLE_NTLM', default=True)
+
+# map LDAP attrs to Django User fields
+LDAP_AUTH_USER_FIELDS = {
+    "username": "sAMAccountName",
+    "first_name": "givenName",
+    "last_name": "sn",
+    "email": "mail",
+}
+# add this line:
+AUTH_LDAP_DOMAIN        =  os.getenv("AUTH_LDAP_DOMAIN")
+
+# format username for AD
+LDAP_AUTH_FORMAT_USERNAME = (
+    "django_python3_ldap.utils.format_username_active_directory"
+)
+# 4. Group-based flags
+
+# ── Email (used for OTP delivery) ────────────────────────────────────────────
+EMAIL_BACKEND      = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+EMAIL_HOST         = os.getenv("EMAIL_HOST", "smtp.office365.com")
+EMAIL_PORT         = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_USE_TLS      = os.getenv("EMAIL_USE_TLS", "True") == "True"
+EMAIL_HOST_USER    = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD= os.getenv("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)
+
+# ── MFA / OTP settings ───────────────────────────────────────────────────────
+OTP_LENGTH          = int(os.getenv("OTP_LENGTH", "6"))
+OTP_EXPIRY_MINUTES  = int(os.getenv("OTP_EXPIRY_MINUTES", "5"))
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "%(asctime)s %(levelname)s %(name)s %(process)d %(thread)d %(message)s",
+        },
+        "simple": {
+            "format": "%(asctime)s %(levelname)s %(name)s %(message)s",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "core": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+        # agent logger: INFO in production, DEBUG when AGENT_LOG_LEVEL=DEBUG
+        "agent": {
+            "handlers": ["console"],
+            "level": os.getenv("AGENT_LOG_LEVEL", "INFO"),
+            "propagate": False,
+        },
+        # audit sub-logger — always INFO so write failures are visible
+        "agent.observability": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        # silence noisy Azure SDK / urllib3 at WARNING
+        "azure": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+        "urllib3": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+    },
+}

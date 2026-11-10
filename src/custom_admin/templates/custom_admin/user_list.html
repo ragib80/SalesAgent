@@ -1,0 +1,104 @@
+{% extends "custom_admin/manage_base.html" %}
+{% load static %}
+{% block title %}Users{% endblock %}
+{% block page_id %}list{% endblock %}
+
+{% block content %}
+<main class="ua-page" id="ua-content" hidden>
+  <div class="ua-heading ua-heading--row">
+    <div>
+      <h1>Users</h1>
+      <p>Everyone who can sign in to Voice of Sales, and the sales data each person can see.</p>
+    </div>
+    <a class="ua-btn ua-btn--primary" id="ua-list-add" href="/api/manage/users/add/" hidden>
+      <i class="bi bi-person-plus" aria-hidden="true"></i> Add user
+    </a>
+  </div>
+
+  <section class="ua-section ua-section--flush" aria-label="User list">
+    <div class="ua-toolbar">
+      <div class="ua-input-wrap ua-toolbar-search">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="search" id="ua-q" class="ua-input ua-input--md" autocomplete="off"
+               placeholder="Search name, email or username" aria-label="Search users">
+      </div>
+      <select id="ua-f-status" class="ua-select" aria-label="Status">
+        <option value="">All statuses</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+      </select>
+      <select id="ua-f-provider" class="ua-select" aria-label="Sign-in method">
+        <option value="">All sign-in methods</option>
+        <option value="microsoft">Microsoft Entra ID</option>
+        <option value="legacy_ad">Legacy Active Directory</option>
+        <option value="local">Local</option>
+      </select>
+      <button type="button" class="ua-btn ua-btn--ghost ua-btn--md" id="ua-filters-toggle"
+              aria-expanded="false" aria-controls="ua-filters">
+        <i class="bi bi-funnel" aria-hidden="true"></i> Coverage
+        <span class="ua-tab-count" id="ua-filters-count" hidden></span>
+      </button>
+    </div>
+
+    <div class="ua-filters" id="ua-filters" hidden>
+      <label class="ua-filter">
+        <span>Depo</span>
+        <select id="ua-f-depo" class="ua-select" data-level="depo"><option value="">Any depo</option></select>
+      </label>
+      <label class="ua-filter">
+        <span>Territory</span>
+        <select id="ua-f-territory" class="ua-select" data-level="territory"><option value="">Any territory</option></select>
+      </label>
+      <label class="ua-filter">
+        <span>Zone</span>
+        <select id="ua-f-zone" class="ua-select" data-level="zone"><option value="">Any zone</option></select>
+      </label>
+      <label class="ua-filter">
+        <span>Division</span>
+        <select id="ua-f-division" class="ua-select" data-level="division"><option value="">Any division</option></select>
+      </label>
+      <label class="ua-check-row">
+        <input type="checkbox" id="ua-f-missing">
+        <span>Only users without a depo</span>
+      </label>
+      <button type="button" class="ua-link" id="ua-filters-clear">Clear all filters</button>
+    </div>
+
+    <div class="ua-table-wrap" id="ua-table-wrap" aria-busy="false">
+      <table class="ua-table">
+        <thead>
+          <tr>
+            <th scope="col"><button type="button" class="ua-sort" data-sort="name">Name</button></th>
+            <th scope="col" class="ua-col-md"><button type="button" class="ua-sort" data-sort="username">Username</button></th>
+            <th scope="col">Coverage</th>
+            <th scope="col" class="ua-col-lg">Sign-in</th>
+            <th scope="col">Status</th>
+            <th scope="col" class="ua-col-md"><button type="button" class="ua-sort" data-sort="last_login">Last sign-in</button></th>
+            <th scope="col" class="ua-col-lg"><button type="button" class="ua-sort" data-sort="joined">Added</button></th>
+            <th scope="col" class="ua-cell-action"><span class="ua-sr">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody id="ua-rows"></tbody>
+      </table>
+    </div>
+
+    <div class="ua-pager">
+      <span id="ua-range" aria-live="polite"></span>
+      <div class="ua-pager-controls">
+        <select id="ua-page-size" class="ua-select ua-select--sm" aria-label="Rows per page">
+          <option value="20">20 per page</option>
+          <option value="50">50 per page</option>
+          <option value="100">100 per page</option>
+        </select>
+        <button type="button" class="ua-icon-btn" id="ua-prev" aria-label="Previous page"><i class="bi bi-chevron-left"></i></button>
+        <span id="ua-page-label"></span>
+        <button type="button" class="ua-icon-btn" id="ua-next" aria-label="Next page"><i class="bi bi-chevron-right"></i></button>
+      </div>
+    </div>
+  </section>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'custom_admin/user_list.js' %}"></script>
+{% endblock %}

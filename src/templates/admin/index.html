@@ -1,0 +1,244 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block bodyclass %}{{ block.super }} dashboard{% endblock %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'agent/admin_dashboard.css' %}">
+{% endblock %}
+
+{% block content_title %} {% trans 'Dashboard' %} {% endblock %}
+
+{% block breadcrumbs %}
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin:index' %}">{% trans 'Home' %}</a></li>
+        <li class="breadcrumb-item">{% trans 'Usage insights' %}</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+<div class="col-12">
+<div class="vos-dash" id="vos-dash"
+     data-stats-url="{% url 'admin-dashboard-stats' %}"
+     data-audit-url="{% url 'admin:agent_agentqueryaudit_changelist' %}">
+
+    {% if not perms.agent.view_agentqueryaudit %}
+        <div class="vos-card vos-empty-state">
+            <i class="fas fa-lock" aria-hidden="true"></i>
+            <h2>Usage insights are restricted</h2>
+            <p>You need the <strong>view agent query audit</strong> permission to see query analytics.
+               Use the sidebar to manage the sections you have access to.</p>
+        </div>
+    {% else %}
+
+    <!-- ── Header + filters ─────────────────────────────────────────────── -->
+    <header class="vos-head">
+        <div class="vos-head-title">
+            <span class="vos-head-icon"><i class="fas fa-chart-line" aria-hidden="true"></i></span>
+            <div>
+                <h2>Voice of Sales usage</h2>
+                <p id="vos-period-label">Loading…</p>
+            </div>
+        </div>
+        <a class="vos-link" href="{% url 'admin:agent_agentqueryaudit_changelist' %}">
+            Open audit log <i class="fas fa-arrow-right" aria-hidden="true"></i>
+        </a>
+    </header>
+
+    <div class="vos-filters" role="toolbar" aria-label="Dashboard filters">
+        <div class="vos-seg" role="group" aria-label="Period" id="vos-range">
+            <button type="button" data-range="today">Today</button>
+            <button type="button" data-range="7d">7 days</button>
+            <button type="button" data-range="30d">30 days</button>
+            <button type="button" data-range="90d">90 days</button>
+            <button type="button" data-range="fytd" title="Fiscal year to date (from 1 April)">FY to date</button>
+            <button type="button" data-range="custom">Custom</button>
+        </div>
+        <div class="vos-custom" id="vos-custom" hidden>
+            <label>From <input type="date" id="vos-start"></label>
+            <label>To <input type="date" id="vos-end"></label>
+            <button type="button" class="vos-btn" id="vos-apply">Apply</button>
+        </div>
+        <label class="vos-select">
+            <i class="fas fa-user" aria-hidden="true"></i>
+            <select id="vos-user" aria-label="Filter by user">
+                <option value="">All users</option>
+            </select>
+        </label>
+        <button type="button" class="vos-btn vos-btn-ghost" id="vos-refresh" title="Refresh">
+            <i class="fas fa-sync-alt" aria-hidden="true"></i><span>Refresh</span>
+        </button>
+        <span class="vos-updated" id="vos-updated" aria-live="polite"></span>
+    </div>
+
+    <div class="vos-alert" id="vos-error" role="alert" hidden></div>
+
+    <!-- ── KPI tiles ────────────────────────────────────────────────────── -->
+    <section class="vos-kpis" aria-label="Key metrics">
+        <article class="vos-kpi" data-tone="blue">
+            <span class="vos-kpi-icon"><i class="fas fa-comments" aria-hidden="true"></i></span>
+            <div class="vos-kpi-body">
+                <h3>Total queries</h3>
+                <div class="vos-kpi-value" id="kpi-total">–</div>
+                <div class="vos-kpi-foot" id="kpi-total-foot"></div>
+            </div>
+        </article>
+        <article class="vos-kpi" data-tone="green">
+            <span class="vos-kpi-icon"><i class="fas fa-check-circle" aria-hidden="true"></i></span>
+            <div class="vos-kpi-body">
+                <h3>Successful</h3>
+                <div class="vos-kpi-value" id="kpi-success">–</div>
+                <div class="vos-kpi-foot" id="kpi-success-foot"></div>
+            </div>
+        </article>
+        <article class="vos-kpi" data-tone="red">
+            <span class="vos-kpi-icon"><i class="fas fa-times-circle" aria-hidden="true"></i></span>
+            <div class="vos-kpi-body">
+                <h3>Failed</h3>
+                <div class="vos-kpi-value" id="kpi-failed">–</div>
+                <div class="vos-kpi-foot" id="kpi-failed-foot"></div>
+            </div>
+        </article>
+        <article class="vos-kpi" data-tone="violet">
+            <span class="vos-kpi-icon"><i class="fas fa-users" aria-hidden="true"></i></span>
+            <div class="vos-kpi-body">
+                <h3>Active users</h3>
+                <div class="vos-kpi-value" id="kpi-users">–</div>
+                <div class="vos-kpi-foot" id="kpi-users-foot"></div>
+            </div>
+        </article>
+        <article class="vos-kpi" data-tone="amber">
+            <span class="vos-kpi-icon"><i class="fas fa-stopwatch" aria-hidden="true"></i></span>
+            <div class="vos-kpi-body">
+                <h3>Avg response time</h3>
+                <div class="vos-kpi-value" id="kpi-latency">–</div>
+                <div class="vos-kpi-foot" id="kpi-latency-foot"></div>
+            </div>
+        </article>
+        <article class="vos-kpi" data-tone="aqua">
+            <span class="vos-kpi-icon"><i class="fas fa-coins" aria-hidden="true"></i></span>
+            <div class="vos-kpi-body">
+                <h3>Est. LLM cost</h3>
+                <div class="vos-kpi-value" id="kpi-cost">–</div>
+                <div class="vos-kpi-foot" id="kpi-cost-foot"></div>
+            </div>
+        </article>
+    </section>
+
+    <!-- ── Charts grid ──────────────────────────────────────────────────── -->
+    <section class="vos-grid">
+
+        <article class="vos-card vos-span-8" data-card="activity">
+            <header class="vos-card-head">
+                <div>
+                    <h3>Query activity</h3>
+                    <p id="activity-sub">Total, successful and failed queries</p>
+                </div>
+                <button type="button" class="vos-toggle" data-toggle-table>Table</button>
+            </header>
+            <div class="vos-chart vos-chart-lg" id="chart-activity" role="img" aria-label="Line chart of queries over time"></div>
+            <div class="vos-table-wrap" hidden></div>
+        </article>
+
+        <article class="vos-card vos-span-4" data-card="outcomes">
+            <header class="vos-card-head">
+                <div>
+                    <h3>Outcome breakdown</h3>
+                    <p id="outcomes-sub">How queries ended</p>
+                </div>
+                <a class="vos-link" id="outcomes-link" href="{% url 'admin:agent_agentqueryaudit_changelist' %}?success__exact=0">Failures</a>
+            </header>
+            <ul class="vos-pipeline" id="list-outcomes"></ul>
+        </article>
+
+        <article class="vos-card vos-span-7" data-card="users">
+            <header class="vos-card-head">
+                <div>
+                    <h3>Queries by user</h3>
+                    <p>Top 10 users this period, successful vs failed</p>
+                </div>
+                <button type="button" class="vos-toggle" data-toggle-table>Table</button>
+            </header>
+            <div class="vos-chart vos-chart-lg" id="chart-users" role="img" aria-label="Bar chart of queries per user"></div>
+            <div class="vos-table-wrap" hidden></div>
+        </article>
+
+        <article class="vos-card vos-span-5" data-card="share">
+            <header class="vos-card-head">
+                <div>
+                    <h3>Share of queries</h3>
+                    <p>Who uses Voice of Sales the most</p>
+                </div>
+                <button type="button" class="vos-toggle" data-toggle-table>Table</button>
+            </header>
+            <div class="vos-chart vos-chart-lg" id="chart-share" role="img" aria-label="Donut chart of query share by user"></div>
+            <div class="vos-table-wrap" hidden></div>
+        </article>
+
+        <article class="vos-card vos-span-7" data-card="latency">
+            <header class="vos-card-head">
+                <div>
+                    <h3>Response time</h3>
+                    <p id="latency-sub">Average seconds per stage</p>
+                </div>
+                <button type="button" class="vos-toggle" data-toggle-table>Table</button>
+            </header>
+            <div class="vos-chart" id="chart-latency" role="img" aria-label="Stacked bar chart of average response time by stage"></div>
+            <div class="vos-table-wrap" hidden></div>
+        </article>
+
+        <article class="vos-card vos-span-5" data-card="heatmap">
+            <header class="vos-card-head">
+                <div>
+                    <h3>Peak usage</h3>
+                    <p>Queries by weekday and hour (Dhaka time)</p>
+                </div>
+                <button type="button" class="vos-toggle" data-toggle-table>Table</button>
+            </header>
+            <div class="vos-chart" id="chart-heatmap" role="img" aria-label="Heatmap of queries by weekday and hour"></div>
+            <div class="vos-table-wrap" hidden></div>
+        </article>
+
+        <article class="vos-card vos-span-7" data-card="latest">
+            <header class="vos-card-head">
+                <div>
+                    <h3>Latest queries</h3>
+                    <p>Most recent questions in this period</p>
+                </div>
+                <div class="vos-seg vos-seg-sm" role="tablist" id="vos-latest-tabs">
+                    <button type="button" role="tab" data-latest="latest" aria-selected="true" class="is-active">All</button>
+                    <button type="button" role="tab" data-latest="latest_failed" aria-selected="false">Failed</button>
+                </div>
+            </header>
+            <ul class="vos-feed" id="list-latest"></ul>
+        </article>
+
+        <article class="vos-card vos-span-5" data-card="quality">
+            <header class="vos-card-head">
+                <div>
+                    <h3>KQL quality</h3>
+                    <p>Validation result of generated queries</p>
+                </div>
+            </header>
+            <ul class="vos-pipeline" id="list-validation"></ul>
+            <div class="vos-divider"><span>Query mix</span></div>
+            <div class="vos-mini-stats">
+                <div><span id="mix-sales">–</span><small>Sales queries</small></div>
+                <div><span id="mix-general">–</span><small>General chat</small></div>
+                <div><span id="mix-conversations">–</span><small>Conversations started</small></div>
+            </div>
+        </article>
+    </section>
+    {% endif %}
+</div>
+</div>
+{% endblock %}
+
+{% block extrajs %}
+    {{ block.super }}
+    {% if perms.agent.view_agentqueryaudit %}
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+    <script src="{% static 'agent/admin_dashboard.js' %}"></script>
+    {% endif %}
+{% endblock %}
