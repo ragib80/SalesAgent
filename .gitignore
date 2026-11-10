@@ -3,3 +3,14 @@
 
 src/core/.env
 venv/
+
+src/**/__pycache__/
+src/logs/django.log
+src/staticfiles/
+**/__pycache__/
+src/logs/
+src/web.config
+
+docs/
+.claude/
+logs/
